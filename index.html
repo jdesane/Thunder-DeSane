@@ -2816,16 +2816,6 @@ Design requirements:
     if (banner) banner.style.display = _sessionApiKey ? 'none' : 'flex';
   }
 
-  // Patch all fetch calls to inject API key
-  const _origFetch = window.fetch;
-  window.fetch = function(url, opts) {
-    if (url === 'https://api.anthropic.com/v1/messages' && _sessionApiKey) {
-      opts = opts || {};
-      opts.headers = Object.assign({}, opts.headers, { 'x-api-key': _sessionApiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' });
-    }
-    return _origFetch(url, opts);
-  };
-
   function printPost() {
     const g = document.getElementById('social-graphic').innerHTML;
     const caption = document.getElementById('social-caption-text').textContent;
@@ -3010,45 +3000,7 @@ function setPrompt(text) {
 }
 
 // Practice plan generator
-async function generatePractice() {
-  const prompt = document.getElementById('practice-prompt').value.trim();
-  if (!prompt) { alert('Please enter some notes first!'); return; }
-
-  const outputDiv = document.getElementById('practice-output');
-  const contentDiv = document.getElementById('practice-plan-content');
-  outputDiv.style.display = 'block';
-  contentDiv.innerHTML = '<span style="color:var(--thunder-gold)">⚡ Generating practice plan...</span>';
-
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': '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', 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: `You are a youth baseball coaching expert. Create a detailed 90-minute practice plan for a 9U kid-pitch baseball team (Thunder Baseball) based on these coach notes: "${prompt}"
-
-The team has 11 players, 5 coaches. This is their first year of kid pitch (transitioning from coach pitch).
-
-Format the plan as HTML with this structure — use inline styles matching a dark theme (background #111827, gold #F5A623, white text):
-- Practice header with date placeholder and duration
-- 4-6 stations/segments with: time slot, drill name, description, coaching cues, players/coaches involved
-- Keep it practical for 9-year-olds
-- End with a team huddle segment
-
-Return ONLY the HTML content (no markdown, no explanation), starting with a <div>.`
-        }]
-      })
-    });
-    const data = await response.json();
-    const html = data.content?.[0]?.text || 'Error generating plan. Please try again.';
-    contentDiv.innerHTML = html;
-  } catch(e) {
-    contentDiv.innerHTML = '<span style="color:var(--thunder-red)">Error connecting to AI. Please try again.</span>';
-  }
-}
+async function generatePractice_removed_stub() {
 
 // Init
 renderMiniRoster();
