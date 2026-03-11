@@ -1050,17 +1050,8 @@
     <div class="ticker-item"><span>MANAGER</span> Joe DeSane</div>
   </div>
 
-  <!-- API KEY BANNER -->
-  <div id="api-key-banner" style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 24px;background:linear-gradient(90deg,rgba(240,160,0,0.08),rgba(240,160,0,0.04));border-bottom:1px solid rgba(240,160,0,0.2);">
-    <div style="display:flex;align-items:center;gap:10px">
-      <span style="font-size:18px">🔑</span>
-      <div>
-        <div style="font-family:'Black Han Sans',sans-serif;font-size:12px;color:#F0A000;letter-spacing:1px">AI FEATURES NEED AN API KEY</div>
-        <div style="font-size:12px;color:#888;margin-top:2px">Go to <strong style="color:#ccc">Settings</strong> to enter your Anthropic key — practice plans, player cards, and recaps all need it.</div>
-      </div>
-    </div>
-    <button onclick="navigate('settings');document.getElementById('api-key-banner').style.display='none';" style="padding:8px 18px;background:rgba(240,160,0,0.15);border:1px solid rgba(240,160,0,0.4);color:#F0A000;border-radius:6px;cursor:pointer;font-family:'Black Han Sans',sans-serif;font-size:11px;letter-spacing:1px;white-space:nowrap">ADD KEY →</button>
-  </div>
+  <!-- API KEY BANNER - disabled, key hardcoded -->
+  <div id="api-key-banner" style="display:none"></div>
   <script>if(localStorage.getItem('thunder_api_key')){document.getElementById('api-key-banner').style.display='none';}</script>
 
   <!-- ===== DASHBOARD ===== -->
@@ -2784,7 +2775,7 @@ Design requirements:
   }
 
   // ===== API KEY MANAGEMENT =====
-  let _sessionApiKey = '';
+  let _sessionApiKey = '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';
 
   function getApiKey() {
     return _sessionApiKey;
