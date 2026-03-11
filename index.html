@@ -1061,6 +1061,7 @@
     </div>
     <button onclick="navigate('settings');document.getElementById('api-key-banner').style.display='none';" style="padding:8px 18px;background:rgba(240,160,0,0.15);border:1px solid rgba(240,160,0,0.4);color:#F0A000;border-radius:6px;cursor:pointer;font-family:'Black Han Sans',sans-serif;font-size:11px;letter-spacing:1px;white-space:nowrap">ADD KEY →</button>
   </div>
+  <script>if(localStorage.getItem('thunder_api_key')){document.getElementById('api-key-banner').style.display='none';}</script>
 
   <!-- ===== DASHBOARD ===== -->
   <section class="content active" id="section-dashboard">
