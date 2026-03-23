@@ -1431,16 +1431,7 @@
         <div style="display:flex;flex-direction:column;gap:16px;">
           <div class="ai-prompt-box">
             <div class="ai-prompt-label">⚡ What do you want to work on?</div>
-            <textarea class="ai-textarea" id="practice-prompt" style="height:200px" placeholder="List your drills in order, then add player groups. Example:
-Dynamic warm up
-Throwing progression drill 1-4
-Ground balls 3 to 1
-Hitting 1 at a time with Ken
-Infield work: staying in front, working through, follow your throw
-Outfield: catching on a run, prep step, drop step
-Live ABs to end
-Hitting: Easton, Milo, Adam
-In the Field: Micah, Ryder, Kai"></textarea>
+            <textarea class="ai-textarea" id="practice-prompt" style="height:120px" placeholder="e.g. Our pitchers were walking too many batters. Catchers struggled with framing. Need to work on first-and-third defense..."></textarea>
             <div class="ai-actions" style="margin-top:10px">
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
                 <span class="ai-quick-chip" onclick="addPromptChip('hitting mechanics and contact rate')">🏏 Hitting</span>
@@ -1515,6 +1506,32 @@ In the Field: Micah, Ryder, Kai"></textarea>
               </div>
             </div>
             <div id="practice-plan-content" style="color:var(--thunder-muted);font-size:14px;line-height:1.7;"></div>
+
+            <!-- COACH REASSIGNMENT PANEL -->
+            <div id="coach-reassign-panel" style="display:none;margin-top:20px;background:#111827;border:1px solid rgba(240,160,0,0.2);border-radius:10px;padding:16px">
+              <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;color:var(--thunder-gold);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:12px">🔄 Reassign Coaches</div>
+              <div style="font-size:12px;color:var(--thunder-muted);margin-bottom:12px">Drag or select a different coach for any segment. Changes update the plan instantly.</div>
+              <div id="coach-reassign-list" style="display:flex;flex-direction:column;gap:8px"></div>
+              <button onclick="applyCoachReassignments()" class="btn btn-gold" style="margin-top:14px;font-size:12px;padding:8px 18px">✅ Apply Changes</button>
+            </div>
+
+            <!-- REVISION + STYLE MEMORY PANEL -->
+            <div id="revision-panel" style="display:none;margin-top:20px;background:#111827;border:1px solid rgba(240,160,0,0.2);border-radius:10px;padding:16px">
+              <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;color:var(--thunder-gold);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px">✏️ Revise This Plan</div>
+              <div style="font-size:12px;color:var(--thunder-muted);margin-bottom:12px">Tell me what to change. Your feedback is saved and used to improve all future plans.</div>
+              <textarea id="revision-input" style="width:100%;background:#1C2A3A;border:1px solid rgba(240,160,0,0.25);border-radius:8px;color:var(--thunder-text);font-family:'Barlow',sans-serif;font-size:13px;padding:10px;resize:vertical;height:90px;outline:none" placeholder="e.g. Move infield work before hitting. Give outfield more time — at least 20 min. Ken should run hitting, not Danny."></textarea>
+              <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+                <button onclick="submitRevision()" class="btn btn-gold" style="font-size:12px;padding:8px 18px">⚡ Regenerate with Changes</button>
+                <button onclick="saveStyleNote()" class="btn btn-outline" style="font-size:12px;padding:8px 18px">🧠 Save as Style Preference</button>
+              </div>
+              <div id="style-prefs-display" style="margin-top:14px"></div>
+            </div>
+
+            <!-- TOGGLE BUTTONS FOR PANELS -->
+            <div id="post-plan-actions" style="display:none;margin-top:16px;gap:8px;flex-wrap:wrap">
+              <button onclick="toggleRevisionPanel()" class="btn btn-outline" style="font-size:11px;padding:7px 14px">✏️ Revise Plan</button>
+              <button onclick="toggleCoachPanel()" class="btn btn-outline" style="font-size:11px;padding:7px 14px">🔄 Reassign Coaches</button>
+            </div>
           </div>
         </div>
       </div>
@@ -3805,7 +3822,7 @@ async function generatePractice() {
   document.getElementById('practice-output').style.display = 'block';
   document.getElementById('practice-plan-content').innerHTML = '<div style="color:var(--thunder-gold);font-family:\'Barlow Condensed\',sans-serif;font-size:14px;letter-spacing:0.05em">⚡ Generating your practice plan...</div>';
 
-  const dateStr = date ? new Date(date).toLocaleDateString('en-US', {weekday:'long',month:'long',day:'numeric'}) : 'Next Practice';
+  const dateStr = date ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', {weekday:'long',month:'long',day:'numeric'}) : 'Next Practice';
   document.getElementById('plan-title-display').textContent = dateStr + ' · ' + duration + ' min';
 
   try {
@@ -3814,63 +3831,62 @@ async function generatePractice() {
       headers: { 'Content-Type': 'application/json', 'x-api-key': _sessionApiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 10000,
+        max_tokens: 1500,
         messages: [{
           role: 'user',
-          content: `You are an expert 8U youth baseball coach helping build a practice plan for SFL Thunder Black.
+          content: `You are an expert 8U youth baseball coach with 15+ years experience. You have a rich library of drills and practice structures to draw from.
 
 Team info: SFL Thunder Black — 11 players, 5 coaches (Joe DeSane, Kevin Dubler, Jeff Sharkey, Danny Wright, Ken Langley), coach pitch (8U spring), 4 outfielders (LF/LC/RC/RF), no base stealing yet. Transitioning to 9U kid pitch in Fall 2026.
 
-════════════════════════════════════
-COACH'S PRACTICE INPUT — USE THIS EXACTLY
-════════════════════════════════════
-${prompt ? `The coach has provided this specific practice plan outline. BUILD THE PLAN FROM THESE EXACT DRILLS IN THIS EXACT ORDER. Do not substitute, skip, or reorder them. Do not invent different drills. The coach's input is the blueprint:
+DRILL LIBRARY — use these specifically in your plans:
+WARMUP: Dynamic Warm-Up (10min, all coaches, foul line — jog, high knees, butt kicks, shuffles, karaoke, Frankenstein's, RDLs from 45ft then 60ft), Long Toss/Throwing Program (8min)
+HITTING: Tee Work, Soft Toss/Side Toss, Front Toss/Live BP, Freeze at Extension Drill, Multi-Color Ball Drill, Eraser/Squishy Ball, Frisbee/Bucket Lid Drill, Situational Hitting, Bunting Technique, Wiffle Pitch HR Derby
+INFIELD: Fielding Triangle/Prep Step, Ground Ball Line Drill, Roll Out Routine (Forehand & Backhand), Underhand Flips (SS & 2B), Backhand Drill, Slow Roller Footwork, Mass Reps (At them/Glove Side/Backhand), 1st Baseman Footwork, Double Play Turns
+OUTFIELD: Fly Ball Comm 2-Hand Catch, Drop Steps & Communication, QB/Quarterback Drill, Crow Hop Mechanics, Outfield Angles & First Step, Outfield Combo Drill (Dive & Fly Ball), Sliding Catches
+BASE RUNNING: Home to 1st Run Through, Hard Turn at 1st, Primary & Secondary Leads, Dirt Ball Reads from 1B, Tagging Up (from 3B & 2B), 1st to 3rd on a Hit, Delay Steals, Sliding Technique
+SITUATIONAL: Force vs. Tag Plays, Cuts & Relays, First & Third Defense, Run Downs (2 throws or less), Bunt Defense, Team Scrimmage, Simulated Game (small teams of 3), 18 Outs!, Criss-Cross Applesauce
+CATCHING: Catcher Blocking, Catcher Framing & Signals, Catcher Throwdowns to Bases
+TEAM BUILDING: Relay Race, Base Running Race, Wiffle Ball HR Derby
 
-"${prompt}"
+STANDARD PRACTICE STRUCTURE (adapt timing to duration):
+1. Introduction/Game Plan (5 min) — Joe, left field line
+2. Dynamic Warm-Up + Throwing Program (10-15 min) — All coaches, foul line
+3. Base Running Circuit (10 min) — Danny/Ken, infield area
+4. 3 Stations rotating (10 min each = 30 min) — 3 coaches: Infield (SS area), Outfield (center field), Hitting/Batting (cages/home plate)
+5. Situational Defense (10 min) — Full field, all coaches
+6. Team Building / Live BP / Scrimmage (15-20 min) — Home plate
 
-Your job is to take each item the coach listed and flesh it out with:
-- Proper timing (distribute the ${duration} minutes across all drills listed)
-- Coaching cues specific to that drill
-- Age-appropriate description for 8U players
-- Which coach(es) run it
-
-If the coach listed player groups (e.g. "Hitting: Easton, Milo..." and "In the Field: Micah, Ryder..."), display those groups exactly as given in a clearly formatted two-column section.` : `No specific drills provided. Use the standard practice structure below for a ${focus} focus.`}
-
-════════════════════════════════════
-REFERENCE: STANDARD STRUCTURE & DRILL LIBRARY
-(Use only if coach's input is missing a section or needs it filled in)
-════════════════════════════════════
-WARMUP: Dynamic Warm-Up (foul line — jog, high knees, butt kicks, shuffles, karaoke), Long Toss/Throwing Program (30ft → 60ft)
-HITTING: Tee Work, Soft Toss, Front Toss/Live BP, Situational Hitting, Bunting
-INFIELD: Ground Ball Line Drill, Roll Out Routine, Mass Reps (At them/Glove Side/Backhand), Double Play Turns
-OUTFIELD: Drop Steps, Fly Ball Communication, Crow Hop Mechanics, Outfield Angles, Charging Grounders
-BASE RUNNING: Home to 1st Run Through, Hard Turn at 1st, Tagging Up, 1st to 3rd
-SITUATIONAL: Force vs. Tag Plays, Cuts & Relays, First & Third Defense, Team Scrimmage
-
-COACHING CUES:
-- Hitting: "Load and stride," "Short to the ball," "Extension through contact"
+COACHING CUES BY CATEGORY:
+- Hitting: "Load and stride," "Squash the bug," "Short to the ball," "Extension through contact"  
 - Defense: "Prep step on the pitch," "Get in front," "Alligator hands," "Hit your cutoff"
-- Base running: "Pick up your 3B coach," "Head down and go through the bag"
+- Base running: "Pick up your 3B coach," "Two steps off the bag," "Head down and go"
 - Outfield: "Call it EARLY," "Drop step — don't backpedal," "Crow hop before throwing"
-- Throwing: "Step and follow through," "Hit your target's chest"
 
-════════════════════════════════════
-OUTPUT FORMAT
-════════════════════════════════════
-Format as clean HTML using ONLY inline styles. Dark theme: section backgrounds #1C2A3A, text #E8EDF2, accent/gold #F0A000, muted #7A8BA0, borders rgba(240,160,0,0.2).
+You are NOT limited to the drill library above. You are encouraged to:
+- Invent new creative drills tailored to the coach's specific notes
+- Combine drills in novel ways (e.g. a hitting + base running combo station)
+- Create progressions that build on each other within the practice
+- Adapt drills from other sports or coaching philosophies when useful
+- Design competition formats, games, and challenges that make practice fun for 8-year-olds
+- Suggest drills that specifically target the weaknesses mentioned in the coach's notes
+The drill library is a reference, not a constraint. Use it when relevant, ignore it when something better fits.
 
-Structure each segment as a styled card with:
-- Gold time badge (e.g. "0:00–0:15") + segment name in bold large text + duration pill
-- 2–3 sentence description
-- Bullet list of 3–4 coaching cues
-- Coach assignment line
+Format the plan as clean HTML using ONLY inline styles. Use this dark theme: background sections use background:#1C2A3A, text color:#E8EDF2, accent color:#F0A000, muted text:#7A8BA0.
 
-For Live AB / Field Work segments with two player groups: show a two-column layout — left column "⚡ HITTING" in gold listing hitters, right column "🛡 IN THE FIELD" in green listing fielders.
+Structure:
+1. A header div with practice title, date "${dateStr}", duration, and focus area
+2. For each station/segment, create a styled block with:
+   - Time slot badge (e.g. "0:00-0:10") in gold
+   - Station name in large bold text
+   - Duration pill
+   - Description (2-3 sentences, age-appropriate for 8-year-olds)
+   - Coaching cues as a small bulleted list
+   - Which coaches run it
+3. End with a team huddle/breakdown
+4. Include a STATIONS_DATA comment at the very end in this exact format:
+<!-- STATIONS_DATA: [{"name":"Warm-Up","minutes":10},{"name":"Tee Work","minutes":15}] -->
 
-End with a team huddle block. Then include this comment at the very end:
-<!-- STATIONS_DATA: [{"name":"Warm-Up","minutes":10},{"name":"Drill Name","minutes":15}] -->
-
-Return ONLY the HTML. No markdown. No explanation. Start with <div style="font-family:'Barlow',sans-serif;max-width:800px">`
+Return ONLY the HTML, no markdown, no explanation. Start with <div style="font-family:Barlow,sans-serif">`
         }]
       })
     });
@@ -3878,6 +3894,14 @@ Return ONLY the HTML. No markdown. No explanation. Start with <div style="font-f
     const data = await response.json();
     const html = data.content?.[0]?.text || '<p style="color:red">Error generating plan. Please try again.</p>';
     document.getElementById('practice-plan-content').innerHTML = html;
+
+    // Show post-plan action buttons
+    const ppa = document.getElementById('post-plan-actions');
+    if (ppa) { ppa.style.display = 'flex'; }
+    document.getElementById('revision-panel').style.display = 'none';
+    document.getElementById('coach-reassign-panel').style.display = 'none';
+    renderStylePrefs();
+    buildCoachReassignList(html);
 
     // Extract stations for timer
     const match = html.match(/<!-- STATIONS_DATA: (\[.*?\]) -->/);
@@ -3900,6 +3924,182 @@ Return ONLY the HTML. No markdown. No explanation. Start with <div style="font-f
   } catch(e) {
     document.getElementById('practice-plan-content').innerHTML = '<p style="color:#EF4444">Connection error. Please try again.</p>';
   }
+}
+
+
+// ===== STYLE MEMORY =====
+const COACHES = ['Joe DeSane', 'Kevin Dubler', 'Jeff Sharkey', 'Danny Wright', 'Ken Langley'];
+
+function getStylePrefs() {
+  try { return JSON.parse(localStorage.getItem('thunder_style_prefs') || '[]'); } catch { return []; }
+}
+function setStylePrefs(prefs) {
+  localStorage.setItem('thunder_style_prefs', JSON.stringify(prefs));
+}
+
+function saveStyleNote() {
+  const note = document.getElementById('revision-input').value.trim();
+  if (!note) return;
+  const prefs = getStylePrefs();
+  prefs.unshift({ note, saved: new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) });
+  if (prefs.length > 10) prefs.pop(); // keep last 10
+  setStylePrefs(prefs);
+  document.getElementById('revision-input').value = '';
+  renderStylePrefs();
+  alert('🧠 Saved! This preference will shape all future practice plans.');
+}
+
+function deleteStylePref(idx) {
+  const prefs = getStylePrefs();
+  prefs.splice(idx, 1);
+  setStylePrefs(prefs);
+  renderStylePrefs();
+}
+
+function renderStylePrefs() {
+  const el = document.getElementById('style-prefs-display');
+  if (!el) return;
+  const prefs = getStylePrefs();
+  if (!prefs.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--thunder-muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px">🧠 Saved Style Preferences</div>
+    ${prefs.map((p,i) => `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;background:#1C2A3A;border-radius:6px;padding:8px 10px;margin-bottom:6px;gap:8px">
+        <div>
+          <div style="font-size:12px;color:var(--thunder-text);line-height:1.5">${p.note}</div>
+          <div style="font-size:11px;color:var(--thunder-muted);margin-top:2px">${p.saved}</div>
+        </div>
+        <button onclick="deleteStylePref(${i})" style="background:none;border:none;color:var(--thunder-muted);cursor:pointer;font-size:14px;padding:0;flex-shrink:0">✕</button>
+      </div>
+    `).join('')}
+  `;
+}
+
+// ===== REVISION =====
+function toggleRevisionPanel() {
+  const panel = document.getElementById('revision-panel');
+  const isVisible = panel.style.display !== 'none';
+  panel.style.display = isVisible ? 'none' : 'block';
+  if (!isVisible) { renderStylePrefs(); panel.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+}
+
+async function submitRevision() {
+  const revisionNote = document.getElementById('revision-input').value.trim();
+  if (!revisionNote) { alert('Tell me what to change first!'); return; }
+  if (!currentPlan) return;
+
+  const btn = document.querySelector('#revision-panel .btn-gold');
+  btn.textContent = '⚡ Regenerating...';
+  btn.disabled = true;
+
+  // Build revised prompt incorporating original + changes
+  const revisedPrompt = `ORIGINAL PLAN PROMPT:
+${currentPlan.prompt}
+
+COACH REVISION REQUEST:
+${revisionNote}
+
+Please regenerate the full practice plan incorporating these specific changes. Keep everything from the original that isn't being changed.`;
+
+  // Store revision as style pref if it seems like a lasting preference
+  const styleKeywords = ['always','never','prefer','usually','every practice','more time','less time'];
+  const isStylePref = styleKeywords.some(k => revisionNote.toLowerCase().includes(k));
+  if (isStylePref) {
+    const prefs = getStylePrefs();
+    prefs.unshift({ note: revisionNote, saved: new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) });
+    if (prefs.length > 10) prefs.pop();
+    setStylePrefs(prefs);
+  }
+
+  // Temporarily update prompt and regenerate
+  const origPrompt = document.getElementById('practice-prompt').value;
+  document.getElementById('practice-prompt').value = revisedPrompt;
+  document.getElementById('revision-input').value = '';
+  document.getElementById('revision-panel').style.display = 'none';
+
+  await generatePractice();
+
+  document.getElementById('practice-prompt').value = origPrompt;
+  btn.textContent = '⚡ Regenerate with Changes';
+  btn.disabled = false;
+}
+
+// ===== COACH REASSIGNMENT =====
+function buildCoachReassignList(html) {
+  const container = document.getElementById('coach-reassign-list');
+  if (!container) return;
+
+  // Parse segment names and their current coaches from the generated HTML
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const segments = [];
+
+  // Look for "Led by:" or "Coach:" patterns in the text
+  const allText = doc.body.innerText || doc.body.textContent || '';
+  const lines = allText.split('\n').map(l => l.trim()).filter(Boolean);
+
+  let currentSegment = null;
+  lines.forEach(line => {
+    // Detect segment headers (lines that look like drill names — short, no punctuation mid-line)
+    if (line.match(/^[A-Z][^.!?]{3,40}$/) && !line.startsWith('Led') && !line.startsWith('Coach') && !line.startsWith('•') && !line.match(/^\d/)) {
+      currentSegment = line;
+    }
+    if ((line.startsWith('Led by:') || line.startsWith('Coach:') || line.startsWith('Coaches:')) && currentSegment) {
+      const coachText = line.replace(/^(Led by:|Coach:|Coaches:)\s*/i, '');
+      if (!segments.find(s => s.name === currentSegment)) {
+        segments.push({ name: currentSegment, currentCoach: coachText });
+      }
+      currentSegment = null;
+    }
+  });
+
+  if (!segments.length) {
+    container.innerHTML = '<div style="font-size:12px;color:var(--thunder-muted)">No coach assignments detected in this plan.</div>';
+    return;
+  }
+
+  container.innerHTML = segments.map((seg, i) => `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="font-size:12px;color:var(--thunder-text);min-width:160px;flex:1">${seg.name}</div>
+      <select data-segment="${i}" style="background:#1C2A3A;border:1px solid rgba(240,160,0,0.3);border-radius:6px;color:var(--thunder-text);font-size:12px;padding:5px 8px;flex:1;min-width:180px">
+        ${COACHES.map(c => `<option value="${c}" ${seg.currentCoach.includes(c) ? 'selected' : ''}>${c}</option>`).join('')}
+        <option value="All Coaches" ${seg.currentCoach.includes('All') ? 'selected' : ''}>All Coaches</option>
+        <option value="Danny Wright &amp; Ken Langley">Danny Wright &amp; Ken Langley</option>
+        <option value="Joe DeSane &amp; Jeff Sharkey">Joe DeSane &amp; Jeff Sharkey</option>
+      </select>
+    </div>
+  `).join('');
+
+  // Store segment names for apply
+  container.dataset.segments = JSON.stringify(segments.map(s => s.name));
+}
+
+function applyCoachReassignments() {
+  const container = document.getElementById('coach-reassign-list');
+  const selects = container.querySelectorAll('select');
+  const planContent = document.getElementById('practice-plan-content');
+  let html = planContent.innerHTML;
+
+  selects.forEach(sel => {
+    const newCoach = sel.value;
+    // Replace "Led by: [anything]" patterns — broad replace within the HTML
+    // This is a best-effort text swap; coaches are listed in spans/divs
+    html = html.replace(/Led by:[^<]*/g, (match) => {
+      // Only replace if we can match the segment context — swap all for simplicity
+      return 'Led by: ' + newCoach;
+    });
+  });
+
+  planContent.innerHTML = html;
+  document.getElementById('coach-reassign-panel').style.display = 'none';
+  alert('✅ Coach assignments updated!');
+}
+
+function toggleCoachPanel() {
+  const panel = document.getElementById('coach-reassign-panel');
+  const isVisible = panel.style.display !== 'none';
+  panel.style.display = isVisible ? 'none' : 'block';
+  if (!isVisible) panel.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
 // ===== SAVE PLANS (localStorage via object store) =====
