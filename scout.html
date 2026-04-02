@@ -231,7 +231,7 @@ async function selectTeam(teamId) {
   const team = teams.find(t => t.id === teamId);
   
   // Load team data
-  currentPlayers = await supa('scout_players', 'GET', null, `?team_id=eq.${teamId}&order=jersey_number.asc,name.asc`) || [];
+  currentPlayers = await supa('scout_players', 'GET', null, `?team_id=eq.${teamId}&order=lineup_order.asc.nullslast,name.asc`) || [];
   currentGames = await supa('scout_games', 'GET', null, `?team_id=eq.${teamId}&order=game_date.desc`) || [];
   currentAtBats = await supa('scout_at_bats', 'GET', null, `?team_id=eq.${teamId}&order=game_id.asc,inning.asc`) || [];
   
@@ -287,6 +287,65 @@ function renderAddGame(team) {
   document.getElementById('addGamePanel').innerHTML = h;
 }
 
+// Smart player matching: "B. O" -> "Bowen O", "J S" -> "Jasper S", "B C" -> "Bowen C"
+function matchPlayer(playName, roster) {
+  if (!playName || !roster.length) return null;
+  const pn = playName.trim();
+  
+  // 1. Exact match (case-insensitive)
+  let match = roster.find(r => r.name.toLowerCase() === pn.toLowerCase());
+  if (match) return match;
+  
+  // 2. Parse the play-by-play name into parts
+  // Formats: "B. O", "B O", "Jasper S", "JJ V"
+  const cleaned = pn.replace(/\./g, '').trim();
+  const parts = cleaned.split(/\s+/);
+  if (parts.length < 2) return null;
+  
+  const firstPart = parts[0]; // Could be initial "B" or full name "Jasper"
+  const lastPart = parts[parts.length - 1]; // Last initial or last name
+  
+  // 3. If first part is a single letter (initial), match against roster first names
+  if (firstPart.length <= 2) {
+    const firstInitial = firstPart[0].toUpperCase();
+    const lastInitial = lastPart[0].toUpperCase();
+    
+    // Find roster players whose first name starts with firstInitial AND last name/initial starts with lastInitial
+    const candidates = roster.filter(r => {
+      const rParts = r.name.replace(/\./g, '').trim().split(/\s+/);
+      if (rParts.length < 2) return false;
+      const rFirst = rParts[0];
+      const rLast = rParts[rParts.length - 1];
+      return rFirst[0].toUpperCase() === firstInitial && rLast[0].toUpperCase() === lastInitial;
+    });
+    
+    if (candidates.length === 1) return candidates[0];
+    // If multiple candidates, try to narrow by second initial for names like "JJ"
+    if (candidates.length > 1 && firstPart.length === 2) {
+      const narrow = candidates.filter(r => r.name.toUpperCase().startsWith(firstPart.toUpperCase()));
+      if (narrow.length === 1) return narrow[0];
+    }
+    if (candidates.length > 0) return candidates[0]; // Best guess
+  }
+  
+  // 4. Full first name match: "Jasper S" matches "Jasper S" or "Jasper Smith"
+  const fullFirst = firstPart.toLowerCase();
+  match = roster.find(r => {
+    const rParts = r.name.trim().split(/\s+/);
+    return rParts[0].toLowerCase() === fullFirst && 
+           rParts[rParts.length - 1][0].toUpperCase() === lastPart[0].toUpperCase();
+  });
+  if (match) return match;
+  
+  // 5. Partial match: first 3+ chars of first name
+  if (firstPart.length >= 3) {
+    match = roster.find(r => r.name.toLowerCase().startsWith(firstPart.toLowerCase()));
+    if (match) return match;
+  }
+  
+  return null;
+}
+
 async function submitGame() {
   const teamId = document.getElementById('gameTeamId').value;
   const date = document.getElementById('gameDate').value;
@@ -301,18 +360,19 @@ async function submitGame() {
   if (rosterText.trim()) {
     const rosterEntries = parseRosterText(rosterText);
     for (const r of rosterEntries) {
-      // Check if player already exists for this team
-      const existing = currentPlayers.find(p => p.name.toLowerCase() === r.name.toLowerCase());
+      // Check if player already exists (exact or smart match)
+      const existing = currentPlayers.find(p => p.name.toLowerCase() === r.name.toLowerCase()) || matchPlayer(r.name, currentPlayers);
       if (existing) {
-        // Update jersey/position if provided and missing
-        const updates = {};
-        if (r.number && !existing.jersey_number) updates.jersey_number = r.number;
-        if (r.position && !existing.position) updates.position = r.position;
-        if (Object.keys(updates).length > 0) {
-          await supa('scout_players', 'PATCH', updates, `?id=eq.${existing.id}`);
-        }
+        // Always update lineup_order, update jersey/position if provided
+        const updates = { lineup_order: r.lineup_order };
+        if (r.number) updates.jersey_number = r.number;
+        if (r.position) updates.position = r.position;
+        await supa('scout_players', 'PATCH', updates, `?id=eq.${existing.id}`);
+        existing.lineup_order = r.lineup_order;
+        if (r.number) existing.jersey_number = r.number;
+        if (r.position) existing.position = r.position;
       } else {
-        const newP = await supa('scout_players', 'POST', { team_id: teamId, name: r.name, jersey_number: r.number || null, position: r.position || null });
+        const newP = await supa('scout_players', 'POST', { team_id: teamId, name: r.name, jersey_number: r.number || null, position: r.position || null, lineup_order: r.lineup_order });
         if (newP && newP[0]) currentPlayers.push(newP[0]);
       }
     }
@@ -346,8 +406,10 @@ async function submitGame() {
   for (const ab of teamABs) {
     if (!ab.playerName || ab.playerName.length < 2) continue;
     
-    // Find or create player
-    let player = currentPlayers.find(p => p.name.toLowerCase() === ab.playerName.toLowerCase());
+    // Smart player matching: handles "B. O" -> "Bowen O", "J S" -> "Jasper S", etc.
+    let player = matchPlayer(ab.playerName, currentPlayers);
+    const resolvedName = player ? player.name : ab.playerName;
+    
     if (!player) {
       const newP = await supa('scout_players', 'POST', { team_id: teamId, name: ab.playerName });
       if (newP && newP[0]) { player = newP[0]; currentPlayers.push(player); }
@@ -356,7 +418,7 @@ async function submitGame() {
     await supa('scout_at_bats', 'POST', {
       game_id: gameId, team_id: teamId,
       player_id: player ? player.id : null,
-      player_name: ab.playerName,
+      player_name: resolvedName,
       inning: ab.inning, half: ab.half,
       result: ab.result, ball_type: ab.ballType,
       hit_direction: ab.hitDirection, field_position: ab.fieldPosition,
@@ -387,6 +449,7 @@ async function deleteGame(gameId) {
 function parseRosterText(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   const entries = [];
+  let order = 0;
   for (const line of lines) {
     let name = '', number = '', position = '';
     const numMatch = line.match(/#(\d+)/);
@@ -397,7 +460,7 @@ function parseRosterText(text) {
     else { const trail = line.match(/\b(CF|LF|RF|SS|1B|2B|3B|SF|C|P|DH|EH)\s*$/i); if (trail) position = trail[1]; }
     let cleaned = line.replace(/#\d+/g,'').replace(/\([^)]*\)/g,'').replace(/\b(CF|LF|RF|SS|1B|2B|3B|SF|C|P|DH|EH)\b/gi,'').replace(/^\d+\s*[-–]\s*/,'').replace(/,/g,' ').replace(/\s+/g,' ').trim();
     if (cleaned.length >= 2) name = cleaned;
-    if (name) entries.push({ name, number, position });
+    if (name) { order++; entries.push({ name, number, position, lineup_order: order }); }
   }
   return entries;
 }
@@ -549,11 +612,12 @@ function renderReport(team) {
     
     const avgColor = avg >= 0.400 ? 'var(--red)' : avg >= 0.300 ? 'var(--orange)' : 'var(--muted)';
     const rowBg = avg >= 0.400 ? 'rgba(239,68,68,0.06)' : avg >= 0.300 ? 'rgba(249,115,22,0.04)' : 'transparent';
+    const lineupNum = p.lineupOrder && p.lineupOrder < 99 ? '<span style="color:var(--dim);font-size:10px;margin-right:4px;">' + p.lineupOrder + '.</span>' : '';
     const jersey = p.jersey ? '<span style="color:var(--accent)">#' + p.jersey + '</span> ' : '';
     const pos = p.position ? ' <span style="color:var(--dim);font-size:9px">(' + p.position + ')</span>' : '';
     
     h += `<tr style="background:${rowBg};cursor:pointer;" onclick="editPlayer('${p.playerId || ''}','${p.name.replace(/'/g,"\\'")}')">`; 
-    h += `<td>${jersey}${p.name}${pos}</td>`;
+    h += `<td>${lineupNum}${jersey}${p.name}${pos}</td>`;
     h += `<td>${p.AB}</td><td style="font-weight:700">${p.H}</td><td>${p.singles}</td>`;
     h += `<td style="color:${p.doubles>0?'var(--orange)':'var(--muted)'}">${p.doubles}</td>`;
     h += `<td style="color:${p.triples>0?'var(--orange)':'var(--muted)'}">${p.triples}</td>`;
@@ -583,10 +647,11 @@ function renderReport(team) {
     if (p.K >= 2) recs.push('Work the count');
     
     const dot = avg >= 0.400 ? '🔴' : avg >= 0.300 ? '🟡' : '🟢';
+    const lineupTag = p.lineupOrder && p.lineupOrder < 99 ? '<span style="color:var(--dim);font-size:11px;margin-right:3px;">' + p.lineupOrder + '.</span>' : '';
     const jersey = p.jersey ? '<span style="color:var(--accent)">#' + p.jersey + '</span> ' : '';
     h += `<div class="player-row" onclick="editPlayer('${p.playerId || ''}','${p.name.replace(/'/g,"\\'")}')">`; 
     h += `<span style="font-size:14px">${dot}</span>`;
-    h += `<div style="flex:1"><div style="font-weight:700;font-size:13px">${jersey}${p.name}</div>`;
+    h += `<div style="flex:1"><div style="font-weight:700;font-size:13px">${lineupTag}${jersey}${p.name}</div>`;
     h += `<div style="font-size:11px;color:var(--dim)">${avg.toFixed(3)} &middot; ${primaryBall} &middot; ${primaryDir} &middot; ${recs.join(', ')||'Standard'}</div></div></div>`;
   }
   
@@ -606,11 +671,17 @@ function renderReport(team) {
 function buildPlayerStats(atBats) {
   const map = {};
   for (const ab of atBats) {
-    const key = ab.player_name || ab.playerName;
-    if (!key || key.length < 2) continue;
+    const rawName = ab.player_name || ab.playerName;
+    if (!rawName || rawName.length < 2) continue;
+    
+    // Try to resolve to a roster player name for consistent grouping
+    const rosterMatch = matchPlayer(rawName, currentPlayers);
+    const key = rosterMatch ? rosterMatch.name : rawName;
+    
     if (!map[key]) {
-      const player = currentPlayers.find(p => p.name === key);
+      const player = rosterMatch || currentPlayers.find(p => p.name === key);
       map[key] = { name: key, playerId: player?.id, jersey: player?.jersey_number, position: player?.position,
+        lineupOrder: player?.lineup_order || 99,
         AB:0,H:0,singles:0,doubles:0,triples:0,HR:0,outs:0,errors:0,FC:0,K:0,BB:0,HBP:0,
         flyBalls:0,groundBalls:0,lineDrives:0,left:0,center:0,right:0,middle:0,RBI:0 };
     }
@@ -636,7 +707,8 @@ function buildPlayerStats(atBats) {
     p.RBI += (ab.rbi || 0);
   }
   const list = Object.values(map).filter(p => p.AB > 0 || p.BB > 0);
-  list.sort((a,b) => { const aa = a.AB>0?a.H/a.AB:0; const bb = b.AB>0?b.H/b.AB:0; return bb-aa; });
+  // Sort by lineup order (batting order), then by name for unordered players
+  list.sort((a,b) => (a.lineupOrder || 99) - (b.lineupOrder || 99) || a.name.localeCompare(b.name));
   return list;
 }
 
@@ -660,6 +732,7 @@ function renderLineup(team) {
     if (p.doubles + p.triples + p.HR >= 2) danger = Math.min(danger+1, 5);
     const cls = danger >= 4 ? 'danger-high' : danger >= 3 ? 'danger-med' : 'danger-low';
     const emoji = danger >= 4 ? '🔴' : danger >= 3 ? '🟡' : '🟢';
+    const lineupSpot = p.lineupOrder && p.lineupOrder < 99 ? '<span style="color:var(--dim);font-size:11px;margin-right:3px;">' + p.lineupOrder + '.</span>' : '';
     const jersey = p.jersey ? '<span style="color:var(--accent)">#' + p.jersey + '</span> ' : '';
     const bt = [p.flyBalls>0?'FLY:'+p.flyBalls:'', p.groundBalls>0?'GB:'+p.groundBalls:'', p.lineDrives>0?'LD:'+p.lineDrives:''].filter(Boolean).join(' ');
     const dirs = [p.left>0?'L:'+p.left:'', p.center>0?'C:'+p.center:'', p.right>0?'R:'+p.right:'', p.middle>0?'M:'+p.middle:''].filter(Boolean).join(' ');
@@ -667,7 +740,7 @@ function renderLineup(team) {
     h += `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);">
       <span style="font-size:18px">${emoji}</span>
       <div style="flex:1">
-        <div style="font-weight:700;font-size:14px">${jersey}${p.name}</div>
+        <div style="font-weight:700;font-size:14px">${lineupSpot}${jersey}${p.name}</div>
         <div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace">
           ${avg.toFixed(3)} AVG &middot; ${p.AB} AB &middot; ${p.H} H ${p.K>0?'&middot; '+p.K+' K':''} ${bt?'&middot; '+bt:''} ${dirs?'&middot; '+dirs:''}
         </div>
