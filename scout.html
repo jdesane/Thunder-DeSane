@@ -115,7 +115,7 @@
 
 <div class="tabs">
   <div class="tab active" onclick="showPanel('teams')">TEAMS</div>
-  <div class="tab" onclick="showPanel('addGame')">+ ADD GAME</div>
+  <div class="tab" onclick="showAddGame()">+ ADD GAME</div>
   <div class="tab" onclick="showPanel('report')">SCOUTING <span class="badge" id="badgePlayers">0</span></div>
   <div class="tab" onclick="showPanel('lineup')">LINEUP</div>
 </div>
@@ -179,6 +179,13 @@ function showPanel(name) {
 
 function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
 
+function showAddGame() {
+  // Always render the form, even if no team is selected yet
+  const team = selectedTeamId ? teams.find(t => t.id === selectedTeamId) : null;
+  renderAddGame(team);
+  showPanel('addGame');
+}
+
 // =====================================================
 // TEAMS
 // =====================================================
@@ -220,14 +227,9 @@ async function selectTeam(teamId) {
 let boxScoreFile = null, playsFile = null;
 
 function renderAddGame(team) {
-  const teamOpts = teams.map(t => `<option value="${t.id}" ${t.id===selectedTeamId?'selected':''}>${t.name}</option>`).join('');
   let h = `<div class="card">
     <h2 style="font-size:16px;font-weight:700;margin-bottom:14px;">Add Game — Screenshot Upload</h2>
-    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:120px"><label>Team</label><select id="gameTeamId">${teamOpts}</select></div>
-      <div style="flex:1;min-width:80px"><label>Date</label><input type="text" id="gameDate" placeholder="Mar 28" /></div>
-      <div style="flex:1;min-width:80px"><label>Score</label><input type="text" id="gameScore" placeholder="3-0" /></div>
-    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Upload the Box Score and Plays screenshots from GameChanger. Teams, lineups, and all play data are extracted automatically.</p>
     
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
       <div style="flex:1;min-width:200px;">
@@ -333,20 +335,26 @@ async function callClaude(images, prompt) {
 }
 
 async function extractBoxScore(img) {
-  const prompt = `Extract the LINEUP from this GameChanger box score screenshot. I need BOTH teams' lineups.
+  const prompt = `Extract ALL data from this GameChanger box score screenshot.
 
 Return ONLY valid JSON in this exact format, no other text:
 {
-  "team1": { "name": "Team Name", "players": [{"order":1,"name":"First Last","jersey":"4","position":"CF"}] },
-  "team2": { "name": "Team Name", "players": [{"order":1,"name":"First Last","jersey":"99","position":"SS"}] }
+  "game_date": "Sat Mar 28",
+  "score": "3-0",
+  "team1": { "name": "Full Team Name As Shown", "players": [{"order":1,"name":"First Last","jersey":"4","position":"CF"}] },
+  "team2": { "name": "Full Team Name As Shown", "players": [{"order":1,"name":"First Last","jersey":"99","position":"SS"}] }
 }
 
 Rules:
+- "game_date" is the date shown at the top of the page (e.g. "Sat Mar 28" or "Sun Jan 25")
+- "score" is the final score like "3-0" or "17-16" (team1 score first, then team2)
+- "name" in each team is the FULL team name exactly as displayed (e.g. "PLO Bulldogs White 8U - Tournaments" or "WBT Cobras 8U Blue")
 - "order" is the batting order (1st listed = 1, 2nd = 2, etc.)
-- "name" should be the full display name from GC like "Jasper S" or "Chad JR R"
+- Player "name" should be the display name from GC like "Jasper S" or "Chad JR R"
 - "jersey" is just the number without #
-- "position" is the position abbreviation shown in parentheses
-- Include ALL players listed for both teams`;
+- "position" is the position abbreviation shown in parentheses (SS, CF, P, etc.)
+- Include ALL players listed for BOTH teams
+- team1 is the team on the LEFT side of the box score, team2 is on the RIGHT`;
   
   const raw = await callClaude([img], prompt);
   try {
@@ -391,12 +399,6 @@ Rules:
 // SUBMIT GAME
 // =====================================================
 async function submitGame() {
-  const teamId = document.getElementById('gameTeamId').value;
-  const date = document.getElementById('gameDate').value;
-  const score = document.getElementById('gameScore').value;
-  const team = teams.find(t => t.id === teamId);
-  
-  // Check if using screenshots or manual
   const manualPlays = document.getElementById('manualPlays')?.value?.trim();
   const manualRoster = document.getElementById('manualRoster')?.value?.trim();
   
@@ -404,129 +406,150 @@ async function submitGame() {
   
   if (boxScoreFile || playsFile) {
     // SCREENSHOT MODE
-    setProgress(true, 'Reading box score...');
-    
     if (boxScoreFile) {
+      setProgress(true, 'Reading box score...');
       rosterData = await extractBoxScore(boxScoreFile);
       if (!rosterData) { setProgress(false); alert('Could not read box score. Try again or use manual entry.'); return; }
     }
-    
-    setProgress(true, 'Reading plays...');
-    
     if (playsFile) {
-      playsData = await extractPlays(playsFile, team?.name);
+      setProgress(true, 'Reading plays...');
+      playsData = await extractPlays(playsFile);
       if (!playsData) { setProgress(false); alert('Could not read plays. Try again or use manual entry.'); return; }
     }
-    
-    setProgress(true, 'Saving to database...');
   } else if (manualPlays) {
-    // MANUAL MODE - use the old parser
-    if (manualRoster) {
-      const entries = parseRosterText(manualRoster);
-      rosterData = { team1: { name: team?.name || 'Team', players: entries.map((r,i) => ({order:r.lineup_order||i+1, name:r.name, jersey:r.number, position:r.position})) } };
-    }
-    const parsed = parsePlayByPlay(manualPlays);
-    playsData = parsed.atBats.map(ab => ({
-      inning: ab.inning, half: ab.half, team: ab.team, result: ab.result,
-      player: ab.playerName, description: ab.cleanDesc || ab.description,
-      direction: ab.sprayZone, field_position: ab.fieldPosition, ball_type: ab.hitDirection
-    }));
-    setProgress(true, 'Saving to database...');
+    alert('For manual entry, please select a team from the Teams tab first, then come back here.');
+    return;
   } else {
-    alert('Upload screenshots or paste play-by-play data.');
+    alert('Upload at least a box score or plays screenshot.');
     return;
   }
   
-  // Process roster data - save/update players
-  if (rosterData) {
-    // Find which team in the box score matches our selected team
-    const allTeamData = [rosterData.team1, rosterData.team2].filter(Boolean);
-    for (const td of allTeamData) {
-      // Check if this matches the selected team
-      const isSelectedTeam = td.name && team && (
-        td.name.toLowerCase().includes(team.name.toLowerCase().split(' ')[0]) ||
-        team.name.toLowerCase().includes(td.name.toLowerCase().split(' ')[0])
-      );
-      
-      if (isSelectedTeam || allTeamData.length === 1) {
-        for (const p of td.players || []) {
-          const existing = matchPlayer(p.name, currentPlayers);
-          if (existing) {
-            const updates = { lineup_order: p.order };
-            if (p.jersey) updates.jersey_number = p.jersey;
-            if (p.position) updates.position = p.position;
-            await supa('scout_players', 'PATCH', updates, `?id=eq.${existing.id}`);
-          } else {
-            const newP = await supa('scout_players', 'POST', { team_id: teamId, name: p.name, jersey_number: p.jersey||null, position: p.position||null, lineup_order: p.order });
-            if (newP?.[0]) currentPlayers.push(newP[0]);
-          }
-        }
+  setProgress(true, 'Creating teams & saving rosters...');
+  
+  // Get game info from box score
+  const gameDate = rosterData?.game_date || '';
+  const gameScore = rosterData?.score || '';
+  
+  // Process BOTH teams from the box score
+  const allTeamData = [rosterData?.team1, rosterData?.team2].filter(Boolean);
+  const savedTeams = []; // {teamId, teamName, players[]}
+  
+  for (const td of allTeamData) {
+    if (!td.name) continue;
+    
+    // Find or create team in database
+    let existingTeam = teams.find(t => {
+      const tWords = t.name.toLowerCase().split(/\s+/);
+      const tdWords = td.name.toLowerCase().split(/\s+/);
+      // Match if first significant word matches
+      return tWords.some(w => w.length > 2 && tdWords.includes(w));
+    });
+    
+    let teamId;
+    if (existingTeam) {
+      teamId = existingTeam.id;
+    } else {
+      // Auto-create team
+      const newTeam = await supa('scout_teams', 'POST', { name: td.name, season: 'Spring 2026' });
+      if (!newTeam?.[0]) continue;
+      teamId = newTeam[0].id;
+      teams.push(newTeam[0]); // Add to local state
+    }
+    
+    // Load existing players for this team
+    const teamPlayers = await supa('scout_players', 'GET', null, `?team_id=eq.${teamId}&order=lineup_order.asc.nullslast,name.asc`) || [];
+    
+    // Upsert players from box score
+    for (const p of td.players || []) {
+      const existing = matchPlayer(p.name, teamPlayers);
+      if (existing) {
+        const updates = { lineup_order: p.order };
+        if (p.jersey) updates.jersey_number = p.jersey;
+        if (p.position) updates.position = p.position;
+        await supa('scout_players', 'PATCH', updates, `?id=eq.${existing.id}`);
+        existing.lineup_order = p.order;
+        if (p.jersey) existing.jersey_number = p.jersey;
+        if (p.position) existing.position = p.position;
+      } else {
+        const newP = await supa('scout_players', 'POST', { team_id: teamId, name: p.name, jersey_number: p.jersey||null, position: p.position||null, lineup_order: p.order });
+        if (newP?.[0]) teamPlayers.push(newP[0]);
       }
     }
+    
+    savedTeams.push({ teamId, teamName: td.name, players: teamPlayers });
   }
   
-  // Save game record
-  const gameResult = await supa('scout_games', 'POST', { team_id: teamId, game_date: date, score, opponent: '' });
-  if (!gameResult?.[0]) { setProgress(false); alert('Error saving game.'); return; }
-  const gameId = gameResult[0].id;
+  if (!savedTeams.length) { setProgress(false); alert('No teams found in box score.'); return; }
   
-  // Process plays - filter for selected team and save at-bats
-  if (playsData && playsData.length) {
-    // Find matching team name in plays
-    const playTeamNames = [...new Set(playsData.map(p => p.team).filter(Boolean))];
-    let matchedTeam = '';
-    for (const ptn of playTeamNames) {
-      if (ptn && team && (ptn.toLowerCase().includes(team.name.toLowerCase().split(' ')[0]) || team.name.toLowerCase().includes(ptn.toLowerCase().split(' ')[0]))) {
-        matchedTeam = ptn; break;
+  setProgress(true, 'Saving at-bats...');
+  
+  // Save a game record for EACH team and process their plays
+  let totalSaved = 0;
+  
+  for (const st of savedTeams) {
+    // Save game record for this team
+    const opponent = savedTeams.find(s => s.teamId !== st.teamId)?.teamName || '';
+    const gameResult = await supa('scout_games', 'POST', { team_id: st.teamId, game_date: gameDate, score: gameScore, opponent });
+    if (!gameResult?.[0]) continue;
+    const gameId = gameResult[0].id;
+    
+    // Find plays for this team
+    if (playsData && playsData.length) {
+      const playTeamNames = [...new Set(playsData.map(p => p.team).filter(Boolean))];
+      let matchedPlayTeam = '';
+      for (const ptn of playTeamNames) {
+        if (ptn && st.teamName && (
+          ptn.toLowerCase().includes(st.teamName.toLowerCase().split(/\s+/)[0]) ||
+          st.teamName.toLowerCase().includes(ptn.toLowerCase().split(/\s+/)[0]) ||
+          ptn.toLowerCase().split(/\s+/).some(w => w.length > 2 && st.teamName.toLowerCase().includes(w))
+        )) { matchedPlayTeam = ptn; break; }
+      }
+      
+      const teamPlays = matchedPlayTeam ? playsData.filter(p => p.team === matchedPlayTeam) : [];
+      
+      for (const play of teamPlays) {
+        if (!play.player || play.player.length < 2) continue;
+        
+        let reachedOn = 'Out';
+        const r = (play.result || '').toLowerCase();
+        if (r.includes('single')||r.includes('double')||r.includes('triple')||r.includes('home run')) reachedOn = 'Hit';
+        else if (r.includes('error')) reachedOn = 'Error';
+        else if (r.includes('fielder')) reachedOn = 'FC';
+        else if (r.includes('walk')||r==='bb') reachedOn = 'Walk';
+        else if (r.includes('hbp')||r.includes('hit by')) reachedOn = 'HBP';
+        
+        let ballType = play.result || '';
+        if (r.includes('ground out')||r.includes('groundout')) ballType = 'Ground Out';
+        else if (r.includes('fly out')||r.includes('flyout')) ballType = 'Fly Out';
+        else if (r.includes('line out')||r.includes('lineout')) ballType = 'Line Out';
+        else if (r.includes('pop out')) ballType = 'Pop Out';
+        else if (r.includes('strikeout')) ballType = 'Strikeout';
+        
+        const player = matchPlayer(play.player, st.players);
+        const resolvedName = player ? player.name : play.player;
+        
+        await supa('scout_at_bats', 'POST', {
+          game_id: gameId, team_id: st.teamId,
+          player_id: player?.id || null, player_name: resolvedName,
+          inning: play.inning, half: play.half,
+          result: play.result, ball_type: ballType,
+          hit_direction: play.ball_type || '', field_position: play.field_position || '',
+          spray_zone: play.direction || '', reached_on: reachedOn,
+          rbi: 0, description: play.description || ''
+        });
+        totalSaved++;
       }
     }
-    
-    const teamPlays = matchedTeam ? playsData.filter(p => p.team === matchedTeam) : playsData;
-    let savedCount = 0;
-    
-    for (const play of teamPlays) {
-      if (!play.player || play.player.length < 2) continue;
-      
-      // Classify reached_on
-      let reachedOn = 'Out';
-      const r = (play.result || '').toLowerCase();
-      if (r.includes('single')||r.includes('double')||r.includes('triple')||r.includes('home run')) reachedOn = 'Hit';
-      else if (r.includes('error')) reachedOn = 'Error';
-      else if (r.includes('fielder')) reachedOn = 'FC';
-      else if (r.includes('walk')||r==='bb') reachedOn = 'Walk';
-      else if (r.includes('hbp')||r.includes('hit by')) reachedOn = 'HBP';
-      
-      let ballType = play.result || '';
-      if (r.includes('ground out')||r.includes('groundout')) ballType = 'Ground Out';
-      else if (r.includes('fly out')||r.includes('flyout')) ballType = 'Fly Out';
-      else if (r.includes('line out')||r.includes('lineout')) ballType = 'Line Out';
-      else if (r.includes('pop out')) ballType = 'Pop Out';
-      else if (r.includes('strikeout')) ballType = 'Strikeout';
-      
-      // Match player
-      const player = matchPlayer(play.player, currentPlayers);
-      const resolvedName = player ? player.name : play.player;
-      
-      await supa('scout_at_bats', 'POST', {
-        game_id: gameId, team_id: teamId,
-        player_id: player?.id || null, player_name: resolvedName,
-        inning: play.inning, half: play.half,
-        result: play.result, ball_type: ballType,
-        hit_direction: play.ball_type || '', field_position: play.field_position || '',
-        spray_zone: play.direction || '', reached_on: reachedOn,
-        rbi: 0, description: play.description || ''
-      });
-      savedCount++;
-    }
-    
-    toast(`Done! ${savedCount} at-bats saved.`);
-  } else {
-    toast('Game saved (no play data found).');
   }
   
   setProgress(false);
-  await selectTeam(teamId);
-  showPanel('report');
+  toast(`Done! ${savedTeams.length} teams, ${totalSaved} at-bats saved.`);
+  
+  // Reload teams and select the first saved team
+  await loadTeams();
+  if (savedTeams.length > 0) {
+    await selectTeam(savedTeams[0].teamId);
+  }
 }
 
 async function deleteGame(gameId) {
