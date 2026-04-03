@@ -421,25 +421,40 @@ Rules:
   }
 }
 
-async function extractPlays(img, teamName) {
-  const prompt = `Extract ALL plays from this GameChanger Plays tab screenshot. 
+async function extractPlays(img, savedTeams) {
+  // Build roster context so Claude can resolve initials to full names
+  const rosterLines = (savedTeams || []).map(st => {
+    const lineup = [...st.players].sort((a,b) => (a.lineup_order||99)-(b.lineup_order||99));
+    const rows = lineup.map((p,i) => `  ${i+1}. ${p.name}${p.jersey_number ? ' #'+p.jersey_number : ''}${p.position ? ' ('+p.position+')' : ''}`).join('\n');
+    return `${st.teamName}:\n${rows}`;
+  }).join('\n\n');
+
+  const prompt = `Extract ALL plays from this GameChanger Plays tab screenshot.
+
+IMPORTANT - USE THESE ROSTERS TO RESOLVE PLAYER NAMES:
+${rosterLines}
+
+In GameChanger plays, batters appear abbreviated (e.g. "C R" or "C. R" for a player named "Chad JR R").
+Match each abbreviated name to the FULL NAME from the rosters above using first and last initials.
+The batting order in the plays matches the batting order listed in the rosters (lineup order).
+Always output the FULL name (e.g. "Chad JR R" not "C R" or "C. R").
 
 Return ONLY valid JSON array, no other text:
 [
-  {"inning":1,"half":"top","team":"TEAM NAME","result":"Single","player":"Jasper S","description":"Jasper S singles on a ground ball to center fielder","direction":"Center","field_position":"CF","ball_type":"Ground"},
-  {"inning":1,"half":"top","team":"TEAM NAME","result":"Ground Out","player":"Blake M","description":"Blake M grounds out, shortstop to first baseman","direction":"Left","field_position":"SS","ball_type":"Ground"}
+  {"inning":1,"half":"top","team":"TEAM NAME","result":"Single","player":"Chad JR R","description":"C R singles on a ground ball to center fielder","direction":"Center","field_position":"CF","ball_type":"Ground"},
+  {"inning":1,"half":"top","team":"TEAM NAME","result":"Ground Out","player":"Amir F","description":"A F grounds out, shortstop to first baseman","direction":"Left","field_position":"SS","ball_type":"Ground"}
 ]
 
 Rules:
-- Extract the team name from inning headers like "Top 3rd - TEAM NAME" or "Bottom 1st - TEAM NAME"
+- "team" comes from inning headers like "Top 3rd - TEAM NAME" or "Bottom 1st - TEAM NAME" - use the exact team name from the header
+- "player" MUST be the full name from the roster above, not initials
 - "result" should be: Single, Double, Triple, Home Run, Ground Out, Fly Out, Line Out, Pop Out, Strikeout, Error, Fielder's Choice, Walk, HBP, Double Play
-- "player" is the batter's name as shown (e.g. "Jasper S", "B. O", "Chad JR R")
 - "direction" should be: Left, Center, Right, Middle, or empty if unclear
 - "field_position" should be: LF, CF, RF, SS, 2B, 3B, 1B, P, C or empty
 - "ball_type" should be: Fly, Ground, Line, or empty
 - Include EVERY at-bat for BOTH teams
 - Skip non-at-bat events like stolen bases, wild pitches, inning ended markers`;
-  
+
   const raw = await callClaude([img], prompt);
   try {
     const cleaned = raw.replace(/```json|```/g, '').trim();
@@ -466,11 +481,7 @@ async function submitGame() {
       rosterData = await extractBoxScore(boxScoreFile);
       if (!rosterData) { setProgress(false); return; }
     }
-    if (playsFile) {
-      setProgress(true, 'Reading plays... (this takes ~60 sec for full page)');
-      playsData = await extractPlays(playsFile);
-      if (!playsData) { setProgress(false); alert('Could not read plays. Try again or use manual entry.'); return; }
-    }
+    // NOTE: plays extraction is deferred until AFTER rosters are saved, so we can pass full names to Claude
   } else if (manualPlays) {
     alert('For manual entry, please select a team from the Teams tab first, then come back here.');
     return;
@@ -494,10 +505,13 @@ async function submitGame() {
     
     // Find or create team in database
     let existingTeam = teams.find(t => {
-      const tWords = t.name.toLowerCase().split(/\s+/);
-      const tdWords = td.name.toLowerCase().split(/\s+/);
-      // Match if first significant word matches
-      return tWords.some(w => w.length > 2 && tdWords.includes(w));
+      if (t.name.toLowerCase() === td.name.toLowerCase()) return true;
+      // Ignore generic words that appear in many team names
+      const stopWords = new Set(['8u','9u','10u','11u','12u','tournaments','tournament','white','blue','red','black','gold','silver','select','elite','travel']);
+      const tWords = new Set(t.name.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w)));
+      const tdWords = td.name.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+      const shared = tdWords.filter(w => tWords.has(w));
+      return shared.length >= 2;
     });
     
     let teamId;
@@ -533,9 +547,16 @@ async function submitGame() {
     
     savedTeams.push({ teamId, teamName: td.name, players: teamPlayers });
   }
-  
+
   if (!savedTeams.length) { setProgress(false); alert('No teams found in box score.'); return; }
-  
+
+  // Now extract plays WITH roster context so Claude can resolve initials to full names
+  if (playsFile) {
+    setProgress(true, 'Reading plays... (sending roster + screenshot to Claude, ~60 sec)');
+    playsData = await extractPlays(playsFile, savedTeams);
+    if (!playsData) { setProgress(false); alert('Could not read plays. Try again.'); return; }
+  }
+
   setProgress(true, 'Saving at-bats...');
   
   // Save a game record for EACH team and process their plays
