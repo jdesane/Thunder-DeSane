@@ -423,31 +423,38 @@ Rules:
 
 async function extractPlays(img, savedTeams) {
   // Build roster context so Claude can resolve initials to full names
+  const teamNamesList = (savedTeams || []).map(st => `"${st.teamName}"`).join(' or ');
   const rosterLines = (savedTeams || []).map(st => {
     const lineup = [...st.players].sort((a,b) => (a.lineup_order||99)-(b.lineup_order||99));
     const rows = lineup.map((p,i) => `  ${i+1}. ${p.name}${p.jersey_number ? ' #'+p.jersey_number : ''}${p.position ? ' ('+p.position+')' : ''}`).join('\n');
-    return `${st.teamName}:\n${rows}`;
+    return `"${st.teamName}":\n${rows}`;
   }).join('\n\n');
 
   const prompt = `Extract ALL plays from this GameChanger Plays tab screenshot.
 
-IMPORTANT - USE THESE ROSTERS TO RESOLVE PLAYER NAMES:
+ROSTERS (use these to resolve abbreviated batter names and team names):
 ${rosterLines}
 
-In GameChanger plays, batters appear abbreviated (e.g. "C R" or "C. R" for a player named "Chad JR R").
-Match each abbreviated name to the FULL NAME from the rosters above using first and last initials.
-The batting order in the plays matches the batting order listed in the rosters (lineup order).
-Always output the FULL name (e.g. "Chad JR R" not "C R" or "C. R").
+PLAYER NAME RULES:
+- In GameChanger plays, batters appear abbreviated like "C R" or "C. R" meaning first initial + last initial
+- Match each abbreviated name to the FULL NAME from the rosters above using first and last initials
+- The batting order in the plays cycles through the roster lineup order (1st batter = lineup slot 1, 2nd = slot 2, etc.)
+- Output ONLY names that exist in the rosters above (e.g. "Chad JR R" not "C R")
+- NEVER append result words like "Out", "Single", "Double" to a player name
+- If you cannot confidently match a batter to the roster, output just the 2-letter initials (e.g. "C R") - do NOT invent a name
+
+TEAM NAME RULES:
+- The valid team names for this game are: ${teamNamesList}
+- Inning headers look like "Top 3rd - TEAM NAME" or "Bottom 1st - TEAM NAME"
+- For the "team" field, you MUST use one of the exact team name strings listed above
+- Match the team in the inning header to the closest name from the list above
 
 Return ONLY valid JSON array, no other text:
 [
-  {"inning":1,"half":"top","team":"TEAM NAME","result":"Single","player":"Chad JR R","description":"C R singles on a ground ball to center fielder","direction":"Center","field_position":"CF","ball_type":"Ground"},
-  {"inning":1,"half":"top","team":"TEAM NAME","result":"Ground Out","player":"Amir F","description":"A F grounds out, shortstop to first baseman","direction":"Left","field_position":"SS","ball_type":"Ground"}
+  {"inning":1,"half":"top","team":"PLO Bulldogs White 8U - Tournaments","result":"Ground Out","player":"Chad JR R","description":"C R grounds out, pitcher to first baseman","direction":"Right","field_position":"1B","ball_type":"Ground"},
+  {"inning":1,"half":"bottom","team":"8u Original Florida Pokers Of Parkland-Blue","result":"Single","player":"Lucas R","description":"L R singles to center","direction":"Center","field_position":"CF","ball_type":"Ground"}
 ]
 
-Rules:
-- "team" comes from inning headers like "Top 3rd - TEAM NAME" or "Bottom 1st - TEAM NAME" - use the exact team name from the header
-- "player" MUST be the full name from the roster above, not initials
 - "result" should be: Single, Double, Triple, Home Run, Ground Out, Fly Out, Line Out, Pop Out, Strikeout, Error, Fielder's Choice, Walk, HBP, Double Play
 - "direction" should be: Left, Center, Right, Middle, or empty if unclear
 - "field_position" should be: LF, CF, RF, SS, 2B, 3B, 1B, P, C or empty
@@ -573,12 +580,18 @@ async function submitGame() {
     if (playsData && playsData.length) {
       const playTeamNames = [...new Set(playsData.map(p => p.team).filter(Boolean))];
       let matchedPlayTeam = '';
-      for (const ptn of playTeamNames) {
-        if (ptn && st.teamName && (
-          ptn.toLowerCase().includes(st.teamName.toLowerCase().split(/\s+/)[0]) ||
-          st.teamName.toLowerCase().includes(ptn.toLowerCase().split(/\s+/)[0]) ||
-          ptn.toLowerCase().split(/\s+/).some(w => w.length > 2 && st.teamName.toLowerCase().includes(w))
-        )) { matchedPlayTeam = ptn; break; }
+      // Try exact match first (Claude should output exact team names now)
+      matchedPlayTeam = playTeamNames.find(ptn => ptn.toLowerCase() === st.teamName.toLowerCase()) || '';
+      // Fall back to word-overlap matching if exact fails
+      if (!matchedPlayTeam) {
+        const stopWords = new Set(['8u','9u','10u','11u','tournaments','white','blue','red','black','gold']);
+        for (const ptn of playTeamNames) {
+          if (!ptn) continue;
+          const pWords = new Set(ptn.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w)));
+          const sWords = st.teamName.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+          const shared = sWords.filter(w => pWords.has(w));
+          if (shared.length >= 2) { matchedPlayTeam = ptn; break; }
+        }
       }
       
       const teamPlays = matchedPlayTeam ? playsData.filter(p => p.team === matchedPlayTeam) : [];
