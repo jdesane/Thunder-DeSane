@@ -344,38 +344,46 @@ async function callClaude(images, prompt) {
   for (const img of images) {
     // Resize to max 1600px to keep payload reasonable
     const resized = await resizeImage(img.b64, img.mime, 1600);
-    content.push({ type: 'image', source: { type: 'base64', media_type: resized.mime, data: resized.b64 } });
+    content.push({ b64: resized.b64, mime: resized.mime });
   }
-  content.push({ type: 'text', text: prompt });
   
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 120000); // 2 min timeout
     
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(SUPA_URL + '/functions/v1/scout-vision', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 4000, messages: [{ role: 'user', content }] }),
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPA_KEY
+      },
+      body: JSON.stringify({ images: content, prompt }),
       signal: controller.signal
     });
     clearTimeout(timeout);
     
     if (!res.ok) {
       const errText = await res.text();
-      console.error('Claude API error:', res.status, errText);
-      alert('Claude API error: ' + res.status + '. Check console for details.');
+      console.error('Edge function error:', res.status, errText);
+      alert('Error processing screenshot (status ' + res.status + '). Check console for details.');
       return '';
     }
     
     const data = await res.json();
     console.log('Claude response:', data);
-    return data.content?.[0]?.text || '';
+    
+    if (data.error) {
+      alert('Claude API error: ' + data.error + (data.detail ? '\n' + data.detail : ''));
+      return '';
+    }
+    
+    return data.text || '';
   } catch(e) {
     if (e.name === 'AbortError') {
-      alert('Request timed out after 2 minutes. Try with a smaller/cropped screenshot.');
+      alert('Request timed out after 2 minutes. Try with a smaller screenshot.');
     } else {
-      console.error('Claude API call failed:', e);
-      alert('API call failed: ' + e.message);
+      console.error('Request failed:', e);
+      alert('Request failed: ' + e.message);
     }
     return '';
   }
