@@ -243,35 +243,32 @@ function renderAddGame(team) {
         </div>
       </div>
       <div style="flex:1;min-width:200px;">
-        <label>2. Plays Screenshot</label>
-        <div class="upload-zone" id="playsZone">
-          <input type="file" accept="image/*" onchange="handleFile(event,'plays')" />
-          <div class="icon">&#128221;</div>
-          <div class="label">Upload plays tab screenshot</div>
-          <div class="filename" id="playsFileName"></div>
-          <img class="preview" id="playsPreview" style="display:none" />
+        <label>2. Plays</label>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <button id="playsTabScreenshot" onclick="setPlaysMode('screenshot')" style="flex:1;padding:5px 10px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#000;cursor:pointer;">Screenshot</button>
+          <button id="playsTabPaste" onclick="setPlaysMode('paste')" style="flex:1;padding:5px 10px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;">Paste Text</button>
+        </div>
+        <div id="playsScreenshotMode">
+          <div class="upload-zone" id="playsZone">
+            <input type="file" accept="image/*" onchange="handleFile(event,'plays')" />
+            <div class="icon">&#128221;</div>
+            <div class="label">Upload plays tab screenshot</div>
+            <div class="filename" id="playsFileName"></div>
+            <img class="preview" id="playsPreview" style="display:none" />
+          </div>
+        </div>
+        <div id="playsPasteMode" style="display:none;">
+          <textarea id="playsText" style="min-height:160px;font-size:11px;" placeholder="Open GameChanger, go to the Plays tab, select all text and paste here..."></textarea>
         </div>
       </div>
     </div>
-    
+
     <div class="progress" id="progressBar" style="display:none;">
       <span class="spinner"></span>
-      <span class="status" id="progressText">Processing screenshots...</span>
+      <span class="status" id="progressText">Processing...</span>
     </div>
-    
+
     <button class="btn btn-primary" id="submitBtn" onclick="submitGame()" style="width:100%;">&#9889; Process & Save Game</button>
-    
-    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
-      <details>
-        <summary style="cursor:pointer;font-size:12px;color:var(--dim);">Manual entry (paste text instead)</summary>
-        <div style="margin-top:8px;">
-          <label>Roster (optional)</label>
-          <textarea id="manualRoster" style="min-height:60px" placeholder="Jasper S #4 CF&#10;Blake M #99 SS"></textarea>
-          <label style="margin-top:8px;">Play-by-Play</label>
-          <textarea id="manualPlays" placeholder="Paste from GameChanger Plays tab..."></textarea>
-        </div>
-      </details>
-    </div>
   </div>`;
   
   if (currentGames.length) {
@@ -284,6 +281,19 @@ function renderAddGame(team) {
   }
   document.getElementById('addGamePanel').innerHTML = h;
   boxScoreFile = null; playsFile = null;
+}
+
+function setPlaysMode(mode) {
+  const isScreenshot = mode === 'screenshot';
+  document.getElementById('playsScreenshotMode').style.display = isScreenshot ? '' : 'none';
+  document.getElementById('playsPasteMode').style.display = isScreenshot ? 'none' : '';
+  document.getElementById('playsTabScreenshot').style.background = isScreenshot ? 'var(--accent)' : 'var(--surface2)';
+  document.getElementById('playsTabScreenshot').style.color = isScreenshot ? '#000' : 'var(--muted)';
+  document.getElementById('playsTabScreenshot').style.borderColor = isScreenshot ? 'var(--accent)' : 'var(--border)';
+  document.getElementById('playsTabPaste').style.background = isScreenshot ? 'var(--surface2)' : 'var(--accent)';
+  document.getElementById('playsTabPaste').style.color = isScreenshot ? 'var(--muted)' : '#000';
+  document.getElementById('playsTabPaste').style.borderColor = isScreenshot ? 'var(--border)' : 'var(--accent)';
+  if (isScreenshot) playsFile = null;
 }
 
 function handleFile(e, type) {
@@ -473,30 +483,73 @@ Return ONLY valid JSON array, no other text:
   }
 }
 
+async function extractPlaysFromText(playsText, savedTeams) {
+  const teamNamesList = (savedTeams || []).map(st => `"${st.teamName}"`).join(' or ');
+  const rosterLines = (savedTeams || []).map(st => {
+    const lineup = [...st.players].sort((a,b) => (a.lineup_order||99)-(b.lineup_order||99));
+    const rows = lineup.map((p,i) => `  ${i+1}. ${p.name}${p.jersey_number ? ' #'+p.jersey_number : ''}${p.position ? ' ('+p.position+')' : ''}`).join('\n');
+    return `"${st.teamName}":\n${rows}`;
+  }).join('\n\n');
+
+  const prompt = `Parse this GameChanger play-by-play text into structured at-bat data.
+
+ROSTERS (use to resolve abbreviated batter names):
+${rosterLines}
+
+PLAYER NAME RULES:
+- Batters appear abbreviated like "C R" meaning first initial + last initial
+- Match to the FULL NAME from rosters using first and last initials and batting order position
+- The batting order cycles through the roster lineup (1st batter = slot 1, 2nd = slot 2, etc.)
+- Output ONLY names that exist in the rosters above
+- NEVER append result words like "Out", "Single" to a player name
+- If you cannot match, output just the 2-letter initials
+
+TEAM NAME RULES:
+- Valid team names: ${teamNamesList}
+- Inning headers look like "Top 3rd - TEAM NAME" - match to one of the exact names above
+
+PLAYS TEXT TO PARSE:
+${playsText}
+
+Return ONLY valid JSON array, no other text:
+[{"inning":1,"half":"top","team":"EXACT TEAM NAME","result":"Ground Out","player":"Chad JR R","description":"C R grounds out, pitcher to first","direction":"Right","field_position":"1B","ball_type":"Ground"}]
+
+- "result": Single, Double, Triple, Home Run, Ground Out, Fly Out, Line Out, Pop Out, Strikeout, Error, Fielder's Choice, Walk, HBP, Double Play
+- "direction": Left, Center, Right, Middle, or empty
+- "field_position": LF, CF, RF, SS, 2B, 3B, 1B, P, C or empty
+- "ball_type": Fly, Ground, Line, or empty
+- Include EVERY at-bat for BOTH teams, skip stolen bases/wild pitches/inning markers`;
+
+  // callClaude with empty images array = text-only Claude call
+  const raw = await callClaude([], prompt);
+  try {
+    const cleaned = raw.replace(/```json|```/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch(e) {
+    console.error('Plays text parse error:', raw);
+    return null;
+  }
+}
+
 // =====================================================
 // SUBMIT GAME
 // =====================================================
 async function submitGame() {
-  const manualPlays = document.getElementById('manualPlays')?.value?.trim();
-  const manualRoster = document.getElementById('manualRoster')?.value?.trim();
-  
+  const pastedPlays = document.getElementById('playsText')?.value?.trim();
+
   let rosterData = null, playsData = null;
-  
-  if (boxScoreFile || playsFile) {
-    // SCREENSHOT MODE
-    if (boxScoreFile) {
-      setProgress(true, 'Reading box score... (resizing + sending to Claude, ~30 sec)');
-      rosterData = await extractBoxScore(boxScoreFile);
-      if (!rosterData) { setProgress(false); return; }
-    }
-    // NOTE: plays extraction is deferred until AFTER rosters are saved, so we can pass full names to Claude
-  } else if (manualPlays) {
-    alert('For manual entry, please select a team from the Teams tab first, then come back here.');
-    return;
-  } else {
-    alert('Upload at least a box score or plays screenshot.');
+
+  if (!boxScoreFile) {
+    alert('A Box Score screenshot is required to identify the teams and lineups.');
     return;
   }
+
+  if (boxScoreFile) {
+    setProgress(true, 'Reading box score... (~30 sec)');
+    rosterData = await extractBoxScore(boxScoreFile);
+    if (!rosterData) { setProgress(false); return; }
+  }
+  // Plays are extracted AFTER rosters save so we can pass full names to Claude
   
   setProgress(true, 'Creating teams & saving rosters...');
   
@@ -578,10 +631,14 @@ async function submitGame() {
   if (!savedTeams.length) { setProgress(false); alert('No teams found in box score.'); return; }
 
   // Now extract plays WITH roster context so Claude can resolve initials to full names
-  if (playsFile) {
-    setProgress(true, 'Reading plays... (sending roster + screenshot to Claude, ~60 sec)');
+  if (pastedPlays) {
+    setProgress(true, 'Parsing pasted plays text... (~20 sec)');
+    playsData = await extractPlaysFromText(pastedPlays, savedTeams);
+    if (!playsData) { setProgress(false); alert('Could not parse plays text. Check the format and try again.'); return; }
+  } else if (playsFile) {
+    setProgress(true, 'Reading plays screenshot... (~60 sec)');
     playsData = await extractPlays(playsFile, savedTeams);
-    if (!playsData) { setProgress(false); alert('Could not read plays. Try again.'); return; }
+    if (!playsData) { setProgress(false); alert('Could not read plays screenshot. Try "Paste Text" mode instead.'); return; }
   }
 
   setProgress(true, 'Saving at-bats...');
