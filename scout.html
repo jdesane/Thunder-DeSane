@@ -403,11 +403,12 @@ Return ONLY valid JSON in this exact format, no other text:
 Rules:
 - "game_date" is the date shown at the top of the page (e.g. "Sat Mar 28" or "Sun Jan 25")
 - "score" is the final score like "3-0" or "17-16" (team1 score first, then team2)
-- "name" in each team is the FULL team name exactly as displayed (e.g. "PLO Bulldogs White 8U - Tournaments" or "WBT Cobras 8U Blue")
-- "order" is the batting order (1st listed = 1, 2nd = 2, etc.)
+- "name" in each team is the FULL team name exactly as displayed
+- "order" is the batting order position (1st player listed = 1, 2nd = 2, etc.) - this is NOT the jersey number
 - Player "name" should be the display name from GC like "Jasper S" or "Chad JR R"
-- "jersey" is just the number without #
-- "position" is the position abbreviation shown in parentheses (SS, CF, P, etc.)
+- "jersey" is the player's uniform number as worn on their shirt (typically 1-99) - SEPARATE from the batting order
+  IMPORTANT: The batting order (1, 2, 3...) appears as a row number BEFORE each player. Do NOT confuse it with the jersey number. If you see "1 Chad JR R #1", the first "1" is batting order and "#1" is the jersey.
+- "position" is the position abbreviation shown in parentheses like (SS), (CF), (P) etc.
 - Include ALL players listed for BOTH teams
 - team1 is the team on the LEFT side of the box score, team2 is on the RIGHT`;
   
@@ -537,22 +538,41 @@ async function submitGame() {
     
     // Upsert players from box score
     for (const p of td.players || []) {
+      // Sanitize jersey: reject if > 99 (means batting order got concatenated with jersey number)
+      let cleanJersey = p.jersey ? String(p.jersey).replace(/\D/g, '') : '';
+      if (cleanJersey && parseInt(cleanJersey) > 99) cleanJersey = '';
+
       const existing = matchPlayer(p.name, teamPlayers);
       if (existing) {
         const updates = { lineup_order: p.order };
-        if (p.jersey) updates.jersey_number = p.jersey;
+        if (cleanJersey) updates.jersey_number = cleanJersey;
         if (p.position) updates.position = p.position;
         await supa('scout_players', 'PATCH', updates, `?id=eq.${existing.id}`);
         existing.lineup_order = p.order;
-        if (p.jersey) existing.jersey_number = p.jersey;
+        if (cleanJersey) existing.jersey_number = cleanJersey;
         if (p.position) existing.position = p.position;
       } else {
-        const newP = await supa('scout_players', 'POST', { team_id: teamId, name: p.name, jersey_number: p.jersey||null, position: p.position||null, lineup_order: p.order });
+        const newP = await supa('scout_players', 'POST', { team_id: teamId, name: p.name, jersey_number: cleanJersey||null, position: p.position||null, lineup_order: p.order });
         if (newP?.[0]) teamPlayers.push(newP[0]);
       }
     }
-    
-    savedTeams.push({ teamId, teamName: td.name, players: teamPlayers });
+
+    // Dedup: if same name appears twice (retry artifact), delete the duplicate keeping the one with more data
+    const seen = new Map();
+    for (const p of teamPlayers) {
+      const key = p.name.toLowerCase().trim();
+      if (seen.has(key)) {
+        const prev = seen.get(key);
+        // Keep whichever has jersey_number, else keep first
+        const keep = p.jersey_number && !prev.jersey_number ? p : prev;
+        const del = keep === p ? prev : p;
+        await supa('scout_players', 'DELETE', null, `?id=eq.${del.id}`);
+      } else {
+        seen.set(key, p);
+      }
+    }
+
+    savedTeams.push({ teamId, teamName: td.name, players: [...seen.values()] });
   }
 
   if (!savedTeams.length) { setProgress(false); alert('No teams found in box score.'); return; }
