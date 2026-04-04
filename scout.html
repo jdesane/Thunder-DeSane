@@ -193,10 +193,10 @@ async function gcImport() {
       try { win.postMessage({ type: 'gc_game_data', text: combined }, '*'); } catch(ex) { clearInterval(iv); }
     }, 600);
   }
-  var m = location.href.match(/(.*\/games\/[^\/]+)/);
-  if (!m) { alert('Navigate to a GameChanger game page and try again.'); return; }
-  var baseUrl = m[1];
-  var storageKey = 'ts_' + baseUrl;
+  var basePath = location.pathname.replace(/\/(box-score|plays|info|lineup|stats)\/?$/, '');
+  var baseUrl = location.origin + basePath;
+  var storageKey = 'ts_' + basePath;
+  if (!basePath || basePath === '/') { alert('Could not detect game page. Make sure you are on a GameChanger game page.'); return; }
   if (location.href.includes('/plays')) {
     var savedBox = sessionStorage.getItem(storageKey);
     if (!savedBox) { alert('Please go to the Box Score tab and click the bookmarklet first.'); return; }
