@@ -1287,6 +1287,53 @@ function buildPlayerStats(atBats) {
   return list;
 }
 
+function sprayChartSVG(p, size) {
+  const w = size || 56, h = Math.round(w * 0.75);
+  const cx = w / 2, cy = h + Math.round(h * 0.15);
+  const r  = Math.round(h * 1.18);
+  const total = (p.left||0) + (p.center||0) + (p.right||0) + (p.middle||0);
+  if (total === 0) {
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="#111" rx="3"/><text x="${w/2}" y="${h*0.62}" text-anchor="middle" fill="#333" font-size="${Math.round(w*0.18)}">-</text></svg>`;
+  }
+  const lPct = (p.left||0) / total;
+  const cPct = ((p.center||0) + (p.middle||0)) / total;
+  const rPct = (p.right||0) / total;
+  function heat(pct) {
+    if (pct === 0)    return '#141414';
+    if (pct < 0.15)   return '#1a3818';
+    if (pct < 0.30)   return '#235e1a';
+    if (pct < 0.45)   return '#4a8820';
+    if (pct < 0.60)   return '#80aa20';
+    return '#F0A000';
+  }
+  function pt(deg, rad) {
+    const a = (deg - 90) * Math.PI / 180;
+    return [+(cx + rad * Math.cos(a)).toFixed(1), +(cy + rad * Math.sin(a)).toFixed(1)];
+  }
+  function wedge(a1, a2) {
+    const [x1,y1] = pt(a1, r), [x2,y2] = pt(a2, r);
+    return `M${cx},${cy} L${x1},${y1} A${r},${r} 0 0 1 ${x2},${y2} Z`;
+  }
+  const fs = Math.round(w * 0.17);
+  function lbl(deg, pct) {
+    if (pct < 0.06) return '';
+    const [x,y] = pt(deg, r * 0.60);
+    const xi = Math.max(fs, Math.min(w - fs, x)), yi = Math.max(fs + 1, Math.min(h - 2, y));
+    return `<text x="${xi.toFixed(0)}" y="${yi.toFixed(0)}" text-anchor="middle" fill="rgba(255,255,255,0.92)" font-size="${fs}" font-weight="700">${Math.round(pct*100)}%</text>`;
+  }
+  const hotZone = lPct >= cPct && lPct >= rPct ? 'L' : rPct >= cPct ? 'R' : 'C';
+  const hotLabel = hotZone === 'L' ? 'LEFT' : hotZone === 'R' ? 'RIGHT' : 'CENTER';
+  const hotColor = hotZone === 'L' ? heat(lPct) : hotZone === 'R' ? heat(rPct) : heat(cPct);
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;overflow:hidden" title="L:${Math.round(lPct*100)}% C:${Math.round(cPct*100)}% R:${Math.round(rPct*100)}%">
+    <rect width="${w}" height="${h}" fill="#0d0d0d" rx="3"/>
+    <path d="${wedge(-46,-15)}" fill="${heat(lPct)}" stroke="#0d0d0d" stroke-width="0.8"/>
+    <path d="${wedge(-15,15)}"  fill="${heat(cPct)}" stroke="#0d0d0d" stroke-width="0.8"/>
+    <path d="${wedge(15,46)}"   fill="${heat(rPct)}" stroke="#0d0d0d" stroke-width="0.8"/>
+    <circle cx="${cx}" cy="${cy}" r="${Math.round(w*0.045)}" fill="#444"/>
+    ${lbl(-31, lPct)}${lbl(0, cPct)}${lbl(31, rPct)}
+  </svg>`;
+}
+
 function renderReport(team) {
   if (!currentAtBats.length) {
     document.getElementById('reportPanel').innerHTML = `<div class="empty"><h3>No data yet</h3><p>Go to "+ ADD GAME" to submit your first game for ${team.name}</p></div>`;
@@ -1300,7 +1347,7 @@ function renderReport(team) {
   
   h += '<div class="section-title">Scouting Summary</div>';
   h += '<div style="overflow-x:auto;"><table class="scouting-table"><thead><tr>';
-  h += '<th style="text-align:left">Player</th><th>AB</th><th>H</th><th>1B</th><th>2B</th><th>3B</th><th>HR</th><th>AVG</th><th>K</th><th>BB</th><th>ROE</th><th style="text-align:left">Hit Tendency</th><th style="text-align:left">Spray</th><th style="text-align:left">Notes</th>';
+  h += '<th style="text-align:left">Player</th><th>AB</th><th>H</th><th>1B</th><th>2B</th><th>3B</th><th>HR</th><th>AVG</th><th>K</th><th>BB</th><th>ROE</th><th style="text-align:left">Hit Tendency</th><th style="text-align:center">Spray Chart</th><th style="text-align:left">Notes</th>';
   h += '</tr></thead><tbody>';
   
   for (const p of stats) {
@@ -1323,7 +1370,7 @@ function renderReport(team) {
     h+=`<td style="color:${p.HR>0?'var(--red)':'var(--muted)'}">${p.HR}</td>`;
     h+=`<td style="font-weight:700;color:${ac}">${avg.toFixed(3)}</td>`;
     h+=`<td>${p.K}</td><td>${p.BB}</td><td>${p.errors}</td>`;
-    h+=`<td style="text-align:left;font-size:10px">${ht}</td><td style="text-align:left;font-size:10px">${sp}</td>`;
+    h+=`<td style="text-align:left;font-size:10px">${ht}</td><td style="text-align:center;padding:3px 5px">${sprayChartSVG(p, 54)}</td>`;
     h+=`<td style="text-align:left;font-size:10px;max-width:140px">${notes.join('; ')||'-'}</td></tr>`;
   }
   h += '</tbody></table></div>';
@@ -1341,9 +1388,13 @@ function renderReport(team) {
     const dot=avg>=0.400?'🔴':avg>=0.300?'🟡':'🟢';
     const ln=p.lineupOrder&&p.lineupOrder<99?'<span style="color:var(--dim);font-size:11px;margin-right:4px">'+p.lineupOrder+'.</span>':'';
     const j=p.jersey?'<span style="color:var(--accent);font-weight:800;font-family:\'JetBrains Mono\',monospace;margin-right:5px">#'+p.jersey+'</span>':'<span style="color:var(--dim);font-size:10px;margin-right:5px">--</span>';
+    const dm2=Math.max(p.left||0,p.center||0,p.right||0,p.middle||0);
+    const hotDir=dm2===0?'':p.left===dm2?'LEFT':p.right===dm2?'RIGHT':p.center===dm2?'CENTER':'MIDDLE';
     h+=`<div class="player-row" onclick="editPlayer('${p.playerId||''}','${p.name.replace(/'/g,"\\'")}')">`;
     h+=`<span style="font-size:14px">${dot}</span><div style="flex:1"><div style="font-weight:700;font-size:13px">${ln}${j}${p.name}</div>`;
-    h+=`<div style="font-size:11px;color:var(--dim)">${avg.toFixed(3)} &middot; ${pb} &middot; ${pd} &middot; ${recs.join(', ')||'Standard'}</div></div></div>`;
+    h+=`<div style="font-size:11px;color:var(--dim)">${avg.toFixed(3)} &middot; ${pb} &middot; ${pd} &middot; ${recs.join(', ')||'Standard'}</div>`;
+    if(hotDir){h+=`<div style="font-size:10px;color:var(--accent);font-weight:700;margin-top:2px">&#9654; Play ${hotDir}</div>`;}
+    h+=`</div><div style="flex-shrink:0">${sprayChartSVG(p, 72)}</div></div>`;
   }
   
   h += '<div class="section-title">Roster (tap to edit)</div>';
