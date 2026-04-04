@@ -194,7 +194,19 @@ async function loadTeams() {
   h += '<button class="btn btn-primary btn-sm" onclick="promptNewTeam()">+ New Team</button></div>';
   if (!teams.length) h += '<div class="empty"><h3>No teams yet</h3><p>Add your first opponent</p></div>';
   for (const t of teams) {
-    h += `<div class="team-card" onclick="selectTeam('${t.id}')"><div><h3 style="font-size:15px;font-weight:700;">${t.name}</h3><div style="font-size:11px;color:var(--muted)">${t.season||''}</div></div><span style="color:var(--accent);font-size:18px;">&#8250;</span></div>`;
+    h += `<div class="team-card" onclick="selectTeam('${t.id}')">
+      <div style="flex:1;min-width:0;">
+        <h3 style="font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.name}</h3>
+        <div style="font-size:11px;color:var(--muted)">${t.season||''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:10px;" onclick="event.stopPropagation()">
+        <button onclick="renameTeam('${t.id}','${t.name.replace(/'/g,"\\'")}')" title="Rename team"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 9px;color:var(--muted);cursor:pointer;font-size:13px;">&#9998;</button>
+        <button onclick="deleteTeam('${t.id}','${t.name.replace(/'/g,"\\'")}')" title="Delete team"
+          style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:5px 9px;color:var(--red);cursor:pointer;font-size:13px;">&#128465;</button>
+        <span style="color:var(--accent);font-size:18px;">&#8250;</span>
+      </div>
+    </div>`;
   }
   document.getElementById('teamsPanel').innerHTML = h;
 }
@@ -204,6 +216,35 @@ async function promptNewTeam() {
   if (!name) return;
   await supa('scout_teams', 'POST', { name, season: 'Spring 2026' });
   toast('Team added!'); await loadTeams();
+}
+
+async function renameTeam(teamId, currentName) {
+  const newName = prompt('Rename team:', currentName);
+  if (!newName || newName.trim() === currentName) return;
+  await supa('scout_teams', 'PATCH', { name: newName.trim() }, `?id=eq.${teamId}`);
+  toast('Team renamed!');
+  await loadTeams();
+  // If this team is currently selected, update the header
+  if (selectedTeamId === teamId) {
+    const team = teams.find(t => t.id === teamId);
+    if (team) { team.name = newName.trim(); renderReport(team); }
+  }
+}
+
+async function deleteTeam(teamId, teamName) {
+  if (!confirm(`Delete "${teamName}" and ALL its games, players, and at-bat data?\n\nThis cannot be undone.`)) return;
+  // Cascade: delete at-bats -> games -> players -> team
+  const games = await supa('scout_games', 'GET', null, `?team_id=eq.${teamId}`) || [];
+  for (const g of games) {
+    await supa('scout_at_bats', 'DELETE', null, `?game_id=eq.${g.id}`);
+  }
+  await supa('scout_games', 'DELETE', null, `?team_id=eq.${teamId}`);
+  await supa('scout_players', 'DELETE', null, `?team_id=eq.${teamId}`);
+  await supa('scout_teams', 'DELETE', null, `?id=eq.${teamId}`);
+  toast('Team deleted.');
+  if (selectedTeamId === teamId) { selectedTeamId = null; currentAtBats = []; currentPlayers = []; currentGames = []; }
+  await loadTeams();
+  showPanel('teams');
 }
 
 async function selectTeam(teamId) {
