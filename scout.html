@@ -293,7 +293,7 @@ function renderAddGame(team) {
         </div>
         <div style="text-align:center;margin-bottom:12px;">
           <a id="gcBookmarklet"
-            href="javascript:(async function(){if(!location.hostname.includes('gc.com')){alert('Use this on a GameChanger game page!');return;}var wait=function(ms){return new Promise(function(r){setTimeout(r,ms)})};var getLines=function(){return document.body.innerText.split('\n').filter(function(l){return l.trim()})};var boxL=Array.from(document.querySelectorAll('a')).find(function(a){return a.href&&a.href.includes('/box-score')});if(boxL)boxL.click();await wait(2200);var bl=getLines();var ii=bl.findIndex(function(l){return l.trim()==='INFO'});var boxText=ii>-1?bl.slice(ii+1,ii+280).join('\n'):'';var plL=Array.from(document.querySelectorAll('a')).find(function(a){return a.href&&a.href.includes('/plays')});if(plL)plL.click();await wait(2200);var pl=getLines();var ps=pl.findIndex(function(l){return l.trim()==='Plays'});var playsText=ps>-1?pl.slice(ps).join('\n'):pl.join('\n');var combined='=== BOX SCORE ===\n'+boxText+'\n\n=== PLAYS ===\n'+playsText;var win=window.open('https://jdesane.github.io/Thunder-DeSane/scout.html','thunderscout');var sent=false;window.addEventListener('message',function h(e){if(e.data&&e.data.type==='scout_ready'&&!sent){sent=true;window.removeEventListener('message',h);try{win.postMessage({type:'gc_game_data',text:combined},'*');}catch(ex){}}});var tries=0;var iv=setInterval(function(){tries++;if(sent||tries>20){clearInterval(iv);return;}try{win.postMessage({type:'gc_game_data',text:combined},'*');}catch(ex){clearInterval(iv);}},600);})();"
+            href="javascript:(async function(){if(!location.hostname.includes('gc.com')){alert('Use this on a GameChanger game page!');return;}var wait=function(ms){return new Promise(function(r){setTimeout(r,ms)})};var getLines=function(){return document.body.innerText.split('\n').filter(function(l){return l.trim()})};var boxL=Array.from(document.querySelectorAll('a')).find(function(a){return a.href&&a.href.includes('/box-score')});if(boxL)boxL.click();await wait(2200);var bl=getLines();var ii=bl.findIndex(function(l){return l.trim()==='INFO'});var boxText=ii>-1?bl.slice(Math.max(0,ii-20),ii+300).join('\n'):'';var plL=Array.from(document.querySelectorAll('a')).find(function(a){return a.href&&a.href.includes('/plays')});if(plL)plL.click();await wait(2200);var sortBtn=Array.from(document.querySelectorAll('button,span,[role=button]')).find(function(el){return el.textContent.trim()==='Reverse Chronological';});if(sortBtn){sortBtn.click();await wait(1000);}var pl=getLines();var ps=pl.findIndex(function(l){return l.trim()==='Plays'});var playsText=ps>-1?pl.slice(ps).join('\n'):pl.join('\n');var combined='=== BOX SCORE ===\n'+boxText+'\n\n=== PLAYS ===\n'+playsText;var win=window.open('https://jdesane.github.io/Thunder-DeSane/scout.html','thunderscout');var sent=false;window.addEventListener('message',function h(e){if(e.data&&e.data.type==='scout_ready'&&!sent){sent=true;window.removeEventListener('message',h);try{win.postMessage({type:'gc_game_data',text:combined},'*');}catch(ex){}}});var tries=0;var iv=setInterval(function(){tries++;if(sent||tries>20){clearInterval(iv);return;}try{win.postMessage({type:'gc_game_data',text:combined},'*');}catch(ex){clearInterval(iv);}},600);})();"
             style="display:inline-block;padding:10px 22px;background:linear-gradient(135deg,#F0A000,#FFBB33);color:#000;font-weight:700;font-size:13px;border-radius:8px;text-decoration:none;cursor:grab;box-shadow:0 4px 16px rgba(240,160,0,0.35);"
             title="Drag this to your bookmarks bar"
             draggable="true">
@@ -559,74 +559,134 @@ Rules:
   }
 }
 
-async function extractAllFromText(fullText) {
-  const prompt = `Parse this GameChanger game export into structured JSON. It has a === BOX SCORE === section and a === PLAYS === section (or equivalent GC copy-paste format).
+// =====================================================
+// DETERMINISTIC BOX SCORE PARSER (no AI)
+// Parses the GC DOM innerText format where each cell is on its own line
+// =====================================================
+function parseGCBoxScoreText(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  const STAT_COLS = new Set(['AB','R','H','RBI','BB','SO','AVG','K','OBP','SLG','OPS','ERA','IP','ER','BB','HBP','HR','SF','SB']);
+  const STOP_PREFIXES = ['2B:','3B:','HR:','TB:','E:','SB:','CS:','HBP:','LOB:'];
+  const STOP_EXACT = new Set(['TEAM','PITCHING','FIELDING','NOTES']);
+  const teams = [];
 
-Return ONLY valid JSON, no other text:
-{
-  "game_date": "Sat Mar 28",
-  "score": "13-5",
-  "team1": {
-    "name": "RPB Wildcats 8U Blue",
-    "players": [{"order":1,"name":"Landon W","jersey":"21","position":"2B"},{"order":2,"name":"Andres V","jersey":"14","position":"SS"}]
-  },
-  "team2": {
-    "name": "WBT COBRAS 8U BLUE",
-    "players": [{"order":1,"name":"B C","jersey":"7","position":"SS"}]
-  },
-  "plays": [
-    {"inning":1,"half":"top","team":"RPB Wildcats 8U Blue","result":"Ground Out","player":"Landon W","description":"L W grounds out","direction":"Left","field_position":"SS","ball_type":"Ground"}
-  ]
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i] !== 'LINEUP') continue;
+
+    const teamName = lines[i - 1] || 'Unknown';
+    i++; // past LINEUP
+
+    // Skip stat column headers (AB, R, H, RBI, BB, SO ...)
+    while (i < lines.length && STAT_COLS.has(lines[i])) i++;
+
+    const players = [];
+
+    while (i < lines.length) {
+      const line = lines[i];
+      // Stop at next team block, pitching stats, or team totals line
+      if (line === 'LINEUP') break;
+      if (STOP_EXACT.has(line)) break;
+      if (STOP_PREFIXES.some(p => line.startsWith(p))) break;
+
+      // Check if the very next line is a jersey line (#digits)
+      const nextLine = lines[i + 1] || '';
+      if (nextLine.match(/^#\d+/)) {
+        // Current line = player name, next line = "#jersey (position)"
+        const name = line;
+        const jerseyMatch = nextLine.match(/#(\d+)/);
+        const posMatch = nextLine.match(/\(([^)]+)\)/);
+        const jersey = jerseyMatch ? jerseyMatch[1] : '';
+        const pos = posMatch ? posMatch[1].split(',')[0].trim() : '';
+        players.push({ order: players.length + 1, name, jersey, position: pos });
+        i += 2; // skip name + jersey line
+        // Skip exactly 6 numeric stat values
+        let statCount = 0;
+        while (i < lines.length && statCount < 6 && /^\d+$/.test(lines[i])) { i++; statCount++; }
+        continue;
+      }
+
+      i++; // skip unrecognized line
+    }
+
+    if (players.length > 0) teams.push({ name: teamName, players });
+  }
+  return teams;
 }
 
-=== STEP 1: PARSE THE BOX SCORE ===
-The box score lists players for each team. The format after the team name and "LINEUP" header is:
-  AB  R  H  RBI  BB  SO    <- column headers (ignore these)
-  Player Full Name          <- this is the player's name
-  #JerseyNumber (Position)  <- jersey and position
-  3  0  2  0  0  0         <- stats (ignore these)
-  (repeat for each player)
+async function extractAllFromText(fullText) {
+  // ── STEP 1: Split into box score and plays sections ──────────────────────
+  const hasMarkers = fullText.includes('=== BOX SCORE ===');
+  const boxSection   = hasMarkers ? (fullText.split('=== BOX SCORE ===')[1] || '').split('=== PLAYS ===')[0] : fullText;
+  const playsSection = hasMarkers ? (fullText.split('=== PLAYS ===')[1]   || '')                              : fullText;
 
-TEAM NAME RULE: Copy the team name EXACTLY, character for character, as it appears in the box score. Do not rearrange, abbreviate, or change any letters. "WBT COBRAS 8U BLUE" must remain "WBT COBRAS 8U BLUE" - not "WBTC OBRAS" or any other variation.
+  // ── STEP 2: Parse box score DETERMINISTICALLY (no AI, no hallucination) ──
+  const parsedTeams = parseGCBoxScoreText(boxSection);
 
-ROSTER RULES:
-- "order" = batting order = the sequence players are listed (1st player = order 1). NOT the jersey number.
-- "jersey" = the number after # (integers 1-99 only). If you see "#21 (2B)", jersey is "21".
-- "position" = abbreviation in parentheses: SS, CF, P, 1B, 2B, 3B, LF, RF, C, etc.
-- Include ALL players listed for BOTH teams.
+  if (parsedTeams.length < 2) {
+    console.warn('Box score parser found fewer than 2 teams:', parsedTeams);
+  }
 
-=== STEP 2: RESOLVE PLAYS ===
-The plays section uses initials only (e.g. "L W" = player whose first name starts with L and last name starts with W).
+  // ── STEP 3: Build roster context string for Claude plays prompt ───────────
+  const rosterContext = parsedTeams.map(t => {
+    const rows = t.players.map(p =>
+      `  ${p.order}. ${p.name}${p.jersey ? ' #' + p.jersey : ''}${p.position ? ' (' + p.position + ')' : ''}`
+    ).join('\n');
+    return `"${t.name}":\n${rows}`;
+  }).join('\n\n');
 
-HOW TO RESOLVE INITIALS TO FULL NAMES:
-1. Build a lookup from the roster: first_initial + last_initial -> full name
-   Example: "Landon W" -> first initial "L", last initial "W" -> key "LW"
-2. For each play, take the initials shown (e.g. "L W" or "LW"), look up the full name from step 1
-3. Use the FULL NAME in the "player" field. NEVER use initials.
-4. If two players share the same initials, use batting order cycling to disambiguate.
+  // ── STEP 4: Extract game date from full text ──────────────────────────────
+  const dateMatch = fullText.match(/(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+/i);
+  const gameDate = dateMatch ? dateMatch[0] : new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
 
-PLAYS RULES:
-- "team": copy exactly from the inning header (e.g. "Top 1st - RPB Wildcats 8U Blue" -> team is "RPB Wildcats 8U Blue")
-- "player": ALWAYS the full name from the roster. NEVER initials like "L W" or "LW".
-- "result": Single, Double, Triple, Home Run, Ground Out, Fly Out, Line Out, Pop Out, Strikeout, Error, Fielder's Choice, Walk, HBP
-- "direction": Left, Center, Right, Middle, or empty string
-- "field_position": LF, CF, RF, SS, 2B, 3B, 1B, P, C, or empty string
-- "ball_type": Fly, Ground, Line, or empty string
-- Include EVERY at-bat for BOTH teams. Skip stolen bases, wild pitches, inning summary lines.
+  // ── STEP 5: Send ONLY plays to Claude — roster is already resolved ─────────
+  const prompt = `Parse these GameChanger play descriptions into at-bat records. The roster below gives you the EXACT player names, jersey numbers, and batting order. Use them to resolve initials in the plays.
 
-FULL TEXT TO PARSE:
-${fullText}`;
+ROSTER (use these exact names):
+${rosterContext}
+
+HOW TO MATCH INITIALS TO NAMES:
+- Each play names the batter with first+last initials (e.g. "J S" = first initial J, last initial S)
+- Find the player whose name starts with that first initial AND last name starts with that last initial
+- Use the FULL name from the roster in the "player" field — NEVER output initials
+
+RULES:
+- "team": exact string from the inning header (e.g. "Top 1st - WBT COBRAS 8U BLUE" → "WBT COBRAS 8U BLUE")
+- "player": full name from roster only (e.g. "Jasper S", "Nick S", "JJ V")
+- "inning": integer (1, 2, 3...)
+- "half": "top" or "bottom"
+- "result": Single | Double | Triple | Home Run | Ground Out | Fly Out | Line Out | Pop Out | Strikeout | Error | Fielder's Choice | Walk | HBP | Sacrifice Fly
+- "ball_type": Fly | Ground | Line | "" (empty if unknown)
+- "direction": Left | Center | Right | Middle | "" (empty if unknown)
+- "field_position": LF | CF | RF | SS | 2B | 3B | 1B | P | C | SF | "" (empty if unknown)
+- "description": the play text verbatim
+- Include EVERY at-bat for BOTH teams across ALL innings
+- SKIP: stolen bases, wild pitches, passed balls, inning headers, score updates, lineup changes, "Inning Ended" markers
+
+Return ONLY a JSON array (no wrapping object):
+[
+  {"inning":1,"half":"top","team":"WBT COBRAS 8U BLUE","result":"Ground Out","player":"Jasper S","ball_type":"Ground","direction":"","field_position":"P","description":"J S grounds out to pitcher"},
+  {"inning":1,"half":"top","team":"WBT COBRAS 8U BLUE","result":"Ground Out","player":"Bowen C","ball_type":"Ground","direction":"","field_position":"SS","description":"B C grounds out to shortstop"}
+]
+
+PLAYS TO PARSE:
+${playsSection}`;
 
   const raw = await callClaude([], prompt);
   try {
     const cleaned = raw.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(cleaned);
-    // Split into rosterData + playsData format
-    const rosterData = { game_date: parsed.game_date, score: parsed.score, team1: parsed.team1, team2: parsed.team2 };
-    const playsData = parsed.plays || [];
+    let playsData = JSON.parse(cleaned);
+    if (!Array.isArray(playsData) && playsData.plays) playsData = playsData.plays;
+    if (!Array.isArray(playsData)) playsData = [];
+
+    const rosterData = {
+      game_date: gameDate,
+      score: '',
+      team1: parsedTeams[0] || { name: 'Team 1', players: [] },
+      team2: parsedTeams[1] || { name: 'Team 2', players: [] }
+    };
     return { rosterData, playsData };
   } catch(e) {
-    console.error('Extract all parse error:', raw);
+    console.error('extractAllFromText parse error:', e, raw?.substring(0, 300));
     return null;
   }
 }
@@ -839,9 +899,9 @@ async function submitGame() {
     
     // Upsert players from box score
     for (const p of td.players || []) {
-      // Sanitize jersey: reject if > 99 (means batting order got concatenated with jersey number)
+      // Sanitize jersey: strip non-digits. Only reject if absurdly large (>999) — valid youth jerseys include #00, #88, #99
       let cleanJersey = p.jersey ? String(p.jersey).replace(/\D/g, '') : '';
-      if (cleanJersey && parseInt(cleanJersey) > 99) cleanJersey = '';
+      if (cleanJersey && parseInt(cleanJersey) > 999) cleanJersey = '';
 
       const existing = matchPlayer(p.name, teamPlayers);
       if (existing) {
