@@ -166,6 +166,101 @@ async function supa(table, method, body, query) {
 // =====================================================
 let teams = [], selectedTeamId = null, currentPlayers = [], currentGames = [], currentAtBats = [];
 
+// =====================================================
+// BOOKMARKLET SETUP
+// =====================================================
+async function gcImport() {
+  if (!location.hostname.includes('gc.com')) { alert('Use this on a GameChanger game page!'); return; }
+  function wait(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+  function getLines() { return document.body.innerText.split('\n').filter(function(l) { return l.trim(); }); }
+  async function doScroll() {
+    for (var si = 0; si < 5; si++) { window.scrollTo(0, si * document.body.scrollHeight / 4); await wait(250); }
+    window.scrollTo(0, 0); await wait(400);
+  }
+  function sendToScout(combined) {
+    var win = window.open('https://jdesane.github.io/Thunder-DeSane/scout.html', 'thunderscout');
+    var sent = false;
+    window.addEventListener('message', function h(e) {
+      if (e.data && e.data.type === 'scout_ready' && !sent) {
+        sent = true; window.removeEventListener('message', h);
+        try { win.postMessage({ type: 'gc_game_data', text: combined }, '*'); } catch(ex) {}
+      }
+    });
+    var tries = 0;
+    var iv = setInterval(function() {
+      tries++;
+      if (sent || tries > 20) { clearInterval(iv); return; }
+      try { win.postMessage({ type: 'gc_game_data', text: combined }, '*'); } catch(ex) { clearInterval(iv); }
+    }, 600);
+  }
+  var m = location.href.match(/(.*\/games\/[^\/]+)/);
+  if (!m) { alert('Navigate to a GameChanger game page and try again.'); return; }
+  var baseUrl = m[1];
+  var storageKey = 'ts_' + baseUrl;
+  if (location.href.includes('/plays')) {
+    var savedBox = sessionStorage.getItem(storageKey);
+    if (!savedBox) { alert('Please go to the Box Score tab and click the bookmarklet first.'); return; }
+    await doScroll();
+    var r = 10;
+    while (document.body.innerText.indexOf('Top 1st') === -1 && document.body.innerText.indexOf('Bottom 1st') === -1 && r-- > 0) { await wait(700); }
+    var sortBtn = Array.from(document.querySelectorAll('button,span,[role=button]')).find(function(el) { return el.textContent.trim() === 'Reverse Chronological'; });
+    if (sortBtn) { sortBtn.click(); await wait(1200); }
+    await doScroll();
+    var pl = getLines();
+    var ps = pl.findIndex(function(l) { return l.trim() === 'Plays'; });
+    if (ps === -1) ps = pl.findIndex(function(l) { return /^(Top|Bottom)\s+\d/.test(l.trim()); });
+    var playsText = ps > -1 ? pl.slice(ps).join('\n') : pl.join('\n');
+    sessionStorage.removeItem(storageKey);
+    sendToScout('=== BOX SCORE ===\n' + savedBox + '\n\n=== PLAYS ===\n' + playsText);
+    return;
+  }
+  if (!location.href.includes('/box-score')) {
+    var boxL = Array.from(document.querySelectorAll('a')).find(function(a) { return a.href && a.href.includes('/box-score'); });
+    if (boxL) { boxL.click(); } else { location.href = baseUrl + '/box-score'; }
+    var ur = 10;
+    while (!location.href.includes('/box-score') && ur-- > 0) { await wait(600); }
+    await wait(1500);
+  }
+  await doScroll();
+  var retries = 12;
+  while (document.body.innerText.indexOf('LINEUP') === -1 && retries-- > 0) {
+    await wait(700);
+    if (retries % 3 === 0) { await doScroll(); }
+  }
+  if (document.body.innerText.indexOf('LINEUP') === -1) {
+    alert('Box score still loading. Make sure it is fully visible on screen, then click the bookmarklet again.'); return;
+  }
+  var bl = getLines();
+  var ii = bl.findIndex(function(l) { return l.trim() === 'INFO'; });
+  var boxText = ii > -1 ? bl.slice(Math.max(0, ii - 20), ii + 300).join('\n') : bl.join('\n');
+  sessionStorage.setItem(storageKey, boxText);
+  var plL = Array.from(document.querySelectorAll('a')).find(function(a) { return a.href && a.href.includes('/plays'); });
+  if (plL) { plL.click(); } else { location.href = baseUrl + '/plays'; }
+  var pr = 10;
+  while (!location.href.includes('/plays') && pr-- > 0) { await wait(600); }
+  await wait(1500);
+  await doScroll();
+  var r2 = 10;
+  while (document.body.innerText.indexOf('Top 1st') === -1 && document.body.innerText.indexOf('Bottom 1st') === -1 && r2-- > 0) { await wait(700); }
+  if (document.body.innerText.indexOf('Top 1st') === -1 && document.body.innerText.indexOf('Bottom 1st') === -1) {
+    alert('Box score saved! Click the Plays tab, wait for it to load, then click the bookmarklet one more time.'); return;
+  }
+  var sortBtn2 = Array.from(document.querySelectorAll('button,span,[role=button]')).find(function(el) { return el.textContent.trim() === 'Reverse Chronological'; });
+  if (sortBtn2) { sortBtn2.click(); await wait(1200); }
+  await doScroll();
+  var pl2 = getLines();
+  var ps2 = pl2.findIndex(function(l) { return l.trim() === 'Plays'; });
+  if (ps2 === -1) ps2 = pl2.findIndex(function(l) { return /^(Top|Bottom)\s+\d/.test(l.trim()); });
+  var playsText2 = ps2 > -1 ? pl2.slice(ps2).join('\n') : pl2.join('\n');
+  sessionStorage.removeItem(storageKey);
+  sendToScout('=== BOX SCORE ===\n' + boxText + '\n\n=== PLAYS ===\n' + playsText2);
+}
+
+function setupBookmarklet() {
+  var el = document.getElementById('gcBookmarklet');
+  if (el) el.href = 'javascript:(' + gcImport.toString() + ')()';
+}
+
 function showPanel(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -300,98 +395,6 @@ function renderAddGame(team) {
             &#9918; Thunder Scout
           </a>
           <div style="font-size:10px;color:var(--dim);margin-top:6px;">Drag to bookmarks bar</div>
-          <script>
-          (function(){
-            async function gcImport(){
-              if(!location.hostname.includes('gc.com')){alert('Use this on a GameChanger game page!');return;}
-              function wait(ms){return new Promise(function(r){setTimeout(r,ms);})}
-              function getLines(){return document.body.innerText.split('\n').filter(function(l){return l.trim();});}
-              async function doScroll(){
-                for(var si=0;si<5;si++){window.scrollTo(0,si*document.body.scrollHeight/4);await wait(250);}
-                window.scrollTo(0,0);await wait(400);
-              }
-              function sendToScout(combined){
-                var win=window.open('https://jdesane.github.io/Thunder-DeSane/scout.html','thunderscout');
-                var sent=false;
-                window.addEventListener('message',function h(e){
-                  if(e.data && e.data.type==='scout_ready' && !sent){
-                    sent=true;window.removeEventListener('message',h);
-                    try{win.postMessage({type:'gc_game_data',text:combined},'*');}catch(ex){}
-                  }
-                });
-                var tries=0;
-                var iv=setInterval(function(){
-                  tries++;
-                  if(sent || tries>20){clearInterval(iv);return;}
-                  try{win.postMessage({type:'gc_game_data',text:combined},'*');}catch(ex){clearInterval(iv);}
-                },600);
-              }
-              var m=location.href.match(/(.*\/games\/[^\/]+)/);
-              if(!m){alert('Navigate to a GameChanger game page and try again.');return;}
-              var baseUrl=m[1];
-              var storageKey='ts_'+baseUrl;
-              if(location.href.includes('/plays')){
-                var savedBox=sessionStorage.getItem(storageKey);
-                if(!savedBox){alert('Please go to the Box Score tab and click the bookmarklet first.');return;}
-                await doScroll();
-                var r=10;
-                while(document.body.innerText.indexOf('Top 1st')===-1 && document.body.innerText.indexOf('Bottom 1st')===-1 && r-->0){await wait(700);}
-                var sortBtn=Array.from(document.querySelectorAll('button,span,[role=button]')).find(function(el){return el.textContent.trim()==='Reverse Chronological';});
-                if(sortBtn){sortBtn.click();await wait(1200);}
-                await doScroll();
-                var pl=getLines();
-                var ps=pl.findIndex(function(l){return l.trim()==='Plays';});
-                if(ps===-1)ps=pl.findIndex(function(l){return /^(Top|Bottom)\s+\d/.test(l.trim());});
-                var playsText=ps>-1?pl.slice(ps).join('\n'):pl.join('\n');
-                sessionStorage.removeItem(storageKey);
-                sendToScout('=== BOX SCORE ===\n'+savedBox+'\n\n=== PLAYS ===\n'+playsText);
-                return;
-              }
-              if(!location.href.includes('/box-score')){
-                var boxL=Array.from(document.querySelectorAll('a')).find(function(a){return a.href && a.href.includes('/box-score');});
-                if(boxL){boxL.click();}else{location.href=baseUrl+'/box-score';}
-                var ur=10;
-                while(!location.href.includes('/box-score') && ur-->0){await wait(600);}
-                await wait(1500);
-              }
-              await doScroll();
-              var retries=12;
-              while(document.body.innerText.indexOf('LINEUP')===-1 && retries-->0){
-                await wait(700);
-                if(retries%3===0){await doScroll();}
-              }
-              if(document.body.innerText.indexOf('LINEUP')===-1){
-                alert('Box score still loading. Make sure it is fully visible on screen, then click the bookmarklet again.');return;
-              }
-              var bl=getLines();
-              var ii=bl.findIndex(function(l){return l.trim()==='INFO';});
-              var boxText=ii>-1?bl.slice(Math.max(0,ii-20),ii+300).join('\n'):bl.join('\n');
-              sessionStorage.setItem(storageKey,boxText);
-              var plL=Array.from(document.querySelectorAll('a')).find(function(a){return a.href && a.href.includes('/plays');});
-              if(plL){plL.click();}else{location.href=baseUrl+'/plays';}
-              var pr=10;
-              while(!location.href.includes('/plays') && pr-->0){await wait(600);}
-              await wait(1500);
-              await doScroll();
-              var r2=10;
-              while(document.body.innerText.indexOf('Top 1st')===-1 && document.body.innerText.indexOf('Bottom 1st')===-1 && r2-->0){await wait(700);}
-              if(document.body.innerText.indexOf('Top 1st')===-1 && document.body.innerText.indexOf('Bottom 1st')===-1){
-                alert('Box score saved! Click the Plays tab, wait for it to load, then click the bookmarklet one more time.');return;
-              }
-              var sortBtn2=Array.from(document.querySelectorAll('button,span,[role=button]')).find(function(el){return el.textContent.trim()==='Reverse Chronological';});
-              if(sortBtn2){sortBtn2.click();await wait(1200);}
-              await doScroll();
-              var pl2=getLines();
-              var ps2=pl2.findIndex(function(l){return l.trim()==='Plays';});
-              if(ps2===-1)ps2=pl2.findIndex(function(l){return /^(Top|Bottom)\s+\d/.test(l.trim());});
-              var playsText2=ps2>-1?pl2.slice(ps2).join('\n'):pl2.join('\n');
-              sessionStorage.removeItem(storageKey);
-              sendToScout('=== BOX SCORE ===\n'+boxText+'\n\n=== PLAYS ===\n'+playsText2);
-            }
-            var code = '(' + gcImport.toString() + ')()';
-            document.getElementById('gcBookmarklet').href = 'javascript:' + code;
-          })();
-          </script>
         </div>
         <div id="gcWaitStatus" style="text-align:center;padding:10px;border-radius:8px;background:var(--surface2);font-size:12px;color:var(--muted);">
           <span id="gcStatusDot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--dim);margin-right:6px;vertical-align:middle;"></span>
@@ -466,6 +469,7 @@ function renderAddGame(team) {
   }
   document.getElementById('addGamePanel').innerHTML = h;
   boxScoreFile = null; playsFile = null;
+  setupBookmarklet();
 }
 
 function setInputMode(mode) {
