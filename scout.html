@@ -229,9 +229,18 @@ let boxScoreFile = null, playsFile = null;
 function renderAddGame(team) {
   let h = `<div class="card">
     <h2 style="font-size:16px;font-weight:700;margin-bottom:14px;">Add Game</h2>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Use screenshots or paste text directly from GameChanger for both the Box Score and Plays tab.</p>
 
-    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+    <div style="display:flex;gap:6px;margin-bottom:14px;">
+      <button id="modeTabSeparate" onclick="setInputMode('separate')" style="flex:1;padding:7px 10px;font-size:12px;font-weight:600;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#000;cursor:pointer;">Box Score + Plays</button>
+      <button id="modeTabAll" onclick="setInputMode('all')" style="flex:1;padding:7px 10px;font-size:12px;font-weight:600;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;">Paste All (GC Copy)</button>
+    </div>
+
+    <div id="pasteAllMode" style="display:none;margin-bottom:12px;">
+      <label style="font-size:12px;color:var(--muted);">Copy the full GameChanger game page (Teams + Plays) and paste below</label>
+      <textarea id="allText" style="min-height:200px;font-size:11px;margin-top:6px;" placeholder="Paste everything here - team rosters, jersey numbers, and all plays..."></textarea>
+    </div>
+
+    <div id="separateMode" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
       <div style="flex:1;min-width:200px;">
         <label>1. Box Score</label>
         <div style="display:flex;gap:6px;margin-bottom:8px;">
@@ -271,6 +280,8 @@ function renderAddGame(team) {
         </div>
       </div>
     </div>
+    </div>`; /* closes separateMode div */
+  h += `
 
     <div class="progress" id="progressBar" style="display:none;">
       <span class="spinner"></span>
@@ -290,6 +301,18 @@ function renderAddGame(team) {
   }
   document.getElementById('addGamePanel').innerHTML = h;
   boxScoreFile = null; playsFile = null;
+}
+
+function setInputMode(mode) {
+  const isAll = mode === 'all';
+  document.getElementById('pasteAllMode').style.display = isAll ? '' : 'none';
+  document.getElementById('separateMode').style.display = isAll ? 'none' : 'flex';
+  document.getElementById('modeTabAll').style.background = isAll ? 'var(--accent)' : 'var(--surface2)';
+  document.getElementById('modeTabAll').style.color = isAll ? '#000' : 'var(--muted)';
+  document.getElementById('modeTabAll').style.borderColor = isAll ? 'var(--accent)' : 'var(--border)';
+  document.getElementById('modeTabSeparate').style.background = isAll ? 'var(--surface2)' : 'var(--accent)';
+  document.getElementById('modeTabSeparate').style.color = isAll ? 'var(--muted)' : '#000';
+  document.getElementById('modeTabSeparate').style.borderColor = isAll ? 'var(--border)' : 'var(--accent)';
 }
 
 function setBoxMode(mode) {
@@ -454,6 +477,61 @@ Rules:
   }
 }
 
+async function extractAllFromText(fullText) {
+  const prompt = `Parse this complete GameChanger game export into structured data. It contains team rosters AND all plays.
+
+Return ONLY valid JSON in this exact format, no other text:
+{
+  "game_date": "Sat Mar 28",
+  "score": "13-9",
+  "team1": {
+    "name": "PLO Bulldogs White 8U - Tournaments",
+    "players": [{"order":1,"name":"Chad JR R","jersey":"1","position":"SS"}]
+  },
+  "team2": {
+    "name": "TBT Ballers CP 8U",
+    "players": [{"order":1,"name":"Alayin C","jersey":"25","position":""}]
+  },
+  "plays": [
+    {"inning":1,"half":"top","team":"PLO Bulldogs White 8U - Tournaments","result":"Line Out","player":"Chad JR R","description":"C R lines out to third baseman","direction":"Left","field_position":"3B","ball_type":"Line"}
+  ]
+}
+
+ROSTER RULES:
+- "order" is batting order (sequence listed = 1,2,3...), NOT the jersey number
+- "jersey" is the uniform number (1-99 only) - the number after # in the roster
+- "position" is abbreviation like SS, CF, P, 1B etc.
+- Include ALL players for BOTH teams
+
+PLAYS RULES:
+- "team" MUST exactly match one of the team names from the Teams section above
+- "player" MUST be the full name from the roster (e.g. "Chad JR R" not "C R")
+  - Match initials in plays to full names using first+last initial and batting order position
+  - Batters cycle through the lineup in order
+- "result": Single, Double, Triple, Home Run, Ground Out, Fly Out, Line Out, Pop Out, Strikeout, Error, Fielder's Choice, Walk, HBP, Double Play
+- "direction": Left, Center, Right, Middle, or empty
+- "field_position": LF, CF, RF, SS, 2B, 3B, 1B, P, C or empty
+- "ball_type": Fly, Ground, Line, or empty
+- Include EVERY at-bat for BOTH teams, skip stolen bases/wild pitches/inning markers
+- NEVER append result words like "Out" to a player name
+
+FULL TEXT TO PARSE:
+${fullText}`;
+
+  const raw = await callClaude([], prompt);
+  try {
+    const cleaned = raw.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    // Split into rosterData + playsData format
+    const rosterData = { game_date: parsed.game_date, score: parsed.score, team1: parsed.team1, team2: parsed.team2 };
+    const playsData = parsed.plays || [];
+    return { rosterData, playsData };
+  } catch(e) {
+    console.error('Extract all parse error:', raw);
+    return null;
+  }
+}
+
 async function extractBoxScoreFromText(boxText) {
   const prompt = `Parse this GameChanger box score text into structured data.
 
@@ -593,24 +671,34 @@ Return ONLY valid JSON array, no other text:
 async function submitGame() {
   const pastedPlays = document.getElementById('playsText')?.value?.trim();
   const pastedBox   = document.getElementById('boxText')?.value?.trim();
+  const pastedAll   = document.getElementById('allText')?.value?.trim();
 
   let rosterData = null, playsData = null;
 
-  if (!boxScoreFile && !pastedBox) {
-    alert('Box Score is required - upload a screenshot or paste the text.');
-    return;
+  // PASTE ALL MODE - single text has everything
+  if (pastedAll) {
+    setProgress(true, 'Parsing full game text... (~30 sec)');
+    const result = await extractAllFromText(pastedAll);
+    if (!result) { setProgress(false); alert('Could not parse the pasted text. Make sure it includes both the Teams and Plays sections.'); return; }
+    rosterData = result.rosterData;
+    playsData  = result.playsData;
+  } else {
+    // SEPARATE MODE - box score + plays separately
+    if (!boxScoreFile && !pastedBox) {
+      alert('Box Score is required - upload a screenshot or paste the text.');
+      return;
+    }
+    if (pastedBox) {
+      setProgress(true, 'Parsing box score text... (~15 sec)');
+      rosterData = await extractBoxScoreFromText(pastedBox);
+      if (!rosterData) { setProgress(false); alert('Could not parse box score text. Check the format and try again.'); return; }
+    } else if (boxScoreFile) {
+      setProgress(true, 'Reading box score screenshot... (~30 sec)');
+      rosterData = await extractBoxScore(boxScoreFile);
+      if (!rosterData) { setProgress(false); return; }
+    }
   }
-
-  if (pastedBox) {
-    setProgress(true, 'Parsing box score text... (~15 sec)');
-    rosterData = await extractBoxScoreFromText(pastedBox);
-    if (!rosterData) { setProgress(false); alert('Could not parse box score text. Check the format and try again.'); return; }
-  } else if (boxScoreFile) {
-    setProgress(true, 'Reading box score screenshot... (~30 sec)');
-    rosterData = await extractBoxScore(boxScoreFile);
-    if (!rosterData) { setProgress(false); return; }
-  }
-  // Plays are extracted AFTER rosters save so we can pass full names to Claude
+  // Plays are extracted AFTER rosters save so we can pass full names to Claude (separate mode only)
   
   setProgress(true, 'Creating teams & saving rosters...');
   
@@ -691,15 +779,17 @@ async function submitGame() {
 
   if (!savedTeams.length) { setProgress(false); alert('No teams found in box score.'); return; }
 
-  // Now extract plays WITH roster context so Claude can resolve initials to full names
-  if (pastedPlays) {
-    setProgress(true, 'Parsing pasted plays text... (~20 sec)');
-    playsData = await extractPlaysFromText(pastedPlays, savedTeams);
-    if (!playsData) { setProgress(false); alert('Could not parse plays text. Check the format and try again.'); return; }
-  } else if (playsFile) {
-    setProgress(true, 'Reading plays screenshot... (~60 sec)');
-    playsData = await extractPlays(playsFile, savedTeams);
-    if (!playsData) { setProgress(false); alert('Could not read plays screenshot. Try "Paste Text" mode instead.'); return; }
+    // Now extract plays WITH roster context (skipped in Paste All mode since playsData is already set)
+  if (!playsData) {
+    if (pastedPlays) {
+      setProgress(true, 'Parsing pasted plays text... (~20 sec)');
+      playsData = await extractPlaysFromText(pastedPlays, savedTeams);
+      if (!playsData) { setProgress(false); alert('Could not parse plays text. Check the format and try again.'); return; }
+    } else if (playsFile) {
+      setProgress(true, 'Reading plays screenshot... (~60 sec)');
+      playsData = await extractPlays(playsFile, savedTeams);
+      if (!playsData) { setProgress(false); alert('Could not read plays screenshot. Try "Paste All" mode instead.'); return; }
+    }
   }
 
   setProgress(true, 'Saving at-bats...');
