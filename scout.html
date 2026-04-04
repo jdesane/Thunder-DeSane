@@ -756,16 +756,21 @@ RULES:
 - "half": "top" or "bottom"
 - "result": Single | Double | Triple | Home Run | Ground Out | Fly Out | Line Out | Pop Out | Strikeout | Error | Fielder's Choice | Walk | HBP | Sacrifice Fly
 - "ball_type": Fly | Ground | Line | "" (empty if unknown)
-- "direction": Left | Center | Right | Middle | "" (empty if unknown)
-- "field_position": LF | CF | RF | SS | 2B | 3B | 1B | P | C | SF | "" (empty if unknown)
+- "direction": Left | Center | Right | Middle | "" — ALWAYS fill this when the ball was put in play, including on outs. Use the fielder who made the play to determine direction:
+  - LF, 3B → Left
+  - CF, P, 2B, SS → Middle (SS leans Middle-Left but use Middle)
+  - RF, 1B → Right
+  - Short Fielder → Center (treat Short Fielder as CF for direction)
+- "field_position": LF | CF | RF | SS | 2B | 3B | 1B | P | C | "" (empty if unknown). "Short Fielder" = CF.
 - "description": the play text verbatim
 - Include EVERY at-bat for BOTH teams across ALL innings
 - SKIP: stolen bases, wild pitches, passed balls, inning headers, score updates, lineup changes, "Inning Ended" markers
 
 Return ONLY a JSON array (no wrapping object):
 [
-  {"inning":1,"half":"top","team":"WBT COBRAS 8U BLUE","result":"Ground Out","player":"Jasper S","ball_type":"Ground","direction":"","field_position":"P","description":"J S grounds out to pitcher"},
-  {"inning":1,"half":"top","team":"WBT COBRAS 8U BLUE","result":"Ground Out","player":"Bowen C","ball_type":"Ground","direction":"","field_position":"SS","description":"B C grounds out to shortstop"}
+  {"inning":1,"half":"top","team":"WBT COBRAS 8U BLUE","result":"Ground Out","player":"Jasper S","ball_type":"Ground","direction":"Middle","field_position":"P","description":"J S grounds out to pitcher"},
+  {"inning":1,"half":"top","team":"WBT COBRAS 8U BLUE","result":"Ground Out","player":"Bowen C","ball_type":"Ground","direction":"Middle","field_position":"SS","description":"B C grounds out to shortstop"},
+  {"inning":1,"half":"top","team":"WBT COBRAS 8U BLUE","result":"Fly Out","player":"Nick S","ball_type":"Fly","direction":"Center","field_position":"CF","description":"N S flies out to short fielder"}
 ]
 
 PLAYS TO PARSE:
@@ -1103,14 +1108,26 @@ async function submitGame() {
         
         const player = matchPlayer(play.player, st.players);
         const resolvedName = player ? player.name : play.player;
-        
+
+        // Normalize Short Fielder → CF
+        let fp = (play.field_position || '').replace(/short.?fielder/i, 'CF');
+        // Derive spray direction from field position if Claude left it blank
+        let sprayZone = play.direction || '';
+        if (!sprayZone && fp) {
+          if (['LF','3B'].includes(fp)) sprayZone = 'Left';
+          else if (['RF','1B'].includes(fp)) sprayZone = 'Right';
+          else if (['CF','P','2B','SS','C'].includes(fp)) sprayZone = 'Middle';
+        }
+        // CF is genuinely center, not just middle
+        if (fp === 'CF') sprayZone = 'Center';
+
         await supa('scout_at_bats', 'POST', {
           game_id: gameId, team_id: st.teamId,
           player_id: player?.id || null, player_name: resolvedName,
           inning: play.inning, half: play.half,
           result: play.result, ball_type: ballType,
-          hit_direction: play.ball_type || '', field_position: play.field_position || '',
-          spray_zone: play.direction || '', reached_on: reachedOn,
+          hit_direction: play.ball_type || '', field_position: fp,
+          spray_zone: sprayZone, reached_on: reachedOn,
           rbi: 0, description: play.description || ''
         });
         totalSaved++;
@@ -1217,13 +1234,16 @@ function parsePlayByPlay(rawText) {
       else if(rl.includes('error')){ab.reachedOn='Error';ab.ballType='Error';}else if(rl.includes('fielder')){ab.reachedOn='FC';ab.ballType='FC';}
       else if(rl.includes('walk')||rl==='bb'){ab.reachedOn='Walk';ab.ballType='Walk';}
       const d=cd.toLowerCase();
-      if(d.includes('left field')||d.includes('to left')){ab.sprayZone='Left';ab.fieldPosition='LF';}
+      if(d.includes('short fielder')){ab.sprayZone='Center';ab.fieldPosition='CF';}
+      else if(d.includes('left field')||d.includes('to left')){ab.sprayZone='Left';ab.fieldPosition='LF';}
       else if(d.includes('center field')||d.includes('to center')){ab.sprayZone='Center';ab.fieldPosition='CF';}
       else if(d.includes('right field')||d.includes('to right')){ab.sprayZone='Right';ab.fieldPosition='RF';}
       else if(d.includes('shortstop')){ab.sprayZone='Middle';ab.fieldPosition='SS';}
-      else if(d.includes('second base')){ab.sprayZone='Middle';ab.fieldPosition='2B';}
-      else if(d.includes('third base')){ab.sprayZone='Left';ab.fieldPosition='3B';}
-      else if(d.includes('first base')){ab.sprayZone='Right';ab.fieldPosition='1B';}
+      else if(d.includes('second base')||d.includes('second baseman')){ab.sprayZone='Middle';ab.fieldPosition='2B';}
+      else if(d.includes('third base')||d.includes('third baseman')){ab.sprayZone='Left';ab.fieldPosition='3B';}
+      else if(d.includes('first base')||d.includes('first baseman')){ab.sprayZone='Right';ab.fieldPosition='1B';}
+      else if(d.includes('pitcher')){ab.sprayZone='Middle';ab.fieldPosition='P';}
+      else if(d.includes('catcher')){ab.sprayZone='Middle';ab.fieldPosition='C';}
       if(d.includes('fly ball')||d.includes('flies out')) ab.hitDirection='Fly';
       else if(d.includes('ground ball')||d.includes('grounds out')||d.includes('grounds to')) ab.hitDirection='Ground';
       else if(d.includes('line drive')||d.includes('lines out')) ab.hitDirection='Line';
