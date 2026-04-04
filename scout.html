@@ -170,7 +170,7 @@ function showPanel(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   const tabs = document.querySelectorAll('.tab');
-  const map = {teams:0, addGame:1, report:2, lineup:3};
+  const map = {addGame:0, teams:1, report:2};
   if (map[name] !== undefined) tabs[map[name]].classList.add('active');
   document.getElementById(name + 'Panel').classList.add('active');
 }
@@ -623,7 +623,11 @@ async function extractAllFromText(fullText) {
   const parsedTeams = parseGCBoxScoreText(boxSection);
 
   if (parsedTeams.length < 2) {
-    console.warn('Box score parser found fewer than 2 teams:', parsedTeams);
+    console.error('Box score parser found fewer than 2 teams. boxSection length:', boxSection.length, 'preview:', boxSection.substring(0, 200));
+    if (parsedTeams.length === 0) {
+      alert('Could not read roster data. Make sure you re-dragged the Thunder Scout bookmarklet to your bookmarks bar after the last update — the old version does not send box score data correctly.');
+      return null;
+    }
   }
 
   // ── STEP 3: Build roster context string for Claude plays prompt ───────────
