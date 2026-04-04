@@ -92,43 +92,13 @@
   .danger-low { background:rgba(52,211,153,0.2); color:var(--green); border:1px solid rgba(52,211,153,0.3); padding:3px 10px; border-radius:16px; font-size:10px; font-weight:700; }
 
   @media print {
-    /* Force white background, black text everywhere */
-    *, *::before, *::after {
-      color: #000 !important;
-      background: #fff !important;
-      background-color: #fff !important;
-      border-color: #ccc !important;
-      box-shadow: none !important;
-      text-shadow: none !important;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
+    /* Force all text black */
+    * { color: #000 !important; }
     /* Hide UI chrome */
     .header, .tabs, #teamsPanel, #addGamePanel, .btn, button { display:none !important; }
-    .panel { display:block !important; max-width:100%; padding:0 !important; }
-    /* Table */
-    .scouting-table { border-collapse:collapse; width:100%; }
-    .scouting-table th { background:#eee !important; color:#000 !important; border-bottom:2px solid #000 !important; font-size:10px; padding:4px 6px; }
-    .scouting-table td { color:#000 !important; border-bottom:1px solid #ccc !important; font-size:10px; padding:4px 6px; }
-    .scouting-table tr { background:#fff !important; }
-    /* Jersey badges */
-    .jersey, span[style*="accent"] { color:#000 !important; background:#eee !important; }
-    /* Section titles */
-    .section-title { color:#000 !important; border-bottom:2px solid #000 !important; background:#fff !important; }
-    /* Player rows */
-    .player-row { border-bottom:1px solid #ccc !important; background:#fff !important; }
-    /* Danger colors - keep them readable but dark */
-    .danger-high { color:#c00 !important; background:#fff !important; }
-    .danger-med  { color:#b60 !important; background:#fff !important; }
-    .danger-low  { color:#060 !important; background:#fff !important; }
-    /* Spray chart SVGs - invert to grayscale for print */
-    svg { filter: invert(1) grayscale(1) contrast(1.4) !important; }
-    /* AVG colors that were red/orange/muted - force black */
-    td[style*="var(--red)"], td[style*="var(--orange)"], td[style*="var(--muted)"] { color:#000 !important; }
-    /* Emojis stay as-is, but colored dots need overrides */
-    .card { background:#fff !important; box-shadow:none !important; border:1px solid #ccc !important; }
-    /* Page breaks */
-    .section-title { page-break-before: auto; }
+    .panel { display:block !important; max-width:100%; }
+    .scouting-table th { background:#eee !important; border-bottom:2px solid #000 !important; }
+    .scouting-table td { border-bottom:1px solid #ccc !important; }
     .player-row { page-break-inside: avoid; }
     tr { page-break-inside: avoid; }
   }
