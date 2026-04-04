@@ -228,18 +228,27 @@ let boxScoreFile = null, playsFile = null;
 
 function renderAddGame(team) {
   let h = `<div class="card">
-    <h2 style="font-size:16px;font-weight:700;margin-bottom:14px;">Add Game — Screenshot Upload</h2>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Upload the Box Score and Plays screenshots from GameChanger. Teams, lineups, and all play data are extracted automatically.</p>
-    
+    <h2 style="font-size:16px;font-weight:700;margin-bottom:14px;">Add Game</h2>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Use screenshots or paste text directly from GameChanger for both the Box Score and Plays tab.</p>
+
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
       <div style="flex:1;min-width:200px;">
-        <label>1. Box Score Screenshot</label>
-        <div class="upload-zone" id="boxZone">
-          <input type="file" accept="image/*" onchange="handleFile(event,'box')" />
-          <div class="icon">&#128247;</div>
-          <div class="label">Upload box score screenshot</div>
-          <div class="filename" id="boxFileName"></div>
-          <img class="preview" id="boxPreview" style="display:none" />
+        <label>1. Box Score</label>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <button id="boxTabScreenshot" onclick="setBoxMode('screenshot')" style="flex:1;padding:5px 10px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#000;cursor:pointer;">Screenshot</button>
+          <button id="boxTabPaste" onclick="setBoxMode('paste')" style="flex:1;padding:5px 10px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;">Paste Text</button>
+        </div>
+        <div id="boxScreenshotMode">
+          <div class="upload-zone" id="boxZone">
+            <input type="file" accept="image/*" onchange="handleFile(event,'box')" />
+            <div class="icon">&#128247;</div>
+            <div class="label">Upload box score screenshot</div>
+            <div class="filename" id="boxFileName"></div>
+            <img class="preview" id="boxPreview" style="display:none" />
+          </div>
+        </div>
+        <div id="boxPasteMode" style="display:none;">
+          <textarea id="boxText" style="min-height:160px;font-size:11px;" placeholder="Open GameChanger, go to the Box Score tab, select all text and paste here..."></textarea>
         </div>
       </div>
       <div style="flex:1;min-width:200px;">
@@ -281,6 +290,19 @@ function renderAddGame(team) {
   }
   document.getElementById('addGamePanel').innerHTML = h;
   boxScoreFile = null; playsFile = null;
+}
+
+function setBoxMode(mode) {
+  const isScreenshot = mode === 'screenshot';
+  document.getElementById('boxScreenshotMode').style.display = isScreenshot ? '' : 'none';
+  document.getElementById('boxPasteMode').style.display = isScreenshot ? 'none' : '';
+  document.getElementById('boxTabScreenshot').style.background = isScreenshot ? 'var(--accent)' : 'var(--surface2)';
+  document.getElementById('boxTabScreenshot').style.color = isScreenshot ? '#000' : 'var(--muted)';
+  document.getElementById('boxTabScreenshot').style.borderColor = isScreenshot ? 'var(--accent)' : 'var(--border)';
+  document.getElementById('boxTabPaste').style.background = isScreenshot ? 'var(--surface2)' : 'var(--accent)';
+  document.getElementById('boxTabPaste').style.color = isScreenshot ? 'var(--muted)' : '#000';
+  document.getElementById('boxTabPaste').style.borderColor = isScreenshot ? 'var(--border)' : 'var(--accent)';
+  if (isScreenshot) boxScoreFile = null;
 }
 
 function setPlaysMode(mode) {
@@ -432,6 +454,40 @@ Rules:
   }
 }
 
+async function extractBoxScoreFromText(boxText) {
+  const prompt = `Parse this GameChanger box score text into structured data.
+
+Return ONLY valid JSON in this exact format, no other text:
+{
+  "game_date": "Sat Mar 28",
+  "score": "3-0",
+  "team1": { "name": "Full Team Name", "players": [{"order":1,"name":"Chad JR R","jersey":"1","position":"SS"}] },
+  "team2": { "name": "Full Team Name", "players": [{"order":1,"name":"Lucas R","jersey":"3","position":"CF"}] }
+}
+
+Rules:
+- "game_date": the date shown (e.g. "Sat Mar 28")
+- "score": final score like "3-0" (team1 first, team2 second)
+- "name": FULL team name exactly as shown in the text
+- "order": batting order position - the sequence players are listed (1st = 1, 2nd = 2, etc.)
+- "jersey": the player's uniform number only (1-99) - do NOT confuse with batting order
+- "position": abbreviation like SS, CF, P, 1B, etc.
+- team1 is the first team listed, team2 is the second
+- Include ALL players for BOTH teams
+
+BOX SCORE TEXT:
+${boxText}`;
+
+  const raw = await callClaude([], prompt);
+  try {
+    const cleaned = raw.replace(/```json|```/g, '').trim();
+    return JSON.parse(cleaned);
+  } catch(e) {
+    console.error('Box score text parse error:', raw);
+    return null;
+  }
+}
+
 async function extractPlays(img, savedTeams) {
   // Build roster context so Claude can resolve initials to full names
   const teamNamesList = (savedTeams || []).map(st => `"${st.teamName}"`).join(' or ');
@@ -536,16 +592,21 @@ Return ONLY valid JSON array, no other text:
 // =====================================================
 async function submitGame() {
   const pastedPlays = document.getElementById('playsText')?.value?.trim();
+  const pastedBox   = document.getElementById('boxText')?.value?.trim();
 
   let rosterData = null, playsData = null;
 
-  if (!boxScoreFile) {
-    alert('A Box Score screenshot is required to identify the teams and lineups.');
+  if (!boxScoreFile && !pastedBox) {
+    alert('Box Score is required - upload a screenshot or paste the text.');
     return;
   }
 
-  if (boxScoreFile) {
-    setProgress(true, 'Reading box score... (~30 sec)');
+  if (pastedBox) {
+    setProgress(true, 'Parsing box score text... (~15 sec)');
+    rosterData = await extractBoxScoreFromText(pastedBox);
+    if (!rosterData) { setProgress(false); alert('Could not parse box score text. Check the format and try again.'); return; }
+  } else if (boxScoreFile) {
+    setProgress(true, 'Reading box score screenshot... (~30 sec)');
     rosterData = await extractBoxScore(boxScoreFile);
     if (!rosterData) { setProgress(false); return; }
   }
