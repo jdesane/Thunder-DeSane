@@ -117,13 +117,11 @@
   <div class="tab" onclick="showAddGame()">+ ADD GAME</div>
   <div class="tab active" onclick="showPanel('teams')">TEAMS</div>
   <div class="tab" onclick="showPanel('report')">SCOUTING <span class="badge" id="badgePlayers">0</span></div>
-  <div class="tab" onclick="showPanel('lineup')">LINEUP</div>
 </div>
 
 <div class="panel active" id="teamsPanel"></div>
 <div class="panel" id="addGamePanel"></div>
 <div class="panel" id="reportPanel"></div>
-<div class="panel" id="lineupPanel"></div>
 
 <div class="modal-overlay" id="editModal">
   <div class="modal">
@@ -217,7 +215,6 @@ async function selectTeam(teamId) {
   const team = teams.find(t => t.id === teamId);
   renderAddGame(team);
   renderReport(team);
-  renderLineup(team);
   showPanel('report');
 }
 
@@ -522,42 +519,59 @@ Rules:
 }
 
 async function extractAllFromText(fullText) {
-  const prompt = `Parse this complete GameChanger game export into structured data. It contains team rosters AND all plays. The data may be separated by === BOX SCORE === and === PLAYS === markers, or it may be raw GC copy-paste format.
+  const prompt = `Parse this GameChanger game export into structured JSON. It has a === BOX SCORE === section and a === PLAYS === section (or equivalent GC copy-paste format).
 
-Return ONLY valid JSON in this exact format, no other text:
+Return ONLY valid JSON, no other text:
 {
   "game_date": "Sat Mar 28",
-  "score": "13-9",
+  "score": "13-5",
   "team1": {
-    "name": "PLO Bulldogs White 8U - Tournaments",
-    "players": [{"order":1,"name":"Chad JR R","jersey":"1","position":"SS"}]
+    "name": "RPB Wildcats 8U Blue",
+    "players": [{"order":1,"name":"Landon W","jersey":"21","position":"2B"},{"order":2,"name":"Andres V","jersey":"14","position":"SS"}]
   },
   "team2": {
-    "name": "TBT Ballers CP 8U",
-    "players": [{"order":1,"name":"Alayin C","jersey":"25","position":""}]
+    "name": "WBT COBRAS 8U BLUE",
+    "players": [{"order":1,"name":"B C","jersey":"7","position":"SS"}]
   },
   "plays": [
-    {"inning":1,"half":"top","team":"PLO Bulldogs White 8U - Tournaments","result":"Line Out","player":"Chad JR R","description":"C R lines out to third baseman","direction":"Left","field_position":"3B","ball_type":"Line"}
+    {"inning":1,"half":"top","team":"RPB Wildcats 8U Blue","result":"Ground Out","player":"Landon W","description":"L W grounds out","direction":"Left","field_position":"SS","ball_type":"Ground"}
   ]
 }
 
+=== STEP 1: PARSE THE BOX SCORE ===
+The box score lists players for each team. The format after the team name and "LINEUP" header is:
+  AB  R  H  RBI  BB  SO    <- column headers (ignore these)
+  Player Full Name          <- this is the player's name
+  #JerseyNumber (Position)  <- jersey and position
+  3  0  2  0  0  0         <- stats (ignore these)
+  (repeat for each player)
+
+TEAM NAME RULE: Copy the team name EXACTLY, character for character, as it appears in the box score. Do not rearrange, abbreviate, or change any letters. "WBT COBRAS 8U BLUE" must remain "WBT COBRAS 8U BLUE" - not "WBTC OBRAS" or any other variation.
+
 ROSTER RULES:
-- "order" is batting order (sequence listed = 1,2,3...), NOT the jersey number
-- "jersey" is the uniform number (1-99 only) - the number after # in the roster
-- "position" is abbreviation like SS, CF, P, 1B etc.
-- Include ALL players for BOTH teams
+- "order" = batting order = the sequence players are listed (1st player = order 1). NOT the jersey number.
+- "jersey" = the number after # (integers 1-99 only). If you see "#21 (2B)", jersey is "21".
+- "position" = abbreviation in parentheses: SS, CF, P, 1B, 2B, 3B, LF, RF, C, etc.
+- Include ALL players listed for BOTH teams.
+
+=== STEP 2: RESOLVE PLAYS ===
+The plays section uses initials only (e.g. "L W" = player whose first name starts with L and last name starts with W).
+
+HOW TO RESOLVE INITIALS TO FULL NAMES:
+1. Build a lookup from the roster: first_initial + last_initial -> full name
+   Example: "Landon W" -> first initial "L", last initial "W" -> key "LW"
+2. For each play, take the initials shown (e.g. "L W" or "LW"), look up the full name from step 1
+3. Use the FULL NAME in the "player" field. NEVER use initials.
+4. If two players share the same initials, use batting order cycling to disambiguate.
 
 PLAYS RULES:
-- "team" MUST exactly match one of the team names from the Teams section above
-- "player" MUST be the full name from the roster (e.g. "Chad JR R" not "C R")
-  - Match initials in plays to full names using first+last initial and batting order position
-  - Batters cycle through the lineup in order
-- "result": Single, Double, Triple, Home Run, Ground Out, Fly Out, Line Out, Pop Out, Strikeout, Error, Fielder's Choice, Walk, HBP, Double Play
-- "direction": Left, Center, Right, Middle, or empty
-- "field_position": LF, CF, RF, SS, 2B, 3B, 1B, P, C or empty
-- "ball_type": Fly, Ground, Line, or empty
-- Include EVERY at-bat for BOTH teams, skip stolen bases/wild pitches/inning markers
-- NEVER append result words like "Out" to a player name
+- "team": copy exactly from the inning header (e.g. "Top 1st - RPB Wildcats 8U Blue" -> team is "RPB Wildcats 8U Blue")
+- "player": ALWAYS the full name from the roster. NEVER initials like "L W" or "LW".
+- "result": Single, Double, Triple, Home Run, Ground Out, Fly Out, Line Out, Pop Out, Strikeout, Error, Fielder's Choice, Walk, HBP
+- "direction": Left, Center, Right, Middle, or empty string
+- "field_position": LF, CF, RF, SS, 2B, 3B, 1B, P, C, or empty string
+- "ball_type": Fly, Ground, Line, or empty string
+- Include EVERY at-bat for BOTH teams. Skip stolen bases, wild pitches, inning summary lines.
 
 FULL TEXT TO PARSE:
 ${fullText}`;
@@ -930,6 +944,15 @@ function matchPlayer(playName, roster) {
   let match = roster.find(r => r.name.toLowerCase() === pn.toLowerCase());
   if (match) return match;
   const parts = pn.split(/\s+/);
+  // Handle concatenated initials like "JS" (2 uppercase chars, no space)
+  if (parts.length === 1 && pn.length === 2 && /^[A-Z]{2}$/i.test(pn)) {
+    const fi = pn[0].toUpperCase(), li = pn[1].toUpperCase();
+    const cands = roster.filter(r => {
+      const rp = r.name.replace(/\./g,'').trim().split(/\s+/);
+      return rp.length >= 2 && rp[0][0].toUpperCase() === fi && rp[rp.length-1][0].toUpperCase() === li;
+    });
+    if (cands.length >= 1) return cands[0];
+  }
   if (parts.length < 2) return null;
   const firstPart = parts[0], lastPart = parts[parts.length - 1];
   if (firstPart.length <= 2) {
@@ -1069,8 +1092,8 @@ function renderReport(team) {
     if(p.K>=2)notes.push('Will K');if(p.errors>=2)notes.push('Causes errors');
     const ac=avg>=0.400?'var(--red)':avg>=0.300?'var(--orange)':'var(--muted)';
     const rb=avg>=0.400?'rgba(239,68,68,0.06)':avg>=0.300?'rgba(249,115,22,0.04)':'transparent';
-    const ln=p.lineupOrder&&p.lineupOrder<99?'<span style="color:var(--dim);font-size:10px;margin-right:3px">'+p.lineupOrder+'.</span>':'';
-    const j=p.jersey?'<span style="color:var(--accent)">#'+p.jersey+'</span> ':'';
+    const ln=p.lineupOrder&&p.lineupOrder<99?'<span style="color:var(--dim);font-size:10px;margin-right:4px">'+p.lineupOrder+'.</span>':'';
+    const j=p.jersey?'<span style="color:var(--accent);font-weight:800;font-family:\'JetBrains Mono\',monospace;font-size:13px;margin-right:5px">#'+p.jersey+'</span>':'<span style="color:var(--dim);font-size:10px;margin-right:5px">--</span>';
     const ps=p.position?' <span style="color:var(--dim);font-size:9px">('+p.position+')</span>':'';
     h+=`<tr style="background:${rb};cursor:pointer" onclick="editPlayer('${p.playerId||''}','${p.name.replace(/'/g,"\\'")}')">`;
     h+=`<td>${ln}${j}${p.name}${ps}</td><td>${p.AB}</td><td style="font-weight:700">${p.H}</td><td>${p.singles}</td>`;
@@ -1095,8 +1118,8 @@ function renderReport(team) {
     if(p.groundBalls>p.flyBalls&&p.left>0)recs.push('Shade left');else if(p.flyBalls>p.groundBalls&&p.center>0)recs.push('CF straight');
     if(p.errors>=2)recs.push('Field cleanly');if(avg>=0.400)recs.push('No free passes');if(p.K>=2)recs.push('Work count');
     const dot=avg>=0.400?'🔴':avg>=0.300?'🟡':'🟢';
-    const ln=p.lineupOrder&&p.lineupOrder<99?'<span style="color:var(--dim);font-size:11px;margin-right:3px">'+p.lineupOrder+'.</span>':'';
-    const j=p.jersey?'<span style="color:var(--accent)">#'+p.jersey+'</span> ':'';
+    const ln=p.lineupOrder&&p.lineupOrder<99?'<span style="color:var(--dim);font-size:11px;margin-right:4px">'+p.lineupOrder+'.</span>':'';
+    const j=p.jersey?'<span style="color:var(--accent);font-weight:800;font-family:\'JetBrains Mono\',monospace;margin-right:5px">#'+p.jersey+'</span>':'<span style="color:var(--dim);font-size:10px;margin-right:5px">--</span>';
     h+=`<div class="player-row" onclick="editPlayer('${p.playerId||''}','${p.name.replace(/'/g,"\\'")}')">`;
     h+=`<span style="font-size:14px">${dot}</span><div style="flex:1"><div style="font-weight:700;font-size:13px">${ln}${j}${p.name}</div>`;
     h+=`<div style="font-size:11px;color:var(--dim)">${avg.toFixed(3)} &middot; ${pb} &middot; ${pd} &middot; ${recs.join(', ')||'Standard'}</div></div></div>`;
