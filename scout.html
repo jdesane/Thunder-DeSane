@@ -114,8 +114,8 @@
 </div>
 
 <div class="tabs">
-  <div class="tab active" onclick="showPanel('teams')">TEAMS</div>
   <div class="tab" onclick="showAddGame()">+ ADD GAME</div>
+  <div class="tab active" onclick="showPanel('teams')">TEAMS</div>
   <div class="tab" onclick="showPanel('report')">SCOUTING <span class="badge" id="badgePlayers">0</span></div>
   <div class="tab" onclick="showPanel('lineup')">LINEUP</div>
 </div>
@@ -255,11 +255,11 @@ function renderAddGame(team) {
         </div>
         <div style="text-align:center;margin-bottom:12px;">
           <a id="gcBookmarklet"
-            href="javascript:(async function(){if(!location.hostname.includes('gc.com')){alert('Use this on a GameChanger game page!');return;}var wait=function(ms){return new Promise(function(r){setTimeout(r,ms)})};var getLines=function(){return document.body.innerText.split('\n').filter(function(l){return l.trim()})};var boxL=Array.from(document.querySelectorAll('a')).find(function(a){return a.href&&a.href.includes('/box-score')});if(boxL)boxL.click();await wait(2200);var bl=getLines();var ii=bl.findIndex(function(l){return l.trim()==='INFO'});var boxText=ii>-1?bl.slice(ii+1,ii+280).join('\n'):'';var plL=Array.from(document.querySelectorAll('a')).find(function(a){return a.href&&a.href.includes('/plays')});if(plL)plL.click();await wait(2200);var pl=getLines();var ps=pl.findIndex(function(l){return l.trim()==='Plays'});var playsText=ps>-1?pl.slice(ps).join('\n'):pl.join('\n');var combined='=== BOX SCORE ===\n'+boxText+'\n\n=== PLAYS ===\n'+playsText;var win=window.open('https://jdesane.github.io/Thunder-DeSane/scout.html','thunderscout');await wait(3500);try{win.postMessage({type:'gc_game_data',text:combined},'*');}catch(e){alert('Thunder Scout tab could not receive data - make sure it is open.');}})();"
+            href="javascript:(async function(){if(!location.hostname.includes('gc.com')){alert('Use this on a GameChanger game page!');return;}var wait=function(ms){return new Promise(function(r){setTimeout(r,ms)})};var getLines=function(){return document.body.innerText.split('\n').filter(function(l){return l.trim()})};var boxL=Array.from(document.querySelectorAll('a')).find(function(a){return a.href&&a.href.includes('/box-score')});if(boxL)boxL.click();await wait(2200);var bl=getLines();var ii=bl.findIndex(function(l){return l.trim()==='INFO'});var boxText=ii>-1?bl.slice(ii+1,ii+280).join('\n'):'';var plL=Array.from(document.querySelectorAll('a')).find(function(a){return a.href&&a.href.includes('/plays')});if(plL)plL.click();await wait(2200);var pl=getLines();var ps=pl.findIndex(function(l){return l.trim()==='Plays'});var playsText=ps>-1?pl.slice(ps).join('\n'):pl.join('\n');var combined='=== BOX SCORE ===\n'+boxText+'\n\n=== PLAYS ===\n'+playsText;var win=window.open('https://jdesane.github.io/Thunder-DeSane/scout.html','thunderscout');var sent=false;window.addEventListener('message',function h(e){if(e.data&&e.data.type==='scout_ready'&&!sent){sent=true;window.removeEventListener('message',h);try{win.postMessage({type:'gc_game_data',text:combined},'*');}catch(ex){}}});var tries=0;var iv=setInterval(function(){tries++;if(sent||tries>20){clearInterval(iv);return;}try{win.postMessage({type:'gc_game_data',text:combined},'*');}catch(ex){clearInterval(iv);}},600);})();"
             style="display:inline-block;padding:10px 22px;background:linear-gradient(135deg,#F0A000,#FFBB33);color:#000;font-weight:700;font-size:13px;border-radius:8px;text-decoration:none;cursor:grab;box-shadow:0 4px 16px rgba(240,160,0,0.35);"
             title="Drag this to your bookmarks bar"
             draggable="true">
-            &#127944; Thunder Scout
+            &#9917; Thunder Scout
           </a>
           <div style="font-size:10px;color:var(--dim);margin-top:6px;">Drag to bookmarks bar</div>
         </div>
@@ -1166,19 +1166,27 @@ document.getElementById('editModal').addEventListener('click', function(e) { if 
 // =====================================================
 // GC AUTO-IMPORT: receive data from bookmarklet
 // =====================================================
+
+// Signal to the bookmarklet that this page is ready to receive data
+if (window.opener) {
+  try { window.opener.postMessage({ type: 'scout_ready' }, '*'); } catch(e) {}
+}
+
+let _gcDataReceived = false;
 window.addEventListener('message', function(e) {
   if (!e.data || e.data.type !== 'gc_game_data') return;
+  if (_gcDataReceived) return; // deduplicate retry sends
   const text = e.data.text;
   if (!text) return;
+  _gcDataReceived = true;
 
-  // Fill the allText textarea
+  // Navigate to ADD GAME tab and switch to paste-all mode
+  showAddGame();
   const ta = document.getElementById('allText');
   if (ta) ta.value = text;
-
-  // Switch to paste-all mode so submitGame() picks it up
   setInputMode('all');
 
-  // Update GC status dot + text (may still be in DOM if user toggled)
+  // Update GC status dot + text
   const dot  = document.getElementById('gcStatusDot');
   const stat = document.getElementById('gcStatusText');
   if (dot)  { dot.style.background = 'var(--green)'; dot.style.boxShadow = '0 0 6px var(--green)'; }
@@ -1187,8 +1195,10 @@ window.addEventListener('message', function(e) {
   showToast('GameChanger data imported!');
 
   // Scroll to submit button
-  const btn = document.getElementById('submitBtn');
-  if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(function() {
+    const btn = document.getElementById('submitBtn');
+    if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 300);
 });
 
 loadTeams();
