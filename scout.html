@@ -1295,50 +1295,72 @@ function buildPlayerStats(atBats) {
   return list;
 }
 
-function sprayChartSVG(p, size) {
-  const w = size || 56, h = Math.round(w * 0.75);
-  const cx = w / 2, cy = h + Math.round(h * 0.15);
-  const r  = Math.round(h * 1.18);
-  const total = (p.left||0) + (p.center||0) + (p.right||0) + (p.middle||0);
-  if (total === 0) {
-    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="#111" rx="3"/><text x="${w/2}" y="${h*0.62}" text-anchor="middle" fill="#333" font-size="${Math.round(w*0.18)}">-</text></svg>`;
-  }
-  const lPct = (p.left||0) / total;
-  const cPct = ((p.center||0) + (p.middle||0)) / total;
-  const rPct = (p.right||0) / total;
-  function heat(pct) {
-    if (pct === 0)    return '#141414';
-    if (pct < 0.15)   return '#1a3818';
-    if (pct < 0.30)   return '#235e1a';
-    if (pct < 0.45)   return '#4a8820';
-    if (pct < 0.60)   return '#80aa20';
-    return '#F0A000';
-  }
-  function pt(deg, rad) {
+function sprayChartSVG(p, size, atBats) {
+  const w = size || 72, h = Math.round(w * 0.80);
+  const cx = w / 2, cy = h + Math.round(h * 0.08);
+  const outerR = Math.round(h * 1.05);
+  const ifR    = Math.round(outerR * 0.46);
+
+  function pt(deg, r) {
     const a = (deg - 90) * Math.PI / 180;
-    return [+(cx + rad * Math.cos(a)).toFixed(1), +(cy + rad * Math.sin(a)).toFixed(1)];
+    return [+(cx + r * Math.cos(a)).toFixed(1), +(cy + r * Math.sin(a)).toFixed(1)];
   }
-  function wedge(a1, a2) {
-    const [x1,y1] = pt(a1, r), [x2,y2] = pt(a2, r);
-    return `M${cx},${cy} L${x1},${y1} A${r},${r} 0 0 1 ${x2},${y2} Z`;
+
+  // Field outline
+  const fc = '#2a2a2a', fw = '0.8';
+  const [lfx,lfy] = pt(-46, outerR), [rfx,rfy] = pt(46, outerR);
+  const [ifx,ify] = pt(-32, ifR),    [irx,iry] = pt(32, ifR);
+  const [b1x,b1y] = pt(38, ifR*0.68), [b2x,b2y] = pt(0, ifR*0.92), [b3x,b3y] = pt(-38, ifR*0.68);
+  const field = [
+    `<path d="M${lfx},${lfy} A${outerR},${outerR} 0 0 1 ${rfx},${rfy}" fill="none" stroke="${fc}" stroke-width="${fw}"/>`,
+    `<line x1="${cx}" y1="${cy}" x2="${lfx}" y2="${lfy}" stroke="${fc}" stroke-width="${fw}"/>`,
+    `<line x1="${cx}" y1="${cy}" x2="${rfx}" y2="${rfy}" stroke="${fc}" stroke-width="${fw}"/>`,
+    `<path d="M${ifx},${ify} A${ifR},${ifR} 0 0 1 ${irx},${iry}" fill="none" stroke="${fc}" stroke-width="${fw}" stroke-dasharray="2,2"/>`,
+    `<polyline points="${cx},${cy} ${b1x},${b1y} ${b2x},${b2y} ${b3x},${b3y} ${cx},${cy}" fill="none" stroke="${fc}" stroke-width="0.6" opacity="0.7"/>`,
+    `<circle cx="${cx}" cy="${cy}" r="${Math.round(w*0.038)}" fill="none" stroke="${fc}" stroke-width="${fw}"/>`
+  ].join('');
+
+  const plottable = (atBats||[]).filter(ab => (ab.spray_zone||ab.sprayZone||'') !== '');
+  if (!plottable.length) {
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;overflow:hidden"><rect width="${w}" height="${h}" fill="#0d0d0d" rx="3"/>${field}<text x="${cx}" y="${h*0.44}" text-anchor="middle" fill="#333" font-size="${Math.round(w*0.13)}">No data</text></svg>`;
   }
-  const fs = Math.round(w * 0.17);
-  function lbl(deg, pct) {
-    if (pct < 0.06) return '';
-    const [x,y] = pt(deg, r * 0.60);
-    const xi = Math.max(fs, Math.min(w - fs, x)), yi = Math.max(fs + 1, Math.min(h - 2, y));
-    return `<text x="${xi.toFixed(0)}" y="${yi.toFixed(0)}" text-anchor="middle" fill="rgba(255,255,255,0.92)" font-size="${fs}" font-weight="700">${Math.round(pct*100)}%</text>`;
+
+  // Deterministic jitter so chart looks the same each render
+  const zoneBase = {Left:-34, Center:0, Right:34, Middle:2};
+  let dots = '';
+  for (let i = 0; i < plottable.length; i++) {
+    const ab  = plottable[i];
+    const sz  = ab.spray_zone || ab.sprayZone || 'Center';
+    const hd  = ab.hit_direction || ab.hitDirection || '';
+    const ro  = ab.reached_on || ab.reachedOn || 'Out';
+    const hit = ro === 'Hit';
+
+    // Jitter: spread dots within zone using index
+    const jitter = ((i * 13 + i * i * 5) % 22) - 11;
+    const ang = (zoneBase[sz] || 0) + jitter;
+
+    // Radius by ball type and zone
+    const isMiddle = sz === 'Middle';
+    let rad;
+    if (isMiddle)       rad = ifR * (0.45 + (i % 4) * 0.08);
+    else if (hd==='Fly')   rad = outerR * (0.70 + (i % 4) * 0.07);
+    else if (hd==='Ground') rad = ifR * (0.55 + (i % 4) * 0.12);
+    else if (hd==='Line')   rad = ifR * (0.85 + (i % 3) * 0.12);
+    else                   rad = ifR * (0.75 + (i % 4) * 0.09);
+
+    const [x,y] = pt(ang, rad);
+    const col   = hit ? '#22c55e' : '#991b1b';
+    const ltr   = hd==='Fly' ? 'F' : hd==='Ground' ? 'G' : hd==='Line' ? 'L' : '';
+    const dr    = Math.round(w * 0.082);
+
+    dots += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="${col}" stroke-width="0.9" opacity="0.6"/>`;
+    dots += `<circle cx="${x}" cy="${y}" r="${dr}" fill="${col}"/>`;
+    if (ltr) dots += `<text x="${x}" y="${+y+Math.round(dr*0.38)}" text-anchor="middle" fill="white" font-size="${Math.round(dr*1.1)}" font-weight="800">${ltr}</text>`;
   }
-  const hotZone = lPct >= cPct && lPct >= rPct ? 'L' : rPct >= cPct ? 'R' : 'C';
-  const hotLabel = hotZone === 'L' ? 'LEFT' : hotZone === 'R' ? 'RIGHT' : 'CENTER';
-  const hotColor = hotZone === 'L' ? heat(lPct) : hotZone === 'R' ? heat(rPct) : heat(cPct);
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;overflow:hidden" title="L:${Math.round(lPct*100)}% C:${Math.round(cPct*100)}% R:${Math.round(rPct*100)}%">
+
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;overflow:hidden">
     <rect width="${w}" height="${h}" fill="#0d0d0d" rx="3"/>
-    <path d="${wedge(-46,-15)}" fill="${heat(lPct)}" stroke="#0d0d0d" stroke-width="0.8"/>
-    <path d="${wedge(-15,15)}"  fill="${heat(cPct)}" stroke="#0d0d0d" stroke-width="0.8"/>
-    <path d="${wedge(15,46)}"   fill="${heat(rPct)}" stroke="#0d0d0d" stroke-width="0.8"/>
-    <circle cx="${cx}" cy="${cy}" r="${Math.round(w*0.045)}" fill="#444"/>
-    ${lbl(-31, lPct)}${lbl(0, cPct)}${lbl(31, rPct)}
+    ${field}${dots}
   </svg>`;
 }
 
@@ -1378,7 +1400,8 @@ function renderReport(team) {
     h+=`<td style="color:${p.HR>0?'var(--red)':'var(--muted)'}">${p.HR}</td>`;
     h+=`<td style="font-weight:700;color:${ac}">${avg.toFixed(3)}</td>`;
     h+=`<td>${p.K}</td><td>${p.BB}</td><td>${p.errors}</td>`;
-    h+=`<td style="text-align:left;font-size:10px">${ht}</td><td style="text-align:center;padding:3px 5px">${sprayChartSVG(p, 54)}</td>`;
+    const pABs = currentAtBats.filter(ab => (ab.player_name||'')=== p.name);
+    h+=`<td style="text-align:left;font-size:10px">${ht}</td><td style="text-align:center;padding:3px 5px">${sprayChartSVG(p, 68, pABs)}</td>`;
     h+=`<td style="text-align:left;font-size:10px;max-width:140px">${notes.join('; ')||'-'}</td></tr>`;
   }
   h += '</tbody></table></div>';
@@ -1402,7 +1425,8 @@ function renderReport(team) {
     h+=`<span style="font-size:14px">${dot}</span><div style="flex:1"><div style="font-weight:700;font-size:13px">${ln}${j}${p.name}</div>`;
     h+=`<div style="font-size:11px;color:var(--dim)">${avg.toFixed(3)} &middot; ${pb} &middot; ${pd} &middot; ${recs.join(', ')||'Standard'}</div>`;
     if(hotDir){h+=`<div style="font-size:10px;color:var(--accent);font-weight:700;margin-top:2px">&#9654; Play ${hotDir}</div>`;}
-    h+=`</div><div style="flex-shrink:0">${sprayChartSVG(p, 72)}</div></div>`;
+    const pABs2 = currentAtBats.filter(ab => (ab.player_name||'')=== p.name);
+    h+=`</div><div style="flex-shrink:0">${sprayChartSVG(p, 90, pABs2)}</div></div>`;
   }
   
   h += '<div class="section-title">Roster (tap to edit)</div>';
