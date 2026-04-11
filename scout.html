@@ -92,9 +92,11 @@
   .danger-low { background:rgba(52,211,153,0.2); color:var(--green); border:1px solid rgba(52,211,153,0.3); padding:3px 10px; border-radius:16px; font-size:10px; font-weight:700; }
 
   @media print {
-    /* Force all text black except spray chart labels */
+    /* Force all text black */
     * { color: #000 !important; }
-    svg text { fill: #fff !important; color: #fff !important; }
+    /* Spray chart: white background, dark field lines, black labels */
+    svg rect { fill: #fff !important; }
+    svg text { fill: #000 !important; color: #000 !important; }
     /* Hide UI chrome */
     .header, .tabs, #teamsPanel, #addGamePanel, .btn, button { display:none !important; }
     .panel { display:block !important; max-width:100%; }
