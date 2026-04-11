@@ -1377,13 +1377,12 @@ function renderReport(team) {
   
   h += '<div class="section-title">Scouting Summary</div>';
   h += '<div style="overflow-x:auto;"><table class="scouting-table"><thead><tr>';
-  h += '<th style="text-align:left">Player</th><th>AB</th><th>H</th><th>1B</th><th>2B</th><th>3B</th><th>HR</th><th>AVG</th><th>K</th><th>BB</th><th>ROE</th><th style="text-align:left">Hit Tendency</th><th style="text-align:center">Spray Chart</th><th style="text-align:left">Notes</th>';
+  h += '<th style="text-align:left">Player</th><th style="text-align:left">Spray / Notes</th><th>AB</th><th>H</th><th>1B</th><th>2B</th><th>3B</th><th>HR</th><th>AVG</th><th>K</th><th>BB</th><th>ROE</th><th style="text-align:left">Tendency</th>';
   h += '</tr></thead><tbody>';
-  
+
   for (const p of stats) {
     const avg = p.AB>0?p.H/p.AB:0;
     const ht=[p.flyBalls>0?'Fly('+p.flyBalls+')':'',p.groundBalls>0?'GB('+p.groundBalls+')':'',p.lineDrives>0?'LD('+p.lineDrives+')':''].filter(Boolean).join(', ')||'-';
-    const sp=[p.left>0?'L('+p.left+')':'',p.center>0?'C('+p.center+')':'',p.right>0?'R('+p.right+')':'',p.middle>0?'M('+p.middle+')':''].filter(Boolean).join(', ')||'-';
     const notes=[];
     if(avg>=0.500)notes.push('DANGEROUS');else if(avg>=0.400)notes.push('Hot bat');
     const xbh=p.doubles+p.triples+p.HR; if(xbh>0)notes.push('XBH('+p.doubles+' 2B,'+p.triples+' 3B)');
@@ -1393,16 +1392,17 @@ function renderReport(team) {
     const ln=p.lineupOrder&&p.lineupOrder<99?'<span style="color:var(--dim);font-size:10px;margin-right:4px">'+p.lineupOrder+'.</span>':'';
     const j=p.jersey?'<span style="color:var(--accent);font-weight:800;font-family:\'JetBrains Mono\',monospace;font-size:13px;margin-right:5px">#'+p.jersey+'</span>':'<span style="color:var(--dim);font-size:10px;margin-right:5px">--</span>';
     const ps=p.position?' <span style="color:var(--dim);font-size:9px">('+p.position+')</span>':'';
+    const pABs = currentAtBats.filter(ab => (ab.player_name||'')=== p.name);
     h+=`<tr style="background:${rb};cursor:pointer" onclick="editPlayer('${p.playerId||''}','${p.name.replace(/'/g,"\\'")}')">`;
-    h+=`<td>${ln}${j}${p.name}${ps}</td><td>${p.AB}</td><td style="font-weight:700">${p.H}</td><td>${p.singles}</td>`;
+    h+=`<td style="white-space:nowrap">${ln}${j}${p.name}${ps}</td>`;
+    h+=`<td style="padding:3px 5px;text-align:left;vertical-align:top">${sprayChartSVG(p, 68, pABs)}<div style="font-size:9px;color:var(--muted);margin-top:2px;max-width:72px">${notes.join('; ')||''}</div></td>`;
+    h+=`<td>${p.AB}</td><td style="font-weight:700">${p.H}</td><td>${p.singles}</td>`;
     h+=`<td style="color:${p.doubles>0?'var(--orange)':'var(--muted)'}">${p.doubles}</td>`;
     h+=`<td style="color:${p.triples>0?'var(--orange)':'var(--muted)'}">${p.triples}</td>`;
     h+=`<td style="color:${p.HR>0?'var(--red)':'var(--muted)'}">${p.HR}</td>`;
     h+=`<td style="font-weight:700;color:${ac}">${avg.toFixed(3)}</td>`;
     h+=`<td>${p.K}</td><td>${p.BB}</td><td>${p.errors}</td>`;
-    const pABs = currentAtBats.filter(ab => (ab.player_name||'')=== p.name);
-    h+=`<td style="text-align:left;font-size:10px">${ht}</td><td style="text-align:center;padding:3px 5px">${sprayChartSVG(p, 68, pABs)}</td>`;
-    h+=`<td style="text-align:left;font-size:10px;max-width:140px">${notes.join('; ')||'-'}</td></tr>`;
+    h+=`<td style="text-align:left;font-size:10px">${ht}</td></tr>`;
   }
   h += '</tbody></table></div>';
   
