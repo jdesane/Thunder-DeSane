@@ -234,9 +234,7 @@ async function gcImport() {
   if (document.body.innerText.indexOf('LINEUP') === -1) {
     alert('Box score still loading. Make sure it is fully visible on screen, then click the bookmarklet again.'); return;
   }
-  var bl = getLines();
-  var ii = bl.findIndex(function(l) { return l.trim() === 'INFO'; });
-  var boxText = ii > -1 ? bl.slice(Math.max(0, ii - 20), ii + 300).join('\n') : bl.join('\n');
+  var boxText = getLines().join('\n');
   sessionStorage.setItem(storageKey, boxText);
   var plL = Array.from(document.querySelectorAll('a')).find(function(a) { return a.href && a.href.includes('/plays'); });
   if (plL) { plL.click(); } else { location.href = baseUrl + '/plays'; }
