@@ -725,7 +725,13 @@ async function extractAllFromText(fullText) {
   if (parsedTeams.length < 2) {
     console.error('Box score parser found fewer than 2 teams. boxSection length:', boxSection.length, 'preview:', boxSection.substring(0, 200));
     if (parsedTeams.length === 0) {
-      alert('Could not read roster data. Make sure you re-dragged the Thunder Scout bookmarklet to your bookmarks bar after the last update — the old version does not send box score data correctly.');
+      if (hasMarkers && boxSection.trim().length < 50) {
+        alert('Box score section arrived empty.\n\nThe bookmarklet did not capture the roster. Go back to GameChanger, navigate to the Box Score tab so the lineup is visible on screen, then click the bookmarklet again.');
+      } else if (!fullText.includes('LINEUP')) {
+        alert('No roster data found in the pasted text.\n\nYou need to include the Box Score page (with the LINEUP table) as well as the Plays. Copy both tabs from GameChanger, or use the GC Auto-Import bookmarklet.');
+      } else {
+        alert('Could not read roster from the box score. Make sure the full LINEUP table was visible on screen before running the bookmarklet.');
+      }
       return null;
     }
   }
