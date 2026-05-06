@@ -1371,11 +1371,18 @@ function sprayChartSVG(p, size, atBats) {
   function resultRadius(ab, i) {
     const res = (ab.result || '').toLowerCase();
     const ro  = (ab.reached_on || ab.reachedOn || '').toLowerCase();
-    if (res.includes('home run') || res === 'hr') return zR.hr   + (i%3)*2;
-    if (res.includes('triple'))                   return zR.triple+ (i%3)*2;
+    if (res.includes('home run') || res === 'hr') return zR.hr    + (i%3)*2;
+    if (res.includes('triple'))                   return zR.triple + (i%3)*2;
     if (res.includes('double'))                   return zR.double + (i%3)*2;
     if (res.includes('single') || ro === 'hit')   return zR.single + (i%3)*2;
-    // Outs: keep in infield
+    // Outs: check whether the ball reached the outfield
+    const fp = (ab.field_position || ab.fieldPosition || '').toUpperCase().trim();
+    const isOutfieldOut = ['LF','CF','RF'].includes(fp);
+    if (isOutfieldOut) {
+      // Place between the orange (double) and yellow (triple) arcs — mid-outfield
+      return (zR.double + zR.triple) / 2 + (i % 3) * 2;
+    }
+    // Infield out: keep in infield zone
     return zR.infield * (0.55 + (i % 5) * 0.09);
   }
 
