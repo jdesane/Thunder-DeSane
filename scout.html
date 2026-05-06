@@ -1301,7 +1301,9 @@ function buildPlayerStats(atBats) {
 }
 
 function sprayChartSVG(p, size, atBats) {
-  const w = size || 72, h = Math.round(w * 0.80);
+  const w = size || 72;
+  const h = Math.round(w * 0.80);       // field geometry basis
+  const svgH = Math.round(w * 0.98);    // taller canvas so home plate is visible
   const cx = w / 2, cy = h + Math.round(h * 0.08);
   const outerR = Math.round(h * 1.05);
 
@@ -1353,7 +1355,7 @@ function sprayChartSVG(p, size, atBats) {
 
   const plottable = (atBats||[]).filter(ab => (ab.spray_zone||ab.sprayZone||'') !== '');
   if (!plottable.length) {
-    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;overflow:hidden"><rect width="${w}" height="${h}" fill="#0d0d0d" rx="3"/>${field}<text x="${cx}" y="${h*0.44}" text-anchor="middle" fill="#333" font-size="${Math.round(w*0.13)}">No data</text></svg>`;
+    return `<svg width="${w}" height="${svgH}" viewBox="0 0 ${w} ${svgH}" style="display:block;overflow:hidden"><rect width="${w}" height="${svgH}" fill="#0d0d0d" rx="3"/>${field}<text x="${cx}" y="${h*0.44}" text-anchor="middle" fill="#333" font-size="${Math.round(w*0.13)}">No data</text></svg>`;
   }
 
   // Determine depth radius from at-bat result
@@ -1408,8 +1410,8 @@ function sprayChartSVG(p, size, atBats) {
     lines += `<circle cx="${tx}" cy="${ty}" r="${Math.round(w*0.026)}" fill="${col}" opacity="0.95"/>`;
   }
 
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;overflow:hidden">
-    <rect width="${w}" height="${h}" fill="#0d0d0d" rx="3"/>
+  return `<svg width="${w}" height="${svgH}" viewBox="0 0 ${w} ${svgH}" style="display:block;overflow:hidden">
+    <rect width="${w}" height="${svgH}" fill="#0d0d0d" rx="3"/>
     ${field}${lines}
   </svg>`;
 }
