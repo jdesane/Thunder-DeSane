@@ -1445,6 +1445,132 @@ function sprayChartSVG(p, size, atBats) {
   </svg>`;
 }
 
+function printCards() {
+  const team = teams.find(t => t.id === selectedTeamId);
+  if (!team) return;
+  const stats = buildPlayerStats(currentAtBats);
+  if (!stats.length) { alert('No scouting data yet.'); return; }
+
+  // Build a mini white-background spray chart for print
+  function miniChart(p) {
+    const abs = currentAtBats.filter(ab => (ab.player_name||'') === p.name);
+    // Call sprayChartSVG with size=70 and swap background to white
+    let svg = sprayChartSVG(p, 70, abs);
+    svg = svg.replace('fill="#0d0d0d"', 'fill="#ffffff"');
+    return svg;
+  }
+
+  // Direction tendency arrow
+  function dirArrow(p) {
+    const tot = p.left + p.center + p.right + p.middle;
+    if (!tot) return '';
+    const pct = d => Math.round(d/tot*100);
+    const parts = [];
+    if (p.left  > 0) parts.push(`<span style="color:#3b82f6">◄L ${pct(p.left)}%</span>`);
+    if (p.center+p.middle > 0) parts.push(`<span style="color:#6b7280">●C ${pct(p.center+p.middle)}%</span>`);
+    if (p.right > 0) parts.push(`<span style="color:#f97316">R► ${pct(p.right)}%</span>`);
+    return parts.join(' ');
+  }
+
+  // Ball type bar
+  function ballBar(p) {
+    const tot = p.flyBalls + p.groundBalls + p.lineDrives;
+    if (!tot) return '-';
+    const parts = [];
+    if (p.flyBalls  > 0) parts.push(`Fly ${p.flyBalls}`);
+    if (p.groundBalls>0) parts.push(`GB ${p.groundBalls}`);
+    if (p.lineDrives>0) parts.push(`LD ${p.lineDrives}`);
+    return parts.join(' · ');
+  }
+
+  // Danger badge
+  function badge(p) {
+    const avg = p.AB>0 ? p.H/p.AB : 0;
+    const xbh = p.doubles+p.triples+p.HR;
+    const tags = [];
+    if (avg>=0.500) tags.push('<span style="background:#dc2626;color:#fff;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700">🔴 DANGER</span>');
+    else if (avg>=0.400) tags.push('<span style="background:#ea580c;color:#fff;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700">🟠 HOT</span>');
+    if (xbh>=2) tags.push('<span style="background:#7c3aed;color:#fff;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700">XBH</span>');
+    if (p.K>=2) tags.push('<span style="background:#16a34a;color:#fff;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700">K prone</span>');
+    if (p.errors>=2) tags.push('<span style="background:#0891b2;color:#fff;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700">Causes Errs</span>');
+    return tags.join(' ') || '<span style="color:#9ca3af;font-size:9px">Standard</span>';
+  }
+
+  let rows = '';
+  for (const p of stats) {
+    const avg = p.AB>0 ? p.H/p.AB : 0;
+    const avgCol = avg>=0.500?'#dc2626':avg>=0.400?'#ea580c':avg>=0.300?'#d97706':'#374151';
+    const ln = p.lineupOrder&&p.lineupOrder<99 ? p.lineupOrder+'.' : '';
+    const j  = p.jersey ? '#'+p.jersey : '';
+    rows += `
+    <tr>
+      <td style="white-space:nowrap;padding:5px 6px;border-bottom:1px solid #e5e7eb;vertical-align:middle">
+        <div style="font-size:10px;color:#6b7280">${ln}</div>
+        <div style="font-weight:800;font-size:13px;color:#111">${p.name}</div>
+        <div style="font-size:11px;color:#F0A000;font-weight:700">${j}</div>
+      </td>
+      <td style="padding:4px 5px;border-bottom:1px solid #e5e7eb;vertical-align:middle">${miniChart(p)}</td>
+      <td style="padding:5px 6px;border-bottom:1px solid #e5e7eb;vertical-align:middle;text-align:center">
+        <div style="font-size:18px;font-weight:900;color:${avgCol}">${avg.toFixed(3)}</div>
+        <div style="font-size:9px;color:#6b7280">${p.H}/${p.AB}</div>
+      </td>
+      <td style="padding:5px 6px;border-bottom:1px solid #e5e7eb;vertical-align:middle">
+        <div style="font-size:10px;font-weight:600;color:#374151;margin-bottom:3px">${dirArrow(p)}</div>
+        <div style="font-size:9px;color:#6b7280;margin-bottom:3px">${ballBar(p)}</div>
+        <div>${badge(p)}</div>
+      </td>
+    </tr>`;
+  }
+
+  const gameDate = currentGames.length ? currentGames[0].game_date || '' : '';
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>${team.name} — Scout Card</title>
+<style>
+  @page { size: 4in 6in; margin: 6mm; }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body { font-family: 'Arial Narrow', Arial, sans-serif; background:#fff; color:#111; width:100%; }
+  .card-header { background:#111; color:#F0A000; padding:6px 10px; display:flex; justify-content:space-between; align-items:center; border-radius:5px 5px 0 0; }
+  .card-header h1 { font-size:13px; font-weight:900; letter-spacing:0.5px; }
+  .card-header span { font-size:10px; color:#aaa; }
+  table { width:100%; border-collapse:collapse; }
+  th { background:#f3f4f6; font-size:9px; text-transform:uppercase; letter-spacing:0.5px; color:#6b7280; padding:4px 6px; text-align:left; border-bottom:2px solid #e5e7eb; }
+  .legend { display:flex; gap:10px; padding:4px 6px; background:#f9fafb; border-top:1px solid #e5e7eb; border-radius:0 0 5px 5px; flex-wrap:wrap; }
+  .legend span { font-size:8px; color:#6b7280; }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="card-header">
+  <h1>⚡ ${team.name}</h1>
+  <span>${currentGames.length} game${currentGames.length!==1?'s':''} · ${currentAtBats.length} AB${gameDate?' · '+gameDate:''}</span>
+</div>
+<table>
+  <thead><tr>
+    <th>#</th><th>Spray</th><th>AVG</th><th>Direction · Type · Notes</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<div class="legend">
+  <span>— Straight = Line Drive</span>
+  <span>~ Curved = Fly Ball</span>
+  <span>-- Dashed = Ground Ball</span>
+  <span style="color:#22c55e">■ Green = Hit</span>
+  <span style="color:#ef4444">■ Red = Out</span>
+</div>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=480,height=700');
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => win.print();
+}
+
 function renderReport(team) {
   if (!currentAtBats.length) {
     document.getElementById('reportPanel').innerHTML = `<div class="empty"><h3>No data yet</h3><p>Go to "+ ADD GAME" to submit your first game for ${team.name}</p></div>`;
@@ -1454,7 +1580,10 @@ function renderReport(team) {
   let h = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
     <div><h2 style="font-size:18px;font-weight:800;">${team.name}</h2>
     <div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace">${currentGames.length} games &middot; ${currentAtBats.length} at-bats &middot; ${stats.length} players</div></div>
-    <button class="btn btn-secondary btn-sm" onclick="window.print()">&#128424; Print</button></div>`;
+    <div style="display:flex;gap:6px;">
+      <button class="btn btn-secondary btn-sm" onclick="printCards()">&#128197; Cards</button>
+      <button class="btn btn-secondary btn-sm" onclick="window.print()">&#128424; Print</button>
+    </div></div>`;
   
   h += '<div class="section-title">Scouting Summary</div>';
   h += '<div style="overflow-x:auto;"><table class="scouting-table"><thead><tr>';
