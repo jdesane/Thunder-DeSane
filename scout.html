@@ -996,7 +996,15 @@ async function submitGame() {
     let existingTeam = teams.find(t => {
       if (t.name.toLowerCase() === td.name.toLowerCase()) return true;
       // Ignore generic words that appear in many team names
-      const stopWords = new Set(['8u','9u','10u','11u','12u','tournaments','tournament','white','blue','red','black','gold','silver','select','elite','travel']);
+      const stopWords = new Set([
+        '8u','9u','10u','11u','12u','13u','14u',
+        'tournaments','tournament',
+        'white','blue','red','black','gold','silver','green','orange',
+        'select','elite','travel','premier','classic','academy',
+        'all','stars','allstars',
+        'baseball','softball','youth','boys','girls',
+        'spring','fall','summer','winter',
+      ]);
       const tWords = new Set(t.name.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w)));
       const tdWords = td.name.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
       const shared = tdWords.filter(w => tWords.has(w));
@@ -1091,7 +1099,7 @@ async function submitGame() {
       matchedPlayTeam = playTeamNames.find(ptn => ptn.toLowerCase() === st.teamName.toLowerCase()) || '';
       // Fall back to word-overlap matching if exact fails
       if (!matchedPlayTeam) {
-        const stopWords = new Set(['8u','9u','10u','11u','tournaments','white','blue','red','black','gold']);
+        const stopWords = new Set(['8u','9u','10u','11u','12u','13u','14u','tournaments','tournament','white','blue','red','black','gold','silver','green','orange','select','elite','travel','premier','classic','all','stars','allstars','baseball','softball','youth','boys','girls','spring','fall','summer','winter']);
         for (const ptn of playTeamNames) {
           if (!ptn) continue;
           const pWords = new Set(ptn.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w)));
@@ -1153,10 +1161,14 @@ async function submitGame() {
   setProgress(false);
   toast(`Done! ${savedTeams.length} teams, ${totalSaved} at-bats saved.`);
   
-  // Reload teams and select the first saved team
+  // Reload teams, then return to whichever team was selected before the import.
+  // If that team was one of the imported teams, reload its fresh data.
+  // If no previously-selected team, default to the first imported team.
+  const prevSelectedId = selectedTeamId;
   await loadTeams();
   if (savedTeams.length > 0) {
-    await selectTeam(savedTeams[0].teamId);
+    const returnTo = savedTeams.find(st => st.teamId === prevSelectedId) || savedTeams[0];
+    await selectTeam(returnTo.teamId);
   }
 }
 
