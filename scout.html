@@ -760,6 +760,8 @@ ${rosterContext}
 HOW TO MATCH INITIALS TO NAMES:
 - Each play names the batter with first+last initials (e.g. "J S" = first initial J, last initial S)
 - Find the player whose name starts with that first initial AND last name starts with that last initial
+- BOTH initials must match — never ignore the last initial even if two players share a first name
+- Example: roster has "Luke T #4" (slot 2) and "Luke H #27" (slot 8). In the plays, "L T" = Luke T and "L H" = Luke H. They are DIFFERENT players — never merge them.
 - Use the FULL name from the roster in the "player" field — NEVER output initials
 
 RULES:
@@ -1202,7 +1204,14 @@ function matchPlayer(playName, roster) {
   }
   match = roster.find(r => { const rp = r.name.trim().split(/\s+/); return rp[0].toLowerCase() === firstPart.toLowerCase() && rp[rp.length-1][0].toUpperCase() === lastPart[0].toUpperCase(); });
   if (match) return match;
-  if (firstPart.length >= 3) { match = roster.find(r => r.name.toLowerCase().startsWith(firstPart.toLowerCase())); if (match) return match; }
+  // startsWith fallback: only use when lastPart is a full word (not a single initial).
+  // If lastPart is a single character it's a last-name initial — the exact match above already
+  // checked it and failed, so returning a prefix-only match here would wrongly combine
+  // two players who share a first name but have different last initials (e.g. Luke T vs Luke H).
+  if (firstPart.length >= 3 && lastPart.length >= 2) {
+    match = roster.find(r => r.name.toLowerCase().startsWith(firstPart.toLowerCase()));
+    if (match) return match;
+  }
   return null;
 }
 
