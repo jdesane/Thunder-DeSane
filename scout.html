@@ -94,9 +94,12 @@
   @media print {
     /* Force all text black */
     * { color: #000 !important; }
-    /* Spray chart: white background, dark field lines, black labels */
+    /* Spray chart: white background */
     svg rect { fill: #fff !important; }
     svg text { fill: #000 !important; color: #000 !important; }
+    /* Zone arcs keep their colors (purple/green/orange/yellow/red) for print clarity */
+    /* Hit lines: green stays green, red stays red — both print well */
+    /* Field structure lines (#2a2a2a) are dark enough to show on white paper */
     /* Hide UI chrome */
     .header, .tabs, #teamsPanel, #addGamePanel, .btn, button { display:none !important; }
     .panel { display:block !important; max-width:100%; }
@@ -1301,25 +1304,51 @@ function sprayChartSVG(p, size, atBats) {
   const w = size || 72, h = Math.round(w * 0.80);
   const cx = w / 2, cy = h + Math.round(h * 0.08);
   const outerR = Math.round(h * 1.05);
-  const ifR    = Math.round(outerR * 0.46);
 
   function pt(deg, r) {
     const a = (deg - 90) * Math.PI / 180;
     return [+(cx + r * Math.cos(a)).toFixed(1), +(cy + r * Math.sin(a)).toFixed(1)];
   }
 
+  // Depth zones (fraction of outerR)
+  const zR = {
+    infield: outerR * 0.33,
+    single:  outerR * 0.49,
+    double:  outerR * 0.64,
+    triple:  outerR * 0.79,
+    hr:      outerR * 0.94
+  };
+
   // Field outline
-  const fc = '#2a2a2a', fw = '0.8';
+  const fc = '#2a2a2a';
   const [lfx,lfy] = pt(-46, outerR), [rfx,rfy] = pt(46, outerR);
-  const [ifx,ify] = pt(-32, ifR),    [irx,iry] = pt(32, ifR);
-  const [b1x,b1y] = pt(38, ifR*0.68), [b2x,b2y] = pt(0, ifR*0.92), [b3x,b3y] = pt(-38, ifR*0.68);
+
+  // Helper: draw a zone arc between foul lines
+  function arc(r, stroke, dash) {
+    const [lx,ly] = pt(-46, r), [rx,ry] = pt(46, r);
+    return `<path d="M${lx},${ly} A${r},${r} 0 0 1 ${rx},${ry}" fill="none" stroke="${stroke}" stroke-width="0.7" opacity="0.55"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`;
+  }
+
+  // Infield diamond bases
+  const dR = zR.infield * 0.94;
+  const [b1x,b1y] = pt(38, dR*0.72), [b2x,b2y] = pt(0, dR), [b3x,b3y] = pt(-38, dR*0.72);
+
   const field = [
-    `<path d="M${lfx},${lfy} A${outerR},${outerR} 0 0 1 ${rfx},${rfy}" fill="none" stroke="${fc}" stroke-width="${fw}"/>`,
-    `<line x1="${cx}" y1="${cy}" x2="${lfx}" y2="${lfy}" stroke="${fc}" stroke-width="${fw}"/>`,
-    `<line x1="${cx}" y1="${cy}" x2="${rfx}" y2="${rfy}" stroke="${fc}" stroke-width="${fw}"/>`,
-    `<path d="M${ifx},${ify} A${ifR},${ifR} 0 0 1 ${irx},${iry}" fill="none" stroke="${fc}" stroke-width="${fw}" stroke-dasharray="2,2"/>`,
+    // Outfield boundary
+    `<path d="M${lfx},${lfy} A${outerR},${outerR} 0 0 1 ${rfx},${rfy}" fill="none" stroke="${fc}" stroke-width="1"/>`,
+    // Foul lines
+    `<line x1="${cx}" y1="${cy}" x2="${lfx}" y2="${lfy}" stroke="${fc}" stroke-width="0.8"/>`,
+    `<line x1="${cx}" y1="${cy}" x2="${rfx}" y2="${rfy}" stroke="${fc}" stroke-width="0.8"/>`,
+    // Zone arcs: infield=purple dashed, single=green, double=orange, triple=yellow, hr=red
+    arc(zR.infield, '#9333ea', '2,2'),
+    arc(zR.single,  '#16a34a'),
+    arc(zR.double,  '#ea580c'),
+    arc(zR.triple,  '#ca8a04'),
+    arc(zR.hr,      '#dc2626'),
+    // Infield diamond
     `<polyline points="${cx},${cy} ${b1x},${b1y} ${b2x},${b2y} ${b3x},${b3y} ${cx},${cy}" fill="none" stroke="${fc}" stroke-width="0.6" opacity="0.7"/>`,
-    `<circle cx="${cx}" cy="${cy}" r="${Math.round(w*0.038)}" fill="none" stroke="${fc}" stroke-width="${fw}"/>`
+    // Home plate
+    `<circle cx="${cx}" cy="${cy}" r="${Math.round(w*0.033)}" fill="none" stroke="${fc}" stroke-width="0.7"/>`
   ].join('');
 
   const plottable = (atBats||[]).filter(ab => (ab.spray_zone||ab.sprayZone||'') !== '');
@@ -1327,42 +1356,61 @@ function sprayChartSVG(p, size, atBats) {
     return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;overflow:hidden"><rect width="${w}" height="${h}" fill="#0d0d0d" rx="3"/>${field}<text x="${cx}" y="${h*0.44}" text-anchor="middle" fill="#333" font-size="${Math.round(w*0.13)}">No data</text></svg>`;
   }
 
-  // Deterministic jitter so chart looks the same each render
+  // Determine depth radius from at-bat result
+  function resultRadius(ab, i) {
+    const res = (ab.result || '').toLowerCase();
+    const ro  = (ab.reached_on || ab.reachedOn || '').toLowerCase();
+    if (res.includes('home run') || res === 'hr') return zR.hr   + (i%3)*2;
+    if (res.includes('triple'))                   return zR.triple+ (i%3)*2;
+    if (res.includes('double'))                   return zR.double + (i%3)*2;
+    if (res.includes('single') || ro === 'hit')   return zR.single + (i%3)*2;
+    // Outs: keep in infield
+    return zR.infield * (0.55 + (i % 5) * 0.09);
+  }
+
   const zoneBase = {Left:-34, Center:0, Right:34, Middle:2};
-  let dots = '';
+  let lines = '';
+
   for (let i = 0; i < plottable.length; i++) {
     const ab  = plottable[i];
     const sz  = ab.spray_zone || ab.sprayZone || 'Center';
-    const hd  = ab.hit_direction || ab.hitDirection || '';
+    const hd  = (ab.hit_direction || ab.hitDirection || '').trim();
     const ro  = ab.reached_on || ab.reachedOn || 'Out';
     const hit = ro === 'Hit';
 
-    // Jitter: spread dots within zone using index
+    // Deterministic jitter to spread overlapping at-bats
     const jitter = ((i * 13 + i * i * 5) % 22) - 11;
     const ang = (zoneBase[sz] || 0) + jitter;
+    const rad = resultRadius(ab, i);
+    const [tx, ty] = pt(ang, rad);
+    const col = hit ? '#22c55e' : '#ef4444';
+    const sw = '1.2';
 
-    // Radius by ball type and zone
-    const isMiddle = sz === 'Middle';
-    let rad;
-    if (isMiddle)       rad = ifR * (0.45 + (i % 4) * 0.08);
-    else if (hd==='Fly')   rad = outerR * (0.70 + (i % 4) * 0.07);
-    else if (hd==='Ground') rad = ifR * (0.55 + (i % 4) * 0.12);
-    else if (hd==='Line')   rad = ifR * (0.85 + (i % 3) * 0.12);
-    else                   rad = ifR * (0.75 + (i % 4) * 0.09);
+    if (hd === 'Ground') {
+      // --- Ground ball: dashed line ---
+      lines += `<line x1="${cx}" y1="${cy}" x2="${tx}" y2="${ty}" stroke="${col}" stroke-width="${sw}" stroke-dasharray="2.5,2" opacity="0.92"/>`;
+    } else if (hd === 'Fly') {
+      // --- Fly ball: curved arc (quadratic bezier, bows perpendicular) ---
+      const dx = tx - cx, dy = ty - cy;
+      const len = Math.sqrt(dx*dx + dy*dy) || 1;
+      // Perpendicular unit vector; alternate bow direction each at-bat
+      const bowSign = (i % 2 === 0) ? 1 : -1;
+      const bow = w * 0.17 * bowSign;
+      const cpx = +((cx + tx)/2 + (-dy/len) * bow).toFixed(1);
+      const cpy = +((cy + ty)/2 + ( dx/len) * bow).toFixed(1);
+      lines += `<path d="M${cx},${cy} Q${cpx},${cpy} ${tx},${ty}" fill="none" stroke="${col}" stroke-width="${sw}" opacity="0.92"/>`;
+    } else {
+      // --- Line drive (or unknown): straight solid line ---
+      lines += `<line x1="${cx}" y1="${cy}" x2="${tx}" y2="${ty}" stroke="${col}" stroke-width="${sw}" opacity="0.92"/>`;
+    }
 
-    const [x,y] = pt(ang, rad);
-    const col   = hit ? '#22c55e' : '#991b1b';
-    const ltr   = hd==='Fly' ? 'F' : hd==='Ground' ? 'G' : hd==='Line' ? 'L' : '';
-    const dr    = Math.round(w * 0.082);
-
-    dots += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="${col}" stroke-width="0.9" opacity="0.6"/>`;
-    dots += `<circle cx="${x}" cy="${y}" r="${dr}" fill="${col}"/>`;
-    if (ltr) dots += `<text x="${x}" y="${+y+Math.round(dr*0.38)}" text-anchor="middle" fill="white" font-size="${Math.round(dr*1.1)}" font-weight="800">${ltr}</text>`;
+    // Small filled dot at landing point
+    lines += `<circle cx="${tx}" cy="${ty}" r="${Math.round(w*0.026)}" fill="${col}" opacity="0.95"/>`;
   }
 
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;overflow:hidden">
     <rect width="${w}" height="${h}" fill="#0d0d0d" rx="3"/>
-    ${field}${dots}
+    ${field}${lines}
   </svg>`;
 }
 
