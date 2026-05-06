@@ -144,6 +144,7 @@
     <div class="btn-row">
       <button class="btn btn-primary" onclick="savePlayer()">Save</button>
       <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="deletePlayerFromModal()" id="deletePlayerBtn" style="margin-left:auto">&#128465; Delete</button>
     </div>
   </div>
 </div>
@@ -1509,12 +1510,20 @@ function renderReport(team) {
     h+=`</div><div style="flex-shrink:0">${sprayChartSVG(p, 90, pABs2)}</div></div>`;
   }
   
-  h += '<div class="section-title">Roster (tap to edit)</div>';
+  h += `<div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+    <span>Roster (tap to edit)</span>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button id="rosterSelectAllBtn" class="btn btn-secondary btn-sm" onclick="rosterToggleSelectAll()" style="font-size:10px;padding:4px 10px;">Select All</button>
+      <button id="rosterDeleteBtn" class="btn btn-danger btn-sm" onclick="rosterDeleteSelected()" style="font-size:10px;padding:4px 10px;display:none">&#128465; Delete Selected</button>
+    </div>
+  </div>`;
   for (const p of currentPlayers) {
-    h+=`<div class="player-row" onclick="editPlayer('${p.id}','${p.name.replace(/'/g,"\\'")}')">`;
-    h+=`<span class="jersey">${p.jersey_number?'#'+p.jersey_number:'--'}</span>`;
-    h+=`<div style="flex:1"><div style="font-weight:600;font-size:14px">${p.lineup_order&&p.lineup_order<99?'<span style="color:var(--dim);font-size:11px">'+p.lineup_order+'. </span>':''}${p.name}</div>`;
-    h+=`<div style="font-size:11px;color:var(--dim)">${p.position||'No position'}</div></div><span style="color:var(--dim)">&#9998;</span></div>`;
+    h+=`<div class="player-row" id="prow-${p.id}" style="gap:8px">`;
+    h+=`<input type="checkbox" class="roster-cb" data-id="${p.id}" onchange="rosterCbChange()" onclick="event.stopPropagation()" style="width:16px;height:16px;accent-color:var(--accent);flex-shrink:0;cursor:pointer">`;
+    h+=`<span class="jersey" style="cursor:pointer" onclick="editPlayer('${p.id}','${p.name.replace(/'/g,"\\'")}'">${p.jersey_number?'#'+p.jersey_number:'--'}</span>`;
+    h+=`<div style="flex:1;cursor:pointer" onclick="editPlayer('${p.id}','${p.name.replace(/'/g,"\\'")}')"><div style="font-weight:600;font-size:14px">${p.lineup_order&&p.lineup_order<99?'<span style="color:var(--dim);font-size:11px">'+p.lineup_order+'. </span>':''}${p.name}</div>`;
+    h+=`<div style="font-size:11px;color:var(--dim)">${p.position||'No position'}</div></div>`;
+    h+=`<span style="color:var(--dim);cursor:pointer" onclick="editPlayer('${p.id}','${p.name.replace(/'/g,"\\'")}')">&#9998;</span></div>`;
   }
   document.getElementById('reportPanel').innerHTML = h;
 }
@@ -1569,6 +1578,44 @@ async function savePlayer() {
 
 function closeModal() { document.getElementById('editModal').classList.remove('show'); }
 document.getElementById('editModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+async function deletePlayerFromModal() {
+  const id = document.getElementById('editPlayerId').value;
+  const name = document.getElementById('editName').value;
+  if (!id) return;
+  if (!confirm(`Delete ${name}? This also removes all their at-bat records.`)) return;
+  closeModal();
+  await supa('scout_at_bats', 'DELETE', null, `?player_id=eq.${id}`);
+  await supa('scout_players', 'DELETE', null, `?id=eq.${id}`);
+  toast('Player deleted.');
+  await selectTeam(selectedTeamId); showPanel('report');
+}
+
+function rosterCbChange() {
+  const anyChecked = document.querySelectorAll('.roster-cb:checked').length > 0;
+  const btn = document.getElementById('rosterDeleteBtn');
+  if (btn) btn.style.display = anyChecked ? 'inline-flex' : 'none';
+}
+
+function rosterToggleSelectAll() {
+  const cbs = document.querySelectorAll('.roster-cb');
+  const allChecked = [...cbs].every(c => c.checked);
+  cbs.forEach(c => c.checked = !allChecked);
+  rosterCbChange();
+}
+
+async function rosterDeleteSelected() {
+  const checked = [...document.querySelectorAll('.roster-cb:checked')];
+  if (!checked.length) return;
+  if (!confirm(`Delete ${checked.length} player(s) and all their at-bat records?`)) return;
+  for (const cb of checked) {
+    const id = cb.dataset.id;
+    await supa('scout_at_bats', 'DELETE', null, `?player_id=eq.${id}`);
+    await supa('scout_players', 'DELETE', null, `?id=eq.${id}`);
+  }
+  toast(`${checked.length} player(s) deleted.`);
+  await selectTeam(selectedTeamId); showPanel('report');
+}
 
 // =====================================================
 // GC AUTO-IMPORT: receive data from bookmarklet
