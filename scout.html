@@ -274,7 +274,7 @@ async function gcImport() {
 
 function setupBookmarklet() {
   var el = document.getElementById('gcBookmarklet');
-  if (el) el.href = 'javascript:(' + gcImport.toString() + ')()';
+  if (el) el.href = "javascript:(function(){var s=document.createElement('script');s.src='https://jdesane.github.io/Thunder-DeSane/gc-import.js?v='+Date.now();document.head.appendChild(s);})()";
 }
 
 function showPanel(name) {
