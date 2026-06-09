@@ -2,6 +2,7 @@
   if (!location.hostname.includes('gc.com')) { alert('Use this on a GameChanger game page!'); return; }
   function wait(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
   function getLines() { return document.body.innerText.split('\n').filter(function(l) { return l.trim(); }); }
+  function playsLoaded() { var t = document.body.innerText; return /Top[\s ]+\d|Bottom[\s ]+\d/.test(t) || t.indexOf(' Outs') !== -1 || t.indexOf('In play') !== -1; }
   async function doScroll() {
     for (var si = 0; si < 3; si++) { window.scrollTo(0, si * document.body.scrollHeight / 2); await wait(120); }
     window.scrollTo(0, 0); await wait(150);
@@ -33,7 +34,7 @@
     if (!savedBox) { alert('Please go to the Box Score tab and click the bookmarklet first.'); return; }
     await doScroll();
     var r = 10;
-    while (document.body.innerText.indexOf('Top 1st') === -1 && document.body.innerText.indexOf('Bottom 1st') === -1 && r-- > 0) { await wait(700); }
+    while (!playsLoaded() && r-- > 0) { await wait(700); }
     var sortBtn = Array.from(document.querySelectorAll('button,span,[role=button]')).find(function(el) { return el.textContent.trim() === 'Reverse Chronological'; });
     if (sortBtn) { sortBtn.click(); await wait(600); }
     await doScroll();
@@ -70,13 +71,13 @@
   await wait(600);
   await doScroll();
   var r2 = 10;
-  while (document.body.innerText.indexOf('Top 1st') === -1 && document.body.innerText.indexOf('Bottom 1st') === -1 && r2-- > 0) { await wait(350); }
-  if (document.body.innerText.indexOf('Top 1st') === -1 && document.body.innerText.indexOf('Bottom 1st') === -1) {
+  while (!playsLoaded() && r2-- > 0) { await wait(350); }
+  if (!playsLoaded()) {
     alert('Plays tab still loading — click OK once the plays are visible on screen.');
     await doScroll();
     var r3 = 15;
-    while (document.body.innerText.indexOf('Top 1st') === -1 && document.body.innerText.indexOf('Bottom 1st') === -1 && r3-- > 0) { await wait(400); }
-    if (document.body.innerText.indexOf('Top 1st') === -1 && document.body.innerText.indexOf('Bottom 1st') === -1) {
+    while (!playsLoaded() && r3-- > 0) { await wait(400); }
+    if (!playsLoaded()) {
       alert('Could not find plays data. Try navigating to the Plays tab manually and clicking the bookmarklet again.'); return;
     }
   }
