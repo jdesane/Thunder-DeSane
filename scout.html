@@ -188,20 +188,22 @@ async function gcImport() {
     window.scrollTo(0, 0); await wait(150);
   }
   function sendToScout(combined) {
-    var win = window.open('https://jdesane.github.io/Thunder-DeSane/scout.html', 'thunderscout');
-    var sent = false;
-    window.addEventListener('message', function h(e) {
-      if (e.data && e.data.type === 'scout_ready' && !sent) {
-        sent = true; window.removeEventListener('message', h);
-        try { win.postMessage({ type: 'gc_game_data', text: combined }, '*'); } catch(ex) {}
-      }
-    });
-    var tries = 0;
-    var iv = setInterval(function() {
-      tries++;
-      if (sent || tries > 20) { clearInterval(iv); return; }
-      try { win.postMessage({ type: 'gc_game_data', text: combined }, '*'); } catch(ex) { clearInterval(iv); }
-    }, 600);
+    function showAlert() {
+      alert('Game data copied!\n\nSwitch to the Thunder Scout tab:\n1. Click "Add Game"\n2. Select "All Text" mode\n3. Cmd+V to paste\n4. Click Submit');
+    }
+    try {
+      navigator.clipboard.writeText(combined).then(showAlert).catch(function() {
+        var ta = document.createElement('textarea');
+        ta.value = combined; ta.style.cssText = 'position:fixed;opacity:0';
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+        document.body.removeChild(ta); showAlert();
+      });
+    } catch(e) {
+      var ta = document.createElement('textarea');
+      ta.value = combined; ta.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta); showAlert();
+    }
   }
   var basePath = location.pathname.replace(/\/(box-score|plays|info|lineup|stats)\/?$/, '');
   var baseUrl = location.origin + basePath;
