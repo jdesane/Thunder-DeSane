@@ -251,7 +251,13 @@ async function gcImport() {
   var r2 = 10;
   while (document.body.innerText.indexOf('Top 1st') === -1 && document.body.innerText.indexOf('Bottom 1st') === -1 && r2-- > 0) { await wait(350); }
   if (document.body.innerText.indexOf('Top 1st') === -1 && document.body.innerText.indexOf('Bottom 1st') === -1) {
-    alert('Box score saved! Click the Plays tab, wait for it to load, then click the bookmarklet one more time.'); return;
+    alert('Plays tab still loading — click OK once the plays are visible on screen.');
+    await doScroll();
+    var r3 = 15;
+    while (document.body.innerText.indexOf('Top 1st') === -1 && document.body.innerText.indexOf('Bottom 1st') === -1 && r3-- > 0) { await wait(400); }
+    if (document.body.innerText.indexOf('Top 1st') === -1 && document.body.innerText.indexOf('Bottom 1st') === -1) {
+      alert('Could not find plays data. Try navigating to the Plays tab manually and clicking the bookmarklet again.'); return;
+    }
   }
   var sortBtn2 = Array.from(document.querySelectorAll('button,span,[role=button]')).find(function(el) { return el.textContent.trim() === 'Reverse Chronological'; });
   if (sortBtn2) { sortBtn2.click(); await wait(600); }
