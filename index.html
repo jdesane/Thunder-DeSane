@@ -1133,6 +1133,99 @@
   .progress-ring { transform: rotate(-90deg); }
   .progress-ring-bg { fill: none; stroke: rgba(245,166,35,0.1); stroke-width: 6; }
   .progress-ring-fill { fill: none; stroke: var(--thunder-gold); stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease; }
+
+  /* Roster contact list */
+  .contact-row {
+    background: var(--thunder-surface);
+    border: 1px solid var(--thunder-border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .contact-row:hover { border-color: rgba(245,166,35,0.4); }
+  .contact-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    cursor: pointer;
+    gap: 12px;
+  }
+  .contact-caret {
+    display: inline-block;
+    color: var(--thunder-muted);
+    font-size: 14px;
+    transition: transform 0.2s;
+    margin-left: 4px;
+  }
+  .contact-drawer {
+    padding: 14px;
+    background: rgba(13, 27, 42, 0.6);
+    border-top: 1px solid var(--thunder-border);
+  }
+  .contact-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: rgba(245,166,35,0.1);
+    border: 1px solid var(--thunder-border);
+    color: var(--thunder-gold);
+    border-radius: 20px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .contact-chip:hover { background: rgba(245,166,35,0.18); }
+  .contact-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: rgba(245,166,35,0.08);
+    border: 1px solid var(--thunder-border);
+    color: var(--thunder-gold);
+    text-decoration: none;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .contact-icon-btn:hover { background: rgba(245,166,35,0.18); }
+
+  /* Fin panels */
+  .fin-panel { display: block; }
+
+  /* Tournament card */
+  .tourney-card {
+    background: var(--thunder-surface2);
+    border: 1px solid var(--thunder-border);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .tourney-card .tourney-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; color: var(--thunder-text); }
+  .tourney-card .tourney-dates { font-size: 12px; color: var(--thunder-muted); }
+  .tourney-card .tourney-meta { font-size: 12px; color: var(--thunder-muted); }
+  .tourney-card .tourney-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .tourney-card .mini-btn {
+    padding: 4px 8px; font-size: 11px; border-radius: 6px; border: 1px solid var(--thunder-border);
+    background: transparent; color: var(--thunder-text); cursor: pointer;
+    font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .tourney-card .mini-btn:hover { background: rgba(245,166,35,0.1); color: var(--thunder-gold); border-color: rgba(245,166,35,0.4); }
+
+  /* Mobile tightening */
+  @media (max-width: 640px) {
+    .contact-summary { padding: 10px 12px; }
+    .contact-icon-btn { width: 40px; height: 40px; font-size: 17px; }
+    .contact-chip { padding: 8px 12px; font-size: 13px; }
+  }
 </style>
 </head>
 <body>
@@ -1172,7 +1265,7 @@
     🎨<span class="tooltip">Content Studio</span>
   </div>
   <div class="nav-item" onclick="navigate('recruiting')" data-section="recruiting">
-    ⭐<span class="tooltip">Recruiting</span>
+    💰<span class="tooltip">Finances</span>
   </div>
   <div class="nav-item" onclick="navigate('settings')" data-section="settings">
     ⚙️<span class="tooltip">Settings</span>
@@ -1194,7 +1287,8 @@
     <div class="topbar-badges">
       <span class="badge badge-gold">⚡ 8U Spring 2026</span>
       <span class="badge badge-green">● Season Active</span>
-      <span class="badge badge-blue">11 Players</span>
+      <span class="badge badge-blue" id="badge-player-count">11 Players</span>
+      <span class="badge badge-gold" id="badge-balance" style="display:none">$0</span>
     </div>
     <div class="topbar-avatar">JD</div>
   </div>
@@ -1256,7 +1350,41 @@
       </div>
     </div>
 
-    <div class="grid-21">
+    <!-- ===== TEAM MANAGEMENT ROW (Balance / Next Tournament / Quick Expense / Roster Health) ===== -->
+    <div class="grid-4" style="margin-top:20px">
+      <div class="stat-card" style="cursor:pointer" onclick="navigate('recruiting')">
+        <div class="accent-bar"></div>
+        <div class="card-label">💰 Team Balance</div>
+        <div class="card-value" id="tm-balance">$0</div>
+        <div class="card-sub" id="tm-balance-sub">Raised: $0 · Spent: $0</div>
+      </div>
+      <div class="stat-card green" style="cursor:pointer" onclick="navigate('games')">
+        <div class="accent-bar"></div>
+        <div class="card-label">🏆 Next Tournament</div>
+        <div class="card-value" id="tm-next-tourney" style="font-size:22px;line-height:1.15;color:var(--thunder-green)">—</div>
+        <div class="card-sub" id="tm-next-tourney-sub">No tournaments scheduled</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="accent-bar"></div>
+        <div class="card-label">⚡ Quick Expense</div>
+        <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
+          <input id="qx-desc" class="input-field" style="padding:8px 10px;font-size:13px" placeholder="What / who">
+          <div style="display:flex;gap:6px">
+            <input id="qx-amount" class="input-field" style="padding:8px 10px;font-size:13px;flex:1" placeholder="Amount ($)" type="number" step="0.01">
+            <button class="btn btn-gold" style="padding:8px 12px;font-size:11px" onclick="quickAddExpense()">+ Add</button>
+          </div>
+          <div style="font-size:11px;color:var(--thunder-muted)">Positive = collection · Negative = spend</div>
+        </div>
+      </div>
+      <div class="stat-card purple" style="cursor:pointer" onclick="navigate('roster')">
+        <div class="accent-bar"></div>
+        <div class="card-label">🩺 Roster Health</div>
+        <div class="card-value" id="tm-health" style="color:var(--thunder-purple)">—</div>
+        <div class="card-sub" id="tm-health-sub">Missing fields flagged in Roster</div>
+      </div>
+    </div>
+
+    <div class="grid-21" style="margin-top:20px">
       <div class="card">
         <div class="card-title"><span class="icon">👥</span> Roster Snapshot</div>
         <table class="player-table">
@@ -1383,29 +1511,37 @@
     <div class="section-header">
       <div class="section-eyebrow">👥 Team Management</div>
       <div class="section-title">FULL ROSTER</div>
-      <div class="section-sub">11 Players · 4 outfielders (8U) → 3 outfielders (9U) · All transitioning to kid pitch Fall 2026</div>
+      <div class="section-sub" id="roster-sub">Tap any player to see parents · Tap-to-call · Tap-to-text · Tap-to-email · Tap address for maps</div>
     </div>
     <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-      <button class="btn btn-gold">+ Add Player</button>
-      <button class="btn btn-outline">📤 Export Roster</button>
-      <button class="btn btn-outline">🖨️ Print Roster Card</button>
-      <input class="input-field" style="max-width:240px;padding:10px 14px" placeholder="🔍 Search players...">
+      <button class="btn btn-gold" onclick="openPlayerEditor(-1)">+ Add Player</button>
+      <button class="btn btn-outline" onclick="exportRoster()">📤 Export CSV</button>
+      <button class="btn btn-outline" onclick="window.print()">🖨️ Print</button>
+      <input class="input-field" id="roster-search" style="max-width:240px;padding:10px 14px" placeholder="🔍 Search players..." oninput="renderFullRoster()">
     </div>
-    <div class="card">
+
+    <!-- Stats table view (compact) -->
+    <div class="card" style="overflow-x:auto">
       <table class="player-table" id="full-roster-table">
         <thead>
           <tr>
             <th>#</th>
             <th>Player</th>
-            <th>Skill Level</th>
-            <th>Primary Position</th>
-            <th>Secondary Position</th>
-            <th>Pitching</th>
+            <th>Jersey</th>
+            <th>Pants</th>
+            <th>DOB</th>
+            <th>Walk-Up Song</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="full-roster-body"></tbody>
       </table>
+    </div>
+
+    <!-- Card list view (contacts + drawer) -->
+    <div style="margin-top:24px" class="card">
+      <div class="card-title"><span class="icon">📞</span> Contacts</div>
+      <div id="roster-contacts-list" style="display:flex;flex-direction:column;gap:10px"></div>
     </div>
   </section>
 
@@ -1619,11 +1755,11 @@
     </div>
 
     <!-- Tab Navigation -->
-    <div style="display:flex;gap:8px;margin-bottom:20px;border-bottom:1px solid var(--thunder-border);padding-bottom:0">
+    <div style="display:flex;gap:8px;margin-bottom:20px;border-bottom:1px solid var(--thunder-border);padding-bottom:0;flex-wrap:wrap">
       <button class="stats-tab active" onclick="switchTab('batting')" id="tab-batting">⚾ Batting</button>
-      
       <button class="stats-tab" onclick="switchTab('fielding')" id="tab-fielding">🧤 Fielding</button>
       <button class="stats-tab" onclick="switchTab('leaders')" id="tab-leaders">🏆 Leaders</button>
+      <button class="stats-tab" onclick="switchTab('tournaments')" id="tab-tournaments">🗓️ Tournaments</button>
     </div>
 
     <!-- BATTING TABLE -->
@@ -1664,7 +1800,28 @@
         <div class="card" id="leader-ops"></div>
         <div class="card" id="leader-hr"></div>
         <div class="card" id="leader-r"></div>
-        
+
+      </div>
+    </div>
+
+    <!-- TOURNAMENTS -->
+    <div id="stats-tournaments" class="stats-panel" style="display:none">
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="btn btn-gold" onclick="openTournamentEditor(null)">+ Add Tournament</button>
+      </div>
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-title" style="color:var(--thunder-gold)"><span class="icon">🎯</span> Potential</div>
+          <div id="tourn-col-potential" style="display:flex;flex-direction:column;gap:10px;margin-top:12px"></div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:#60A5FA"><span class="icon">✅</span> Registered</div>
+          <div id="tourn-col-registered" style="display:flex;flex-direction:column;gap:10px;margin-top:12px"></div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:var(--thunder-green)"><span class="icon">🏁</span> Completed</div>
+          <div id="tourn-col-completed" style="display:flex;flex-direction:column;gap:10px;margin-top:12px"></div>
+        </div>
       </div>
     </div>
 
@@ -3013,23 +3170,156 @@ Design requirements:
   }
   </script>
 
-  <!-- ===== RECRUITING ===== -->
+  <!-- ===== FINANCES ===== -->
   <section class="content" id="section-recruiting">
     <div class="section-header">
-      <div class="section-eyebrow">⭐ Talent</div>
-      <div class="section-title">RECRUITING HUB</div>
-      <div class="section-sub">Player profiles, highlight content, and recruiting communications</div>
+      <div class="section-eyebrow">💰 Money In · Money Out</div>
+      <div class="section-title">FINANCES</div>
+      <div class="section-sub">Team balance, expenses, donations, and per-player budget</div>
     </div>
-    <div class="stub-section">
-      <span class="stub-icon">⭐</span>
-      <div class="stub-title">Recruiting Content Engine</div>
-      <div class="stub-desc">Build compelling player profiles and recruiting packages. Generate highlight reels, stats reports, and outreach communications to showcase Thunder players.</div>
-      <div class="stub-features">
-        <span class="stub-feature-pill">📋 Player Profiles</span>
-        <span class="stub-feature-pill">📊 Stats Reports</span>
-        <span class="stub-feature-pill">✉️ Outreach Templates</span>
-        <span class="stub-feature-pill">🎬 Highlight Packages</span>
-        <span class="stub-feature-pill">🏆 Tournament Performance</span>
+
+    <div class="grid-4" style="margin-bottom:20px">
+      <div class="stat-card">
+        <div class="accent-bar"></div>
+        <div class="card-label">Total Raised</div>
+        <div class="card-value" id="fin-raised" style="color:var(--thunder-green)">$0</div>
+        <div class="card-sub">Registration + Donations + Fundraising</div>
+      </div>
+      <div class="stat-card">
+        <div class="accent-bar"></div>
+        <div class="card-label">Total Spent</div>
+        <div class="card-value" id="fin-spent" style="color:var(--thunder-red)">$0</div>
+        <div class="card-sub">All outgoing expenses</div>
+      </div>
+      <div class="stat-card">
+        <div class="accent-bar"></div>
+        <div class="card-label">Balance</div>
+        <div class="card-value" id="fin-balance">$0</div>
+        <div class="card-sub">Money in the team account</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="accent-bar"></div>
+        <div class="card-label">Cost / Player</div>
+        <div class="card-value" id="fin-cost-per-player" style="color:var(--thunder-purple)">$0</div>
+        <div class="card-sub" id="fin-cost-per-player-sub">Based on budget model</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:20px;border-bottom:1px solid var(--thunder-border);padding-bottom:0;flex-wrap:wrap">
+      <button class="stats-tab active" onclick="switchFinTab('overview')" id="fintab-overview">📊 Overview</button>
+      <button class="stats-tab" onclick="switchFinTab('expenses')" id="fintab-expenses">💸 Expenses</button>
+      <button class="stats-tab" onclick="switchFinTab('donations')" id="fintab-donations">🎁 Donations</button>
+      <button class="stats-tab" onclick="switchFinTab('budget')" id="fintab-budget">📐 Budget Model</button>
+    </div>
+
+    <!-- OVERVIEW PANEL -->
+    <div id="fin-panel-overview" class="fin-panel">
+      <div class="grid-21">
+        <div class="card">
+          <div class="card-title"><span class="icon">📊</span> Per-Player Standing</div>
+          <div style="overflow-x:auto">
+            <table class="player-table" style="min-width:520px">
+              <thead>
+                <tr>
+                  <th>#</th><th>Player</th>
+                  <th>Registered</th>
+                  <th>Donations</th>
+                  <th>Balance vs Target</th>
+                </tr>
+              </thead>
+              <tbody id="fin-per-player-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">🎯</span> Fundraising Goal</div>
+          <div id="fin-goal-block" style="margin-top:12px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPENSES PANEL -->
+    <div id="fin-panel-expenses" class="fin-panel" style="display:none">
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title"><span class="icon">➕</span> Log Expense</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:12px">
+          <div><label class="input-label">Date</label><input class="input-field" type="date" id="fex-date"></div>
+          <div style="grid-column:span 2;min-width:200px"><label class="input-label">Description</label><input class="input-field" id="fex-desc" placeholder="e.g. Umpire fees 3/15"></div>
+          <div><label class="input-label">Amount ($)</label><input class="input-field" type="number" step="0.01" id="fex-amount" placeholder="− spend / + income"></div>
+          <div><label class="input-label">Paid By</label><input class="input-field" id="fex-paid" placeholder="Joe"></div>
+          <div><label class="input-label">Category</label>
+            <select class="input-field" id="fex-cat">
+              <option value="">—</option>
+              <option>Umpire</option><option>Tournament</option><option>Field</option>
+              <option>Equipment</option><option>Uniforms</option><option>Registration</option>
+              <option>Donation</option><option>Team Party</option><option>Other</option>
+            </select>
+          </div>
+          <div style="grid-column:span 2;min-width:200px"><label class="input-label">Receipt URL (optional)</label><input class="input-field" id="fex-receipt" placeholder="https://..."></div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:10px">
+          <button class="btn btn-gold" onclick="addExpense()">Save Expense</button>
+          <button class="btn btn-outline" onclick="document.getElementById('fex-desc').value='';document.getElementById('fex-amount').value=''">Clear</button>
+        </div>
+      </div>
+      <div class="card" style="overflow-x:auto">
+        <div class="card-title"><span class="icon">📒</span> Ledger</div>
+        <table class="player-table" style="min-width:720px;margin-top:12px">
+          <thead>
+            <tr><th>Date</th><th>Description</th><th>Category</th><th>Paid By</th><th style="text-align:right">Amount</th><th>Receipt</th><th></th></tr>
+          </thead>
+          <tbody id="fin-expenses-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- DONATIONS PANEL -->
+    <div id="fin-panel-donations" class="fin-panel" style="display:none">
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title"><span class="icon">➕</span> Log Donation</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:12px">
+          <div><label class="input-label">Player</label>
+            <select class="input-field" id="fdo-player"><option value="">—</option></select>
+          </div>
+          <div style="grid-column:span 2;min-width:200px"><label class="input-label">Sponsor Name</label><input class="input-field" id="fdo-sponsor" placeholder="Company / Person"></div>
+          <div><label class="input-label">Check #</label><input class="input-field" id="fdo-check"></div>
+          <div><label class="input-label">Amount ($)</label><input class="input-field" type="number" step="0.01" id="fdo-amount"></div>
+          <div><label class="input-label">Received</label><input class="input-field" type="date" id="fdo-received"></div>
+          <div><label class="input-label">Given To Treasurer</label><input class="input-field" type="date" id="fdo-given"></div>
+        </div>
+        <div style="margin-top:12px"><button class="btn btn-gold" onclick="addDonation()">Save Donation</button></div>
+      </div>
+      <div class="card" style="overflow-x:auto">
+        <div class="card-title"><span class="icon">🎁</span> Donations</div>
+        <table class="player-table" style="min-width:680px;margin-top:12px">
+          <thead><tr><th>Player</th><th>Sponsor</th><th>Check #</th><th style="text-align:right">Amount</th><th>Received</th><th>To Treasurer</th><th></th></tr></thead>
+          <tbody id="fin-donations-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BUDGET MODEL PANEL -->
+    <div id="fin-panel-budget" class="fin-panel" style="display:none">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title"><span class="icon">📐</span> Assumptions</div>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+            <div><label class="input-label">Field cost / home game ($)</label><input class="input-field" type="number" id="bm-field" step="1"></div>
+            <div><label class="input-label">Umpire fee / game ($)</label><input class="input-field" type="number" id="bm-umpire" step="1"></div>
+            <div><label class="input-label">Away entry fee / game ($)</label><input class="input-field" type="number" id="bm-away" step="1"></div>
+            <div><label class="input-label">Tournament entry avg ($)</label><input class="input-field" type="number" id="bm-tourney" step="1"></div>
+            <div><label class="input-label">Estimated tournaments</label><input class="input-field" type="number" id="bm-tourneys" step="1"></div>
+            <div><label class="input-label">Home games</label><input class="input-field" type="number" id="bm-home" step="1"></div>
+            <div><label class="input-label">Away games</label><input class="input-field" type="number" id="bm-away-games" step="1"></div>
+            <div><label class="input-label">Equipment budget / player ($)</label><input class="input-field" type="number" id="bm-equip" step="1"></div>
+            <div><label class="input-label">Fundraising target (% of total)</label><input class="input-field" type="number" id="bm-fund" step="1" max="100"></div>
+          </div>
+          <button class="btn btn-gold" style="margin-top:14px;width:100%" onclick="saveBudgetModel()">Save Budget Model</button>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">🧮</span> Computed</div>
+          <div id="bm-computed" style="margin-top:12px;display:flex;flex-direction:column;gap:8px"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -3090,65 +3380,201 @@ Design requirements:
 </div>
 
 <!-- EDIT PLAYER MODAL -->
-<div id="edit-player-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;align-items:center;justify-content:center;padding:20px">
-  <div style="background:#0d1b2a;border:1px solid rgba(240,160,0,0.3);border-radius:16px;padding:28px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-      <div style="font-family:'Black Han Sans',sans-serif;font-size:16px;color:#F0A000;letter-spacing:2px">EDIT PLAYER</div>
+<div id="edit-player-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
+  <div style="background:#0d1b2a;border:1px solid rgba(240,160,0,0.3);border-radius:16px;padding:24px;width:100%;max-width:620px;box-shadow:0 20px 60px rgba(0,0,0,0.5);margin-top:40px;margin-bottom:40px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div style="font-family:'Black Han Sans',sans-serif;font-size:16px;color:#F0A000;letter-spacing:2px" id="ep-modal-title">EDIT PLAYER</div>
       <button onclick="closeEditModal()" style="background:transparent;border:none;color:#888;font-size:24px;cursor:pointer;line-height:1">×</button>
     </div>
     <input type="hidden" id="ep-idx">
+
     <div style="display:grid;grid-template-columns:80px 1fr;gap:12px;margin-bottom:12px">
-      <div>
-        <label style="font-family:'Barlow Condensed',sans-serif;font-size:11px;color:#888;letter-spacing:1px;display:block;margin-bottom:4px">JERSEY #</label>
-        <input id="ep-num" type="number" style="width:100%;padding:10px;background:#111;border:1px solid #2a2a35;color:#fff;border-radius:8px;font-size:14px;box-sizing:border-box">
-      </div>
-      <div>
-        <label style="font-family:'Barlow Condensed',sans-serif;font-size:11px;color:#888;letter-spacing:1px;display:block;margin-bottom:4px">PLAYER NAME</label>
-        <input id="ep-name" type="text" style="width:100%;padding:10px;background:#111;border:1px solid #2a2a35;color:#fff;border-radius:8px;font-size:14px;box-sizing:border-box">
-      </div>
+      <div><label class="input-label">JERSEY #</label><input id="ep-num" class="input-field"></div>
+      <div><label class="input-label">PLAYER NAME</label><input id="ep-name" class="input-field"></div>
     </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+      <div><label class="input-label">JERSEY SIZE</label>
+        <select id="ep-jsize" class="input-field"><option value="">—</option><option>YS</option><option>YM</option><option>YL</option><option>YXL</option><option>AS</option><option>AM</option><option>AL</option></select>
+      </div>
+      <div><label class="input-label">PANTS SIZE</label>
+        <select id="ep-psize" class="input-field"><option value="">—</option><option>YXS</option><option>YS</option><option>YM</option><option>YL</option><option>YXL</option></select>
+      </div>
+      <div><label class="input-label">HELMET</label><input id="ep-hsize" class="input-field" placeholder="6 3/8..."></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:12px">
+      <div><label class="input-label">DOB</label><input id="ep-dob" type="date" class="input-field"></div>
+      <div><label class="input-label">ADDRESS</label><input id="ep-address" class="input-field"></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:3fr 100px;gap:12px;margin-bottom:16px">
+      <div><label class="input-label">WALK-UP SONG</label><input id="ep-song" class="input-field" placeholder="Song Title — Artist"></div>
+      <div><label class="input-label">START (s)</label><input id="ep-song-start" type="number" min="0" class="input-field"></div>
+    </div>
+
     <div style="margin-bottom:12px">
-      <label style="font-family:'Barlow Condensed',sans-serif;font-size:11px;color:#888;letter-spacing:1px;display:block;margin-bottom:6px">SKILL LEVEL — <span id="ep-skill-val" style="color:#F0A000">5</span> / 10</label>
+      <label class="input-label">SKILL — <span id="ep-skill-val" style="color:#F0A000">5</span> / 10</label>
       <input id="ep-skill" type="range" min="1" max="10" style="width:100%;accent-color:#F0A000" oninput="document.getElementById('ep-skill-val').textContent=this.value">
     </div>
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
-      <div>
-        <label style="font-family:'Barlow Condensed',sans-serif;font-size:11px;color:#888;letter-spacing:1px;display:block;margin-bottom:4px">PRIMARY POS</label>
-        <select id="ep-primary" style="width:100%;padding:10px;background:#111;border:1px solid #2a2a35;color:#fff;border-radius:8px;font-size:14px">
+      <div><label class="input-label">PRIMARY POS</label>
+        <select id="ep-primary" class="input-field">
           <option>SS</option><option>2nd</option><option>1st</option><option>3rd</option>
           <option>Catcher</option><option>Pitcher</option><option>LF</option><option>LC</option>
           <option>RC</option><option>RF</option><option>CF</option>
         </select>
       </div>
-      <div>
-        <label style="font-family:'Barlow Condensed',sans-serif;font-size:11px;color:#888;letter-spacing:1px;display:block;margin-bottom:4px">SECONDARY POS</label>
-        <select id="ep-secondary" style="width:100%;padding:10px;background:#111;border:1px solid #2a2a35;color:#fff;border-radius:8px;font-size:14px">
+      <div><label class="input-label">SECONDARY POS</label>
+        <select id="ep-secondary" class="input-field">
           <option>SS</option><option>2nd</option><option>1st</option><option>3rd</option>
           <option>Catcher</option><option>Pitcher</option><option>LF</option><option>LC</option>
           <option>RC</option><option>RF</option><option>CF</option>
         </select>
       </div>
     </div>
+
+    <!-- Parents -->
+    <div style="border-top:1px solid var(--thunder-border);padding-top:14px;margin-bottom:14px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;color:var(--thunder-gold);margin-bottom:10px">👤 Parent 1 (Primary)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <input id="ep-p1-name" class="input-field" placeholder="Name">
+        <input id="ep-p1-phone" class="input-field" placeholder="Phone">
+      </div>
+      <input id="ep-p1-email" class="input-field" placeholder="Email">
+    </div>
+    <div style="border-top:1px solid var(--thunder-border);padding-top:14px;margin-bottom:20px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.08em;color:var(--thunder-muted);margin-bottom:10px">👤 Parent 2</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <input id="ep-p2-name" class="input-field" placeholder="Name">
+        <input id="ep-p2-phone" class="input-field" placeholder="Phone">
+      </div>
+      <input id="ep-p2-email" class="input-field" placeholder="Email">
+    </div>
+
     <div style="display:flex;gap:10px">
       <button onclick="savePlayerEdit()" style="flex:1;padding:12px;background:linear-gradient(135deg,#F0A000,#e08c00);color:#000;font-family:'Black Han Sans',sans-serif;font-size:13px;letter-spacing:2px;border:none;border-radius:8px;cursor:pointer">SAVE CHANGES</button>
+      <button id="ep-delete-btn" onclick="deletePlayer()" style="padding:12px 20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.4);color:var(--thunder-red);border-radius:8px;cursor:pointer;font-size:13px">Delete</button>
       <button onclick="closeEditModal()" style="padding:12px 20px;background:transparent;border:1px solid #2a2a35;color:#888;border-radius:8px;cursor:pointer;font-size:13px">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOURNAMENT MODAL -->
+<div id="tourney-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
+  <div style="background:#0d1b2a;border:1px solid rgba(240,160,0,0.3);border-radius:16px;padding:24px;width:100%;max-width:540px;margin-top:40px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div style="font-family:'Black Han Sans',sans-serif;font-size:16px;color:#F0A000;letter-spacing:2px" id="tm-modal-title">TOURNAMENT</div>
+      <button onclick="closeTourneyModal()" style="background:transparent;border:none;color:#888;font-size:24px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <input type="hidden" id="tm-id">
+    <div style="margin-bottom:12px"><label class="input-label">NAME</label><input id="tm-name" class="input-field"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div><label class="input-label">START</label><input id="tm-start" type="date" class="input-field"></div>
+      <div><label class="input-label">END</label><input id="tm-end" type="date" class="input-field"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+      <div><label class="input-label">ENTRY ($)</label><input id="tm-entry" type="number" step="1" class="input-field"></div>
+      <div><label class="input-label">UMP / GAME ($)</label><input id="tm-ump" type="number" step="1" class="input-field"></div>
+      <div><label class="input-label">EST. GAMES</label><input id="tm-games" type="number" step="1" class="input-field"></div>
+    </div>
+    <div style="margin-bottom:12px"><label class="input-label">REGISTRATION URL</label><input id="tm-url" class="input-field" placeholder="https://..."></div>
+    <div style="margin-bottom:12px"><label class="input-label">STATUS</label>
+      <select id="tm-status" class="input-field">
+        <option value="potential">Potential</option>
+        <option value="registered">Registered</option>
+        <option value="completed">Completed</option>
+      </select>
+    </div>
+    <div style="margin-bottom:20px"><label class="input-label">NOTES</label><textarea id="tm-notes" class="input-field" rows="2" style="resize:vertical"></textarea></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-gold" style="flex:1" onclick="saveTournament()">Save Tournament</button>
+      <button id="tm-delete-btn" onclick="deleteTournamentFromModal()" style="padding:10px 16px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.4);color:var(--thunder-red);border-radius:8px;cursor:pointer;font-size:13px">Delete</button>
+      <button onclick="closeTourneyModal()" class="btn btn-outline">Cancel</button>
     </div>
   </div>
 </div>
 
 <script>
 const PLAYERS = [
-  { num: 3,  name: "George Ackal III",      skill: 1, primary: "RF",     secondary: "CF",      pitch: true },
-  { num: 7,  name: "Brecken Chatzidakis",   skill: 1, primary: "RC",     secondary: "CF",     pitch: true },
-  { num: 9,  name: "Ryder Sharkey",         skill: 1, primary: "1st",    secondary: "CF",     pitch: true },
-  { num: 10, name: "Alfonso Travaglini",    skill: 1, primary: "Pitcher", secondary: "CF",    pitch: true },
-  { num: 44, name: "Easton DeSane",         skill: 1, primary: "SS",     secondary: "CF", pitch: true },
-  { num: 1,  name: "Teddy Bello",           skill: 1, primary: "LF",     secondary: "CF",     pitch: true },
-  { num: 13, name: "Micah Dubler",          skill: 1, primary: "LC",     secondary: "CF",      pitch: true },
-  { num: 12, name: "Kai Jackson",           skill: 1, primary: "RF",     secondary: "CF",      pitch: true },
-  { num: 0,  name: "Milo Huffman",          skill: 1, primary: "2nd",    secondary: "CF",      pitch: true },
-  { num: 6,  name: "Eli Wright",            skill: 1, primary: "Catcher", secondary: "CF",     pitch: true },
-  { num: 99, name: "Adam Carpenito",        skill: 1, primary: "3rd",    secondary: "CF", pitch: true },
+  { num: 3,  name: "George Ackal III",      skill: 1, primary: "RF",      secondary: "CF", pitch: true,
+    dob:"2017-12-08", jerseySize:"YM", pantsSize:"YM", helmetSize:"", address:"8019 Hobbes Way, Palm Beach Gardens, FL 33418",
+    song:"Sunrise — Morgan Wallen", songStart:39,
+    parents:[
+      {name:"Ashley Crispin Ackal", phone:"352-284-2321", email:"ashleycrispin@icloud.com", primary:true},
+      {name:"George Ackal Jr", phone:"954-734-0348", email:"lilg0205@att.net", primary:false}
+    ]},
+  { num: 7,  name: "Brecken Chatzidakis",   skill: 1, primary: "RC",      secondary: "CF", pitch: true,
+    dob:"2017-06-08", jerseySize:"YM", pantsSize:"YM", helmetSize:"", address:"300 Uno Lago Dr, Juno Beach, FL 33408",
+    song:"AOK — Tai Verdes (clean)", songStart:14,
+    parents:[
+      {name:"Evan Chatzidakis", phone:"609-915-6032", email:"egchat7@gmail.com", primary:true},
+      {name:"Tracy Folino", phone:"561-214-5456", email:"tracyfolino@gmail.com", primary:false}
+    ]},
+  { num: 9,  name: "Ryder Sharkey",         skill: 1, primary: "1st",     secondary: "CF", pitch: true,
+    dob:"2018-03-06", jerseySize:"YM", pantsSize:"YS", helmetSize:"", address:"11581 68th St N, West Palm Beach, FL 33412",
+    song:"My Way — Limp Bizkit", songStart:0,
+    parents:[
+      {name:"Jeff Sharkey", phone:"561-281-4777", email:"jeffreysharkey@yahoo.com", primary:true},
+      {name:"Camille Sharkey", phone:"561-685-0046", email:"Camillesharkey@gmail.com", primary:false}
+    ]},
+  { num: 10, name: "Alfonso Travaglini",    skill: 1, primary: "Pitcher", secondary: "CF", pitch: true,
+    dob:"2018-09-13", jerseySize:"YS", pantsSize:"YS", helmetSize:"", address:"8765 SE Riverfront Terrace, Jupiter, FL 33469",
+    song:"Let's Go — Key Glock (clean)", songStart:0,
+    parents:[
+      {name:"Cody Travaglini", phone:"561-289-6156", email:"codytravaglini@gmail.com", primary:true},
+      {name:"Nasheema Travaglini", phone:"646-742-7561", email:"l.nasheema@gmail.com", primary:false}
+    ]},
+  { num: 44, name: "Easton DeSane",         skill: 1, primary: "SS",      secondary: "CF", pitch: true,
+    dob:"2018-01-12", jerseySize:"YM", pantsSize:"YM", helmetSize:"", address:"6143 Avocado Blvd",
+    song:"Stray Kids <ATE> Mashup", songStart:0,
+    parents:[
+      {name:"Joe DeSane", phone:"561-827-3659", email:"coachdesane@gmail.com", primary:true},
+      {name:"Lexi DeSane", phone:"561-215-0544", email:"desanefamily1@gmail.com", primary:false}
+    ]},
+  { num: 1,  name: "Teddy Bello",           skill: 1, primary: "LF",      secondary: "CF", pitch: true,
+    dob:"2017-07-27", jerseySize:"YM", pantsSize:"YS", helmetSize:"", address:"130 Siesta Way, Palm Beach Gardens, FL 33418",
+    song:"I'm Different — 2 Chainz", songStart:0,
+    parents:[
+      {name:"John Bello", phone:"401-374-7922", email:"jmb1910@hotmail.com", primary:true},
+      {name:"Alexandra Bello", phone:"", email:"ajbbc1910@outlook.com", primary:false}
+    ]},
+  { num: 13, name: "Micah Dubler",          skill: 1, primary: "LC",      secondary: "CF", pitch: true,
+    dob:"2017-07-01", jerseySize:"YM", pantsSize:"YM", helmetSize:"", address:"2641 Pepperwood Circle S, Palm Beach Gardens, FL 33410",
+    song:"Can't Hold Us — Macklemore & Ryan Lewis", songStart:17,
+    parents:[
+      {name:"Kevin Dubler", phone:"608-445-2966", email:"kdubler@gmail.com", primary:true},
+      {name:"Marci Dubler", phone:"608-279-9790", email:"marcidubler@gmail.com", primary:false}
+    ]},
+  { num: 12, name: "Kai Jackson",           skill: 1, primary: "RF",      secondary: "CF", pitch: true,
+    dob:"2017-08-14", jerseySize:"YXL", pantsSize:"YL", helmetSize:"", address:"1473 W 31st St, Riviera Beach, FL 33404",
+    song:"Thunderstruck — AC/DC", songStart:29,
+    parents:[
+      {name:"Mario Jackson", phone:"561-231-4687", email:"marjack83@yahoo.com", primary:true},
+      {name:"La'Shea Jackson", phone:"561-856-8581", email:"Lashea.williams@gmail.com", primary:false}
+    ]},
+  { num: 0,  name: "Milo Huffman",          skill: 1, primary: "2nd",     secondary: "CF", pitch: true,
+    dob:"2017-08-03", jerseySize:"YM", pantsSize:"YM", helmetSize:"", address:"137 Sedona Way, Palm Beach Gardens, FL 33418",
+    song:"Cold Blooded — Zayde Wolf", songStart:0,
+    parents:[
+      {name:"Kelsey Huffman", phone:"916-521-5200", email:"cha_cha4000@yahoo.com", primary:true},
+      {name:"CJ Huffman", phone:"201-616-8612", email:"Cjhuffman28@gmail.com", primary:false}
+    ]},
+  { num: 6,  name: "Eli Wright",            skill: 1, primary: "Catcher", secondary: "CF", pitch: true,
+    dob:"2017-12-05", jerseySize:"YM", pantsSize:"YM", helmetSize:"", address:"18600 Murcott Blvd, Loxahatchee, FL 33470",
+    song:"", songStart:0,
+    parents:[
+      {name:"Danny Wright", phone:"561-601-9946", email:"danomac07@bellsouth.net", primary:true},
+      {name:"Bethany Wright", phone:"561-313-7270", email:"bethanykiel@yahoo.com", primary:false}
+    ]},
+  { num: 99, name: "Adam Carpenito",        skill: 1, primary: "3rd",     secondary: "CF", pitch: true,
+    dob:"2017-10-05", jerseySize:"YM", pantsSize:"YM", helmetSize:"", address:"1087 Roble Way, Palm Beach Gardens, FL 33410",
+    song:"Thunder — Imagine Dragons", songStart:34,
+    parents:[
+      {name:"Nikki Carpenito", phone:"561-351-8199", email:"NikkiLCarpenito@gmail.com", primary:true},
+      {name:"Justin Carpenito", phone:"561-460-4504", email:"justin.carpenito@gmail.com", primary:false}
+    ]},
 ];
 
 function skillDots(level) {
@@ -3177,47 +3603,212 @@ function renderMiniRoster() {
 }
 
 // Render full roster
+function fmtDob(d) {
+  if (!d) return '—';
+  try { const dt = new Date(d + 'T00:00:00'); if (isNaN(dt)) return d; return dt.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}); }
+  catch { return d; }
+}
+
 function renderFullRoster() {
   const tbody = document.getElementById('full-roster-body');
-  tbody.innerHTML = PLAYERS.map((p, i) => `
+  if (!tbody) return;
+  const q = (document.getElementById('roster-search')?.value || '').toLowerCase().trim();
+  const filtered = PLAYERS.map((p, i) => ({p, i})).filter(({p}) => !q || p.name.toLowerCase().includes(q) || String(p.num).includes(q));
+  tbody.innerHTML = filtered.map(({p, i}) => `
     <tr>
       <td class="player-num">#${p.num}</td>
       <td><div class="player-name">${p.name}</div></td>
-      <td>${skillDots(p.skill)}</td>
-      <td><span class="pos-badge">${p.primary}</span></td>
-      <td><span class="pos-badge blue">${p.secondary}</span></td>
-      <td><span class="pitch-yes">✓ YES</span></td>
+      <td>${p.jerseySize || '—'}</td>
+      <td>${p.pantsSize || '—'}</td>
+      <td style="font-size:12px;color:var(--thunder-muted)">${fmtDob(p.dob)}</td>
+      <td style="font-size:12px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.song || '<span style="color:var(--thunder-red)">— missing —</span>'}</td>
       <td><button class="btn btn-outline" onclick="editPlayer(${i})" style="padding:5px 12px;font-size:11px">Edit</button></td>
     </tr>
   `).join('');
+  renderContactList();
 }
 
+function digits(s) { return (s || '').replace(/[^\d+]/g, ''); }
+
+function renderContactList() {
+  const el = document.getElementById('roster-contacts-list');
+  if (!el) return;
+  const q = (document.getElementById('roster-search')?.value || '').toLowerCase().trim();
+  const filtered = PLAYERS.map((p, i) => ({p, i})).filter(({p}) => !q || p.name.toLowerCase().includes(q) || String(p.num).includes(q));
+  el.innerHTML = filtered.map(({p, i}) => {
+    const parents = (p.parents || []).filter(x => x && (x.name || x.phone || x.email));
+    const parentsHtml = parents.map(par => `
+      <div style="display:flex;flex-direction:column;gap:6px;padding:10px;background:var(--thunder-surface2);border-radius:10px;border:1px solid var(--thunder-border)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.06em;color:var(--thunder-text)">${par.name || 'Parent'}</span>
+          ${par.primary ? '<span class="badge badge-gold">Primary</span>' : ''}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${par.phone ? `<a href="tel:${digits(par.phone)}" class="contact-chip">📞 ${par.phone}</a>` : ''}
+          ${par.phone ? `<a href="sms:${digits(par.phone)}" class="contact-chip">💬 Text</a>` : ''}
+          ${par.email ? `<a href="mailto:${par.email}" class="contact-chip">✉️ Email</a>` : ''}
+        </div>
+      </div>
+    `).join('');
+    const mapsUrl = p.address ? 'https://maps.apple.com/?q=' + encodeURIComponent(p.address) : '';
+    return `
+      <div class="contact-row" data-idx="${i}">
+        <div class="contact-summary" onclick="toggleContact(${i})">
+          <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">
+            <div class="player-num" style="min-width:40px">#${p.num}</div>
+            <div style="flex:1;min-width:0">
+              <div class="player-name">${p.name}</div>
+              <div style="font-size:12px;color:var(--thunder-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${(p.parents?.[0]?.name || '')}${p.parents?.[0]?.phone ? ' · ' + p.parents[0].phone : ''}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            ${p.parents?.[0]?.phone ? `<a class="contact-icon-btn" onclick="event.stopPropagation()" href="tel:${digits(p.parents[0].phone)}">📞</a>` : ''}
+            ${p.parents?.[0]?.phone ? `<a class="contact-icon-btn" onclick="event.stopPropagation()" href="sms:${digits(p.parents[0].phone)}">💬</a>` : ''}
+            ${p.parents?.[0]?.email ? `<a class="contact-icon-btn" onclick="event.stopPropagation()" href="mailto:${p.parents[0].email}">✉️</a>` : ''}
+            <span class="contact-caret">▾</span>
+          </div>
+        </div>
+        <div class="contact-drawer" style="display:none">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+            ${parentsHtml || '<div style="color:var(--thunder-muted);font-size:13px">No parent contacts on file — tap Edit to add.</div>'}
+          </div>
+          <div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;font-size:13px">
+            <div><div class="card-label">DOB</div><div>${fmtDob(p.dob)}</div></div>
+            <div><div class="card-label">Jersey / Pants</div><div>${p.jerseySize || '—'} / ${p.pantsSize || '—'}</div></div>
+            <div style="grid-column:1/-1"><div class="card-label">Address</div>${p.address ? `<a href="${mapsUrl}" target="_blank" style="color:var(--thunder-gold);text-decoration:none">📍 ${p.address}</a>` : '<span style="color:var(--thunder-muted)">—</span>'}</div>
+            <div style="grid-column:1/-1"><div class="card-label">Walk-Up Song</div><div>${p.song ? p.song + (p.songStart ? ` <span style="color:var(--thunder-muted)">· start ${p.songStart}s</span>` : '') : '<span style="color:var(--thunder-red)">— missing —</span>'}</div></div>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:8px">
+            <button class="btn btn-gold" style="padding:8px 14px;font-size:12px" onclick="editPlayer(${i})">Edit Player</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleContact(i) {
+  const row = document.querySelector(`.contact-row[data-idx="${i}"]`);
+  if (!row) return;
+  const drawer = row.querySelector('.contact-drawer');
+  const caret = row.querySelector('.contact-caret');
+  const open = drawer.style.display !== 'none';
+  drawer.style.display = open ? 'none' : 'block';
+  if (caret) caret.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
+function openPlayerEditor(idx) { editPlayer(idx); }
+
 function editPlayer(idx) {
-  const p = PLAYERS[idx];
-  const modal = document.getElementById('edit-player-modal');
-  document.getElementById('ep-idx').value = idx;
-  document.getElementById('ep-num').value = p.num;
-  document.getElementById('ep-name').value = p.name;
-  document.getElementById('ep-skill').value = p.skill;
-  document.getElementById('ep-primary').value = p.primary;
-  document.getElementById('ep-secondary').value = p.secondary;
-  modal.style.display = 'flex';
+  const isNew = idx === -1 || idx === undefined || idx === null;
+  const p = isNew ? {num:'', name:'', skill:5, primary:'SS', secondary:'CF', jerseySize:'', pantsSize:'', helmetSize:'', dob:'', address:'', song:'', songStart:0, parents:[{},{}]} : PLAYERS[idx];
+  const par1 = (p.parents && p.parents[0]) || {};
+  const par2 = (p.parents && p.parents[1]) || {};
+  document.getElementById('ep-modal-title').textContent = isNew ? 'ADD PLAYER' : 'EDIT PLAYER';
+  document.getElementById('ep-idx').value = isNew ? '' : idx;
+  document.getElementById('ep-num').value = p.num ?? '';
+  document.getElementById('ep-name').value = p.name || '';
+  document.getElementById('ep-jsize').value = p.jerseySize || '';
+  document.getElementById('ep-psize').value = p.pantsSize || '';
+  document.getElementById('ep-hsize').value = p.helmetSize || '';
+  document.getElementById('ep-dob').value = p.dob || '';
+  document.getElementById('ep-address').value = p.address || '';
+  document.getElementById('ep-song').value = p.song || '';
+  document.getElementById('ep-song-start').value = p.songStart || 0;
+  document.getElementById('ep-skill').value = p.skill || 5;
+  document.getElementById('ep-skill-val').textContent = p.skill || 5;
+  document.getElementById('ep-primary').value = p.primary || 'SS';
+  document.getElementById('ep-secondary').value = p.secondary || 'CF';
+  document.getElementById('ep-p1-name').value = par1.name || '';
+  document.getElementById('ep-p1-phone').value = par1.phone || '';
+  document.getElementById('ep-p1-email').value = par1.email || '';
+  document.getElementById('ep-p2-name').value = par2.name || '';
+  document.getElementById('ep-p2-phone').value = par2.phone || '';
+  document.getElementById('ep-p2-email').value = par2.email || '';
+  document.getElementById('ep-delete-btn').style.display = isNew ? 'none' : 'inline-block';
+  document.getElementById('edit-player-modal').style.display = 'flex';
 }
 
 function savePlayerEdit() {
-  const idx = parseInt(document.getElementById('ep-idx').value);
-  PLAYERS[idx].num = parseInt(document.getElementById('ep-num').value);
-  PLAYERS[idx].name = document.getElementById('ep-name').value;
-  PLAYERS[idx].skill = parseInt(document.getElementById('ep-skill').value);
-  PLAYERS[idx].primary = document.getElementById('ep-primary').value;
-  PLAYERS[idx].secondary = document.getElementById('ep-secondary').value;
+  const idxStr = document.getElementById('ep-idx').value;
+  const isNew = idxStr === '' || idxStr === null;
+  const rawNum = document.getElementById('ep-num').value.trim();
+  const num = /^\d+$/.test(rawNum) ? parseInt(rawNum) : rawNum; // preserve "00"
+  const built = {
+    num,
+    name: document.getElementById('ep-name').value.trim(),
+    skill: parseInt(document.getElementById('ep-skill').value),
+    primary: document.getElementById('ep-primary').value,
+    secondary: document.getElementById('ep-secondary').value,
+    pitch: true,
+    jerseySize: document.getElementById('ep-jsize').value,
+    pantsSize: document.getElementById('ep-psize').value,
+    helmetSize: document.getElementById('ep-hsize').value.trim(),
+    dob: document.getElementById('ep-dob').value,
+    address: document.getElementById('ep-address').value.trim(),
+    song: document.getElementById('ep-song').value.trim(),
+    songStart: parseInt(document.getElementById('ep-song-start').value) || 0,
+    parents: [
+      { name: document.getElementById('ep-p1-name').value.trim(),
+        phone: document.getElementById('ep-p1-phone').value.trim(),
+        email: document.getElementById('ep-p1-email').value.trim(),
+        primary: true },
+      { name: document.getElementById('ep-p2-name').value.trim(),
+        phone: document.getElementById('ep-p2-phone').value.trim(),
+        email: document.getElementById('ep-p2-email').value.trim(),
+        primary: false },
+    ],
+  };
+  if (isNew) {
+    PLAYERS.push(built);
+  } else {
+    const idx = parseInt(idxStr);
+    // Preserve any fields not present in the form (e.g. cloud id)
+    PLAYERS[idx] = { ...PLAYERS[idx], ...built };
+  }
   closeEditModal();
   renderFullRoster();
   renderMiniRoster();
+  updateHeader();
+  updateDashboardCards();
+  saveTeamCache();
+  syncPlayerToCloud(isNew ? PLAYERS.length - 1 : parseInt(idxStr));
+}
+
+function deletePlayer() {
+  const idxStr = document.getElementById('ep-idx').value;
+  if (idxStr === '' || idxStr === null) return;
+  const idx = parseInt(idxStr);
+  const p = PLAYERS[idx];
+  if (!confirm(`Delete ${p.name}? This can't be undone.`)) return;
+  const cloudId = p.cloudId;
+  PLAYERS.splice(idx, 1);
+  closeEditModal();
+  renderFullRoster();
+  renderMiniRoster();
+  updateHeader();
+  updateDashboardCards();
+  saveTeamCache();
+  if (cloudId) supa('team_players', 'DELETE', null, `?id=eq.${cloudId}`).catch(()=>{});
 }
 
 function closeEditModal() {
   document.getElementById('edit-player-modal').style.display = 'none';
+}
+
+function exportRoster() {
+  const rows = [['#','Name','DOB','Jersey','Pants','Address','Walk-Up Song','Parent 1','Phone 1','Email 1','Parent 2','Phone 2','Email 2']];
+  PLAYERS.forEach(p => {
+    const p1 = p.parents?.[0] || {}, p2 = p.parents?.[1] || {};
+    rows.push([p.num, p.name, p.dob||'', p.jerseySize||'', p.pantsSize||'', p.address||'', p.song||'',
+      p1.name||'', p1.phone||'', p1.email||'',
+      p2.name||'', p2.phone||'', p2.email||'']);
+  });
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  const a = document.createElement('a');
+  a.href = url; a.download = 'thunder-roster.csv'; a.click();
+  URL.revokeObjectURL(url);
 }
 
 // Render pitch count bars
@@ -3249,10 +3840,14 @@ function navigate(section) {
   document.getElementById('section-' + section).classList.add('active');
   document.querySelector(`[data-section="${section}"]`)?.classList.add('active');
   setTimeout(() => {
+    if (section === 'dashboard') { try { updateDashboardCards(); } catch(e) {} }
     if (section === 'roster') { renderMiniRoster(); renderFullRoster(); }
     if (section === 'development') { try { renderDevRoster(); } catch(e) {} }
     if (section === 'practice') { try { renderSavedPlans(); } catch(e) {} }
     if (section === 'settings') { try { loadPersistedSettings(); } catch(e) {} }
+    if (section === 'recruiting') { try { renderFinances(); } catch(e) { console.error(e); } }
+    if (section === 'games') { try { renderTournaments(); } catch(e) {} }
+    window.scrollTo({top:0, behavior:'smooth'});
   }, 30);
 }
 
@@ -3369,10 +3964,11 @@ function renderStats() {
 }
 
 function switchTab(tab) {
-  document.querySelectorAll('.stats-panel').forEach(el => el.style.display = 'none');
-  document.querySelectorAll('.stats-tab').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('#section-games .stats-panel').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('#section-games .stats-tab').forEach(el => el.classList.remove('active'));
   document.getElementById('stats-' + tab).style.display = 'block';
   document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'tournaments') { try { renderTournaments(); } catch(e) { console.error(e); } }
 }
 
 renderStats();
@@ -4541,6 +5137,732 @@ document.addEventListener('DOMContentLoaded', function() {
   try { renderDevRoster(); } catch(e) {}
   try { renderSavedPlans(); } catch(e) {}
   try { loadPersistedSettings(); } catch(e) {}
+})();
+
+// =====================================================
+// TEAM MANAGEMENT — Supabase + Seeding + Finances + Tournaments + Dashboard
+// =====================================================
+const SUPA_URL = "https://zyonidiybzrgklrmalbt.supabase.co";
+const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5b25pZGl5YnpyZ2tscm1hbGJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MTY5NzUsImV4cCI6MjA4ODI5Mjk3NX0.5See-qjLkXA4CoJi9tNfcLAX_cdvZhPaxw8iViKM8S8";
+
+const TM_STATE = {
+  expenses: [],
+  donations: [],
+  tournaments: [],
+  budget: {
+    fieldCost: 75, umpire: 25, awayEntry: 87.5, tourneyEntry: 350,
+    tourneys: 3, homeGames: 7, awayGames: 12, equipPerPlayer: 448,
+    fundPct: 50,
+  },
+  lastFin: '',
+};
+
+async function supa(table, method, body, query, extraPrefer) {
+  const url = SUPA_URL + '/rest/v1/' + table + (query || '');
+  const prefer = [];
+  if (method === 'POST' || method === 'PATCH') prefer.push('return=representation');
+  else prefer.push('return=minimal');
+  if (extraPrefer) prefer.push(extraPrefer);
+  const headers = {
+    'apikey': SUPA_KEY,
+    'Authorization': 'Bearer ' + SUPA_KEY,
+    'Content-Type': 'application/json',
+    'Prefer': prefer.join(','),
+  };
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const res = await fetch(url, opts);
+    if (!res.ok) { console.error('Supa error', table, method, res.status, await res.text()); return null; }
+    if (method === 'DELETE') return true;
+    try { return await res.json(); } catch { return true; }
+  } catch (e) { console.warn('Supa offline / fetch error:', e.message); return null; }
+}
+
+// -----------------------------------------------------
+// Cache (localStorage) — offline / first-paint fallback
+// -----------------------------------------------------
+const CACHE_KEY = 'thunder_team_cache_v1';
+function saveTeamCache() {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      players: PLAYERS,
+      expenses: TM_STATE.expenses,
+      donations: TM_STATE.donations,
+      tournaments: TM_STATE.tournaments,
+      budget: TM_STATE.budget,
+    }));
+  } catch (e) {}
+}
+function loadTeamCache() {
+  try {
+    const s = localStorage.getItem(CACHE_KEY);
+    if (!s) return false;
+    const c = JSON.parse(s);
+    if (Array.isArray(c.players) && c.players.length) {
+      // Merge cloud data into the in-memory PLAYERS array (preserves seed fields)
+      for (let i = 0; i < c.players.length; i++) {
+        if (PLAYERS[i]) PLAYERS[i] = { ...PLAYERS[i], ...c.players[i] };
+        else PLAYERS.push(c.players[i]);
+      }
+    }
+    if (Array.isArray(c.expenses)) TM_STATE.expenses = c.expenses;
+    if (Array.isArray(c.donations)) TM_STATE.donations = c.donations;
+    if (Array.isArray(c.tournaments)) TM_STATE.tournaments = c.tournaments;
+    if (c.budget) TM_STATE.budget = { ...TM_STATE.budget, ...c.budget };
+    return true;
+  } catch (e) { return false; }
+}
+
+// -----------------------------------------------------
+// Cloud load + first-run seeding
+// -----------------------------------------------------
+async function loadFromCloud() {
+  const [players, parents, expenses, donations, tournaments, config] = await Promise.all([
+    supa('team_players', 'GET', null, '?select=*&order=sort_order.asc'),
+    supa('team_parents', 'GET', null, '?select=*'),
+    supa('team_expenses', 'GET', null, '?select=*&order=date.desc'),
+    supa('team_donations', 'GET', null, '?select=*&order=received_date.desc.nullslast'),
+    supa('team_tournaments', 'GET', null, '?select=*&order=start_date.asc.nullslast'),
+    supa('team_config', 'GET', null, '?select=*'),
+  ]);
+  if (players === null) return false;
+  if (players.length === 0) {
+    await seedTeamData();
+    return await loadFromCloud();
+  }
+  const parentsByPlayer = {};
+  (parents || []).forEach(pr => { (parentsByPlayer[pr.player_id] = parentsByPlayer[pr.player_id] || []).push(pr); });
+  const cloudPlayers = players.map(pl => ({
+    cloudId: pl.id,
+    num: pl.jersey_number,
+    name: pl.name,
+    skill: 5,
+    primary: 'SS',
+    secondary: 'CF',
+    pitch: true,
+    jerseySize: pl.jersey_size || '',
+    pantsSize: pl.pants_size || '',
+    helmetSize: pl.helmet_size || '',
+    dob: pl.dob || '',
+    address: pl.address || '',
+    song: pl.walk_up_song || '',
+    songStart: pl.walk_up_start_seconds || 0,
+    parents: (parentsByPlayer[pl.id] || []).sort((a,b) => (b.is_primary?1:0) - (a.is_primary?1:0))
+      .map(pr => ({ id: pr.id, name: pr.name||'', phone: pr.phone||'', email: pr.email||'', primary: !!pr.is_primary })),
+  }));
+  // Merge cloud onto seed PLAYERS by name — preserves skill/primary/secondary from seed
+  cloudPlayers.forEach(cp => {
+    const idx = PLAYERS.findIndex(x => x.name === cp.name || x.name.trim() === cp.name.trim());
+    if (idx >= 0) PLAYERS[idx] = { ...PLAYERS[idx], ...cp, parents: cp.parents };
+    else PLAYERS.push(cp);
+  });
+  TM_STATE.expenses = expenses || [];
+  TM_STATE.donations = donations || [];
+  TM_STATE.tournaments = tournaments || [];
+  (config || []).forEach(c => { if (c.key === 'budget_model' && c.value) TM_STATE.budget = { ...TM_STATE.budget, ...c.value }; });
+  saveTeamCache();
+  return true;
+}
+
+async function seedTeamData() {
+  console.log('First run — seeding team data to Supabase');
+  const seedPlayers = PLAYERS.map((p, i) => ({
+    name: p.name,
+    jersey_number: String(p.num),
+    jersey_size: p.jerseySize || null,
+    pants_size: p.pantsSize || null,
+    helmet_size: p.helmetSize || null,
+    dob: p.dob || null,
+    address: p.address || null,
+    walk_up_song: p.song || null,
+    walk_up_start_seconds: p.songStart || 0,
+    sort_order: i,
+  }));
+  const inserted = await supa('team_players', 'POST', seedPlayers);
+  if (!inserted) return;
+  const parentsSeed = [];
+  inserted.forEach(row => {
+    const local = PLAYERS.find(p => p.name === row.name);
+    if (!local) return;
+    (local.parents || []).forEach(par => {
+      if (par && (par.name || par.phone || par.email)) {
+        parentsSeed.push({
+          player_id: row.id,
+          name: par.name || null,
+          phone: par.phone || null,
+          email: par.email || null,
+          is_primary: !!par.primary,
+        });
+      }
+    });
+  });
+  if (parentsSeed.length) await supa('team_parents', 'POST', parentsSeed);
+
+  const tourneySeed = [
+    { name: 'PB Labor Day Bash', start_date: '2026-08-26', end_date: '2026-09-01', status: 'potential',
+      registration_url: 'https://www.hometeamsonline.com/teams/default.asp?u=LAKEWORTHTRAVELBASEB&s=baseball',
+      entry_fee: 350, umpire_fee: 25, estimated_games: 4 },
+    { name: 'PB Fall Bash', start_date: '2026-10-07', end_date: '2026-10-13', status: 'potential',
+      entry_fee: 350, umpire_fee: 25, estimated_games: 4 },
+    { name: 'PB Winter Bash', start_date: '2026-11-11', end_date: '2026-11-17', status: 'potential',
+      entry_fee: 350, umpire_fee: 25, estimated_games: 4 },
+  ];
+  await supa('team_tournaments', 'POST', tourneySeed);
+
+  const donationSeed = [];
+  const nameToId = {};
+  inserted.forEach(r => nameToId[r.name.trim()] = r.id);
+  [
+    ['George Ackal III', 'Ashley Crispin Ackal Attorney at Law', '2142', 250],
+    ['Brecken Chatzidakis', 'Frank Favazza', '112', 250],
+    ['Ryder Sharkey', 'Florida Roadway Guardrail', '931', 1000],
+    ['Easton DeSane', 'Native Estate Management', '5373', 250],
+    ['Micah Dubler', 'Jeffery Dame Enterprises', '3047', 250],
+    ['Kai Jackson', 'Gold Turf', '2585', 250],
+    ['Milo Huffman', 'Braman Motors', '367085', 1000],
+    ['Eli Wright', 'Gun Club Cafe', '8958', 250],
+  ].forEach(([player, sponsor, chk, amt]) => {
+    const pid = nameToId[player];
+    if (pid) donationSeed.push({ player_id: pid, sponsor_name: sponsor, check_number: chk, amount: amt, received_date: '2026-08-28' });
+  });
+  if (donationSeed.length) await supa('team_donations', 'POST', donationSeed);
+
+  await supa('team_config', 'POST', [{ key: 'budget_model', value: TM_STATE.budget }]);
+}
+
+async function syncPlayerToCloud(idx) {
+  const p = PLAYERS[idx];
+  if (!p) return;
+  const payload = {
+    name: p.name,
+    jersey_number: String(p.num),
+    jersey_size: p.jerseySize || null,
+    pants_size: p.pantsSize || null,
+    helmet_size: p.helmetSize || null,
+    dob: p.dob || null,
+    address: p.address || null,
+    walk_up_song: p.song || null,
+    walk_up_start_seconds: p.songStart || 0,
+    sort_order: idx,
+  };
+  let row;
+  if (p.cloudId) {
+    row = await supa('team_players', 'PATCH', payload, `?id=eq.${p.cloudId}`);
+  } else {
+    row = await supa('team_players', 'POST', payload);
+    if (row && row[0]) p.cloudId = row[0].id;
+  }
+  if (!p.cloudId) return;
+  // Replace parents
+  await supa('team_parents', 'DELETE', null, `?player_id=eq.${p.cloudId}`);
+  const parentPayload = (p.parents || [])
+    .filter(par => par && (par.name || par.phone || par.email))
+    .map(par => ({
+      player_id: p.cloudId,
+      name: par.name || null,
+      phone: par.phone || null,
+      email: par.email || null,
+      is_primary: !!par.primary,
+    }));
+  if (parentPayload.length) await supa('team_parents', 'POST', parentPayload);
+  saveTeamCache();
+}
+
+// -----------------------------------------------------
+// Header + dashboard update
+// -----------------------------------------------------
+function fmt$(n) {
+  const v = Number(n) || 0;
+  const neg = v < 0;
+  const s = Math.abs(v).toLocaleString('en-US', {minimumFractionDigits: v % 1 === 0 ? 0 : 2, maximumFractionDigits: 2});
+  return (neg ? '−$' : '$') + s;
+}
+function totalRaised() { return TM_STATE.expenses.filter(e => Number(e.amount) > 0).reduce((s,e) => s + Number(e.amount), 0)
+  + TM_STATE.donations.reduce((s,d) => s + (Number(d.amount) || 0), 0); }
+function totalSpent() { return TM_STATE.expenses.filter(e => Number(e.amount) < 0).reduce((s,e) => s + Math.abs(Number(e.amount)), 0); }
+function currentBalance() { return TM_STATE.expenses.reduce((s,e) => s + Number(e.amount), 0)
+  + TM_STATE.donations.reduce((s,d) => s + (Number(d.amount) || 0), 0); }
+
+function updateHeader() {
+  const el = document.getElementById('badge-player-count');
+  if (el) el.textContent = PLAYERS.length + ' Players';
+  const bal = document.getElementById('badge-balance');
+  if (bal) {
+    const b = currentBalance();
+    bal.style.display = 'inline-block';
+    bal.textContent = fmt$(b);
+    bal.style.color = b >= 0 ? 'var(--thunder-green)' : 'var(--thunder-red)';
+    bal.style.borderColor = b >= 0 ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)';
+    bal.style.background = b >= 0 ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)';
+  }
+}
+
+function updateDashboardCards() {
+  const bal = currentBalance();
+  const balEl = document.getElementById('tm-balance');
+  if (balEl) {
+    balEl.textContent = fmt$(bal);
+    balEl.style.color = bal >= 0 ? 'var(--thunder-green)' : 'var(--thunder-red)';
+  }
+  const balSub = document.getElementById('tm-balance-sub');
+  if (balSub) balSub.textContent = 'Raised: ' + fmt$(totalRaised()) + ' · Spent: ' + fmt$(totalSpent());
+
+  // Next tournament
+  const upcoming = TM_STATE.tournaments
+    .filter(t => t.status !== 'completed' && t.start_date)
+    .sort((a,b) => (a.start_date || '').localeCompare(b.start_date || ''))[0];
+  const nt = document.getElementById('tm-next-tourney');
+  const ns = document.getElementById('tm-next-tourney-sub');
+  if (nt && ns) {
+    if (upcoming) {
+      nt.textContent = upcoming.name;
+      const d = new Date(upcoming.start_date + 'T00:00:00');
+      const days = Math.round((d - new Date()) / (1000*60*60*24));
+      const when = d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+      ns.textContent = when + (days >= 0 ? ` · in ${days} day${days===1?'':'s'}` : ` · ${Math.abs(days)} days ago`) + (upcoming.entry_fee ? ' · ' + fmt$(upcoming.entry_fee) + ' entry' : '');
+    } else {
+      nt.textContent = '—';
+      ns.textContent = 'No tournaments scheduled';
+    }
+  }
+
+  // Roster health
+  let missing = 0, players = PLAYERS.length;
+  PLAYERS.forEach(p => {
+    if (!p.parents || !p.parents.some(par => par && (par.phone || par.email))) missing++;
+    else if (!p.jerseySize) missing++;
+    else if (!p.song) missing++;
+  });
+  const h = document.getElementById('tm-health');
+  const hs = document.getElementById('tm-health-sub');
+  if (h) {
+    if (missing === 0) { h.textContent = '✓ Complete'; h.style.color = 'var(--thunder-green)'; }
+    else { h.textContent = missing + ' gap' + (missing===1?'':'s'); h.style.color = 'var(--thunder-red)'; }
+  }
+  if (hs) hs.textContent = players + ' players · missing contact/size/song';
+
+  updateHeader();
+}
+
+// -----------------------------------------------------
+// Quick Add Expense (dashboard mini form)
+// -----------------------------------------------------
+async function quickAddExpense() {
+  const desc = document.getElementById('qx-desc').value.trim();
+  const amt = parseFloat(document.getElementById('qx-amount').value);
+  if (!desc || isNaN(amt)) { alert('Description and amount required'); return; }
+  const today = new Date().toISOString().slice(0, 10);
+  const row = { date: today, description: desc, amount: amt, paid_by: 'Joe', category: null, receipt_url: null };
+  const saved = await supa('team_expenses', 'POST', row);
+  if (saved && saved[0]) TM_STATE.expenses.unshift(saved[0]);
+  else TM_STATE.expenses.unshift({ ...row, id: 'local-' + Date.now() });
+  document.getElementById('qx-desc').value = '';
+  document.getElementById('qx-amount').value = '';
+  saveTeamCache();
+  updateDashboardCards();
+  try { renderFinances(); } catch(e) {}
+}
+
+// -----------------------------------------------------
+// Finances section
+// -----------------------------------------------------
+function switchFinTab(tab) {
+  document.querySelectorAll('.fin-panel').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('[id^="fintab-"]').forEach(el => el.classList.remove('active'));
+  document.getElementById('fin-panel-' + tab).style.display = 'block';
+  document.getElementById('fintab-' + tab).classList.add('active');
+  TM_STATE.lastFin = tab;
+  if (tab === 'budget') renderBudgetModel();
+}
+
+function renderFinances() {
+  const raised = totalRaised(), spent = totalSpent(), balance = currentBalance();
+  document.getElementById('fin-raised').textContent = fmt$(raised);
+  document.getElementById('fin-spent').textContent = fmt$(spent);
+  const balEl = document.getElementById('fin-balance');
+  balEl.textContent = fmt$(balance);
+  balEl.style.color = balance >= 0 ? 'var(--thunder-green)' : 'var(--thunder-red)';
+
+  // Per-player table
+  const perBody = document.getElementById('fin-per-player-body');
+  const target = computeCostPerPlayer();
+  if (perBody) {
+    perBody.innerHTML = PLAYERS.map(p => {
+      const donations = TM_STATE.donations
+        .filter(d => d.player_id && p.cloudId && d.player_id === p.cloudId)
+        .reduce((s,d) => s + (Number(d.amount) || 0), 0);
+      const registered = TM_STATE.expenses
+        .filter(e => Number(e.amount) > 0 && (e.description || '').toLowerCase().includes(p.name.split(' ')[0].toLowerCase()))
+        .reduce((s,e) => s + Number(e.amount), 0);
+      const raised = donations + registered;
+      const remaining = target - raised;
+      const pct = target > 0 ? Math.min(100, Math.round((raised/target)*100)) : 0;
+      return `<tr>
+        <td class="player-num">#${p.num}</td>
+        <td><div class="player-name">${p.name}</div></td>
+        <td>${fmt$(registered)}</td>
+        <td>${fmt$(donations)}</td>
+        <td>
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:140px">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--thunder-muted)">
+              <span>${fmt$(raised)}</span><span>of ${fmt$(target)}</span>
+            </div>
+            <div style="background:rgba(255,255,255,0.05);height:6px;border-radius:3px;overflow:hidden">
+              <div style="width:${pct}%;height:100%;background:${remaining<=0?'var(--thunder-green)':'var(--thunder-gold)'}"></div>
+            </div>
+            <div style="font-size:11px;color:${remaining<=0?'var(--thunder-green)':'var(--thunder-red)'}">${remaining<=0 ? '✓ Covered' : fmt$(remaining) + ' remaining'}</div>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Fundraising goal block
+  const targetTotal = computeSeasonTotal();
+  const goalPct = TM_STATE.budget.fundPct || 50;
+  const goalDollars = (targetTotal * goalPct) / 100;
+  const raisedPct = goalDollars > 0 ? Math.min(100, Math.round((raised / goalDollars) * 100)) : 0;
+  const goalEl = document.getElementById('fin-goal-block');
+  if (goalEl) {
+    goalEl.innerHTML = `
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--thunder-text)">Season Fundraising Target</span>
+        <span style="color:var(--thunder-gold);font-weight:700">${raisedPct}%</span>
+      </div>
+      <div style="background:rgba(255,255,255,0.05);height:10px;border-radius:5px;overflow:hidden;margin-bottom:10px">
+        <div style="width:${raisedPct}%;height:100%;background:linear-gradient(90deg,var(--thunder-gold),var(--thunder-gold-light))"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--thunder-muted)">
+        <span>${fmt$(raised)} raised</span>
+        <span>${fmt$(goalDollars)} goal (${goalPct}%)</span>
+      </div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--thunder-border);font-size:12px;color:var(--thunder-muted);line-height:1.6">
+        <div><strong style="color:var(--thunder-text)">Season Total:</strong> ${fmt$(targetTotal)}</div>
+        <div><strong style="color:var(--thunder-text)">Per Player:</strong> ${fmt$(computeCostPerPlayer())}</div>
+        <div><strong style="color:var(--thunder-text)">Roster:</strong> ${PLAYERS.length} players</div>
+      </div>
+    `;
+  }
+
+  // Cost per player card up top
+  const costEl = document.getElementById('fin-cost-per-player');
+  if (costEl) costEl.textContent = fmt$(computeCostPerPlayer());
+  const costSub = document.getElementById('fin-cost-per-player-sub');
+  if (costSub) costSub.textContent = 'Season total: ' + fmt$(targetTotal);
+
+  // Expenses ledger
+  const eb = document.getElementById('fin-expenses-body');
+  if (eb) {
+    if (TM_STATE.expenses.length === 0) {
+      eb.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--thunder-muted);padding:24px">No expenses logged yet. Add one above ↑</td></tr>`;
+    } else {
+      eb.innerHTML = TM_STATE.expenses.map(e => `
+        <tr>
+          <td style="white-space:nowrap;font-size:12px;color:var(--thunder-muted)">${e.date || '—'}</td>
+          <td>${e.description || ''}</td>
+          <td>${e.category ? `<span class="pos-badge">${e.category}</span>` : ''}</td>
+          <td style="font-size:12px;color:var(--thunder-muted)">${e.paid_by || ''}</td>
+          <td style="text-align:right;font-weight:700;color:${Number(e.amount)<0?'var(--thunder-red)':'var(--thunder-green)'}">${fmt$(Number(e.amount))}</td>
+          <td>${e.receipt_url ? `<a href="${e.receipt_url}" target="_blank" style="color:var(--thunder-gold)">📎</a>` : ''}</td>
+          <td><button class="btn btn-outline" style="padding:4px 10px;font-size:10px" onclick="deleteExpense('${e.id}')">×</button></td>
+        </tr>
+      `).join('');
+    }
+  }
+
+  // Donations
+  const db = document.getElementById('fin-donations-body');
+  if (db) {
+    if (TM_STATE.donations.length === 0) {
+      db.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--thunder-muted);padding:24px">No donations logged yet.</td></tr>`;
+    } else {
+      db.innerHTML = TM_STATE.donations.map(d => {
+        const player = PLAYERS.find(p => p.cloudId === d.player_id);
+        return `
+          <tr>
+            <td>${player ? `#${player.num} ${player.name}` : '<span style="color:var(--thunder-muted)">Team</span>'}</td>
+            <td>${d.sponsor_name || ''}</td>
+            <td style="font-size:12px;color:var(--thunder-muted)">${d.check_number || ''}</td>
+            <td style="text-align:right;font-weight:700;color:var(--thunder-green)">${fmt$(Number(d.amount)||0)}</td>
+            <td style="font-size:12px;color:var(--thunder-muted)">${d.received_date || '—'}</td>
+            <td style="font-size:12px;color:${d.given_to_treasurer_date?'var(--thunder-green)':'var(--thunder-red)'}">${d.given_to_treasurer_date || '⏳ Pending'}</td>
+            <td><button class="btn btn-outline" style="padding:4px 10px;font-size:10px" onclick="deleteDonation('${d.id}')">×</button></td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+
+  // Populate the player dropdown in the donations form
+  const sel = document.getElementById('fdo-player');
+  if (sel && sel.dataset.filled !== '1') {
+    sel.innerHTML = '<option value="">— Team-wide —</option>' + PLAYERS.map(p =>
+      `<option value="${p.cloudId || ''}">#${p.num} ${p.name}</option>`
+    ).join('');
+    sel.dataset.filled = '1';
+  }
+}
+
+function computeSeasonTotal() {
+  const b = TM_STATE.budget;
+  const gamesCost = (b.homeGames || 0) * ((b.fieldCost || 0) + (b.umpire || 0))
+                  + (b.awayGames || 0) * ((b.awayEntry || 0) + (b.umpire || 0));
+  const tourneyCost = (b.tourneys || 0) * ((b.tourneyEntry || 0) + (b.umpire || 0) * 4);
+  const equipCost = (b.equipPerPlayer || 0) * PLAYERS.length;
+  return gamesCost + tourneyCost + equipCost;
+}
+function computeCostPerPlayer() {
+  const n = PLAYERS.length || 1;
+  return computeSeasonTotal() / n;
+}
+
+function renderBudgetModel() {
+  const b = TM_STATE.budget;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  set('bm-field', b.fieldCost); set('bm-umpire', b.umpire); set('bm-away', b.awayEntry);
+  set('bm-tourney', b.tourneyEntry); set('bm-tourneys', b.tourneys);
+  set('bm-home', b.homeGames); set('bm-away-games', b.awayGames);
+  set('bm-equip', b.equipPerPlayer); set('bm-fund', b.fundPct);
+  const c = document.getElementById('bm-computed');
+  if (c) {
+    const rows = [
+      ['Home game cost', fmt$((b.fieldCost||0) + (b.umpire||0)) + ' × ' + (b.homeGames||0), fmt$(((b.fieldCost||0)+(b.umpire||0))*(b.homeGames||0))],
+      ['Away game cost', fmt$((b.awayEntry||0) + (b.umpire||0)) + ' × ' + (b.awayGames||0), fmt$(((b.awayEntry||0)+(b.umpire||0))*(b.awayGames||0))],
+      ['Tournament cost', fmt$((b.tourneyEntry||0) + (b.umpire||0)*4) + ' × ' + (b.tourneys||0), fmt$(((b.tourneyEntry||0)+(b.umpire||0)*4)*(b.tourneys||0))],
+      ['Equipment / player', fmt$(b.equipPerPlayer||0) + ' × ' + PLAYERS.length, fmt$((b.equipPerPlayer||0)*PLAYERS.length)],
+    ];
+    c.innerHTML = rows.map(([lbl, sub, amt]) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--thunder-surface2);border-radius:8px">
+        <div><div style="font-weight:700;color:var(--thunder-text)">${lbl}</div><div style="font-size:12px;color:var(--thunder-muted)">${sub}</div></div>
+        <div style="font-family:'Black Han Sans',sans-serif;color:var(--thunder-gold)">${amt}</div>
+      </div>
+    `).join('') + `
+      <div style="margin-top:10px;padding:14px;background:rgba(240,160,0,0.08);border:1px solid rgba(240,160,0,0.3);border-radius:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:0.05em">Season Total</div>
+          <div style="font-family:'Black Han Sans',sans-serif;font-size:24px;color:var(--thunder-gold)">${fmt$(computeSeasonTotal())}</div>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <div style="color:var(--thunder-muted);font-size:12px">Cost per player</div>
+          <div style="color:var(--thunder-text);font-weight:700">${fmt$(computeCostPerPlayer())}</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+async function saveBudgetModel() {
+  const g = id => parseFloat(document.getElementById(id).value) || 0;
+  TM_STATE.budget = {
+    fieldCost: g('bm-field'), umpire: g('bm-umpire'), awayEntry: g('bm-away'),
+    tourneyEntry: g('bm-tourney'), tourneys: g('bm-tourneys'),
+    homeGames: g('bm-home'), awayGames: g('bm-away-games'),
+    equipPerPlayer: g('bm-equip'), fundPct: g('bm-fund'),
+  };
+  await supa('team_config', 'POST', [{ key: 'budget_model', value: TM_STATE.budget }], '?on_conflict=key', 'resolution=merge-duplicates');
+  saveTeamCache();
+  renderBudgetModel();
+  renderFinances();
+  updateDashboardCards();
+}
+
+async function addExpense() {
+  const desc = document.getElementById('fex-desc').value.trim();
+  const amt = parseFloat(document.getElementById('fex-amount').value);
+  const date = document.getElementById('fex-date').value || new Date().toISOString().slice(0,10);
+  if (!desc || isNaN(amt)) { alert('Description and amount required'); return; }
+  const row = {
+    date, description: desc, amount: amt,
+    paid_by: document.getElementById('fex-paid').value.trim() || null,
+    category: document.getElementById('fex-cat').value || null,
+    receipt_url: document.getElementById('fex-receipt').value.trim() || null,
+  };
+  const saved = await supa('team_expenses', 'POST', row);
+  if (saved && saved[0]) TM_STATE.expenses.unshift(saved[0]);
+  else TM_STATE.expenses.unshift({ ...row, id: 'local-' + Date.now() });
+  ['fex-desc','fex-amount','fex-paid','fex-receipt'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  saveTeamCache();
+  renderFinances();
+  updateDashboardCards();
+}
+
+async function deleteExpense(id) {
+  if (!confirm('Delete this expense?')) return;
+  if (!String(id).startsWith('local-')) await supa('team_expenses', 'DELETE', null, `?id=eq.${id}`);
+  TM_STATE.expenses = TM_STATE.expenses.filter(e => e.id !== id);
+  saveTeamCache();
+  renderFinances();
+  updateDashboardCards();
+}
+
+async function addDonation() {
+  const player_id = document.getElementById('fdo-player').value || null;
+  const sponsor = document.getElementById('fdo-sponsor').value.trim();
+  const amt = parseFloat(document.getElementById('fdo-amount').value);
+  if (!sponsor || isNaN(amt)) { alert('Sponsor and amount required'); return; }
+  const row = {
+    player_id: player_id || null,
+    sponsor_name: sponsor,
+    check_number: document.getElementById('fdo-check').value.trim() || null,
+    amount: amt,
+    received_date: document.getElementById('fdo-received').value || null,
+    given_to_treasurer_date: document.getElementById('fdo-given').value || null,
+  };
+  const saved = await supa('team_donations', 'POST', row);
+  if (saved && saved[0]) TM_STATE.donations.unshift(saved[0]);
+  else TM_STATE.donations.unshift({ ...row, id: 'local-' + Date.now() });
+  ['fdo-sponsor','fdo-check','fdo-amount','fdo-received','fdo-given'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  saveTeamCache();
+  renderFinances();
+  updateDashboardCards();
+}
+
+async function deleteDonation(id) {
+  if (!confirm('Delete this donation?')) return;
+  if (!String(id).startsWith('local-')) await supa('team_donations', 'DELETE', null, `?id=eq.${id}`);
+  TM_STATE.donations = TM_STATE.donations.filter(d => d.id !== id);
+  saveTeamCache();
+  renderFinances();
+  updateDashboardCards();
+}
+
+// -----------------------------------------------------
+// Tournaments
+// -----------------------------------------------------
+function renderTournaments() {
+  const cols = { potential: [], registered: [], completed: [] };
+  TM_STATE.tournaments.forEach(t => (cols[t.status || 'potential'] || cols.potential).push(t));
+  const colHtml = (arr) => arr.length === 0
+    ? '<div style="color:var(--thunder-muted);font-size:13px;padding:10px;text-align:center">—</div>'
+    : arr.map(t => tournamentCardHtml(t)).join('');
+  const pt = document.getElementById('tourn-col-potential');
+  const rg = document.getElementById('tourn-col-registered');
+  const cp = document.getElementById('tourn-col-completed');
+  if (pt) pt.innerHTML = colHtml(cols.potential.sort(sortByStart));
+  if (rg) rg.innerHTML = colHtml(cols.registered.sort(sortByStart));
+  if (cp) cp.innerHTML = colHtml(cols.completed.sort(sortByStart));
+}
+function sortByStart(a, b) { return (a.start_date || '9999').localeCompare(b.start_date || '9999'); }
+
+function tournamentCardHtml(t) {
+  const fmtDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '';
+  const dateStr = t.start_date ? (fmtDate(t.start_date) + (t.end_date && t.end_date !== t.start_date ? ' – ' + fmtDate(t.end_date) : '')) : 'Date TBD';
+  const cost = (t.entry_fee || 0) + (t.umpire_fee || 0) * (t.estimated_games || 0);
+  const actions = [];
+  if (t.status === 'potential') actions.push(`<button class="mini-btn" onclick="setTournamentStatus('${t.id}','registered')">✓ Register</button>`);
+  if (t.status === 'registered') actions.push(`<button class="mini-btn" onclick="setTournamentStatus('${t.id}','completed')">🏁 Done</button>`);
+  if (t.status === 'completed') actions.push(`<button class="mini-btn" onclick="setTournamentStatus('${t.id}','registered')">↩ Reopen</button>`);
+  actions.push(`<button class="mini-btn" onclick="openTournamentEditor('${t.id}')">Edit</button>`);
+  if (t.registration_url) actions.unshift(`<a class="mini-btn" href="${t.registration_url}" target="_blank" style="text-decoration:none">🔗 Site</a>`);
+  return `
+    <div class="tourney-card">
+      <div class="tourney-name">${t.name}</div>
+      <div class="tourney-dates">📅 ${dateStr}</div>
+      <div class="tourney-meta">
+        ${t.entry_fee ? fmt$(t.entry_fee) + ' entry' : ''}${t.estimated_games ? ' · ~' + t.estimated_games + ' games' : ''}${cost ? ' · est. ' + fmt$(cost) : ''}
+      </div>
+      ${t.notes ? `<div style="font-size:12px;color:var(--thunder-muted);font-style:italic">${t.notes}</div>` : ''}
+      <div class="tourney-actions">${actions.join('')}</div>
+    </div>
+  `;
+}
+
+async function setTournamentStatus(id, status) {
+  await supa('team_tournaments', 'PATCH', { status }, `?id=eq.${id}`);
+  const t = TM_STATE.tournaments.find(x => x.id === id);
+  if (t) t.status = status;
+  saveTeamCache();
+  renderTournaments();
+  updateDashboardCards();
+}
+
+function openTournamentEditor(id) {
+  const t = id ? TM_STATE.tournaments.find(x => x.id === id) : null;
+  document.getElementById('tm-modal-title').textContent = t ? 'EDIT TOURNAMENT' : 'ADD TOURNAMENT';
+  document.getElementById('tm-id').value = id || '';
+  document.getElementById('tm-name').value = t?.name || '';
+  document.getElementById('tm-start').value = t?.start_date || '';
+  document.getElementById('tm-end').value = t?.end_date || '';
+  document.getElementById('tm-entry').value = t?.entry_fee ?? '';
+  document.getElementById('tm-ump').value = t?.umpire_fee ?? '';
+  document.getElementById('tm-games').value = t?.estimated_games ?? '';
+  document.getElementById('tm-url').value = t?.registration_url || '';
+  document.getElementById('tm-status').value = t?.status || 'potential';
+  document.getElementById('tm-notes').value = t?.notes || '';
+  document.getElementById('tm-delete-btn').style.display = t ? 'inline-block' : 'none';
+  document.getElementById('tourney-modal').style.display = 'flex';
+}
+function closeTourneyModal() { document.getElementById('tourney-modal').style.display = 'none'; }
+
+async function saveTournament() {
+  const id = document.getElementById('tm-id').value;
+  const payload = {
+    name: document.getElementById('tm-name').value.trim(),
+    start_date: document.getElementById('tm-start').value || null,
+    end_date: document.getElementById('tm-end').value || null,
+    entry_fee: parseFloat(document.getElementById('tm-entry').value) || null,
+    umpire_fee: parseFloat(document.getElementById('tm-ump').value) || null,
+    estimated_games: parseInt(document.getElementById('tm-games').value) || null,
+    registration_url: document.getElementById('tm-url').value.trim() || null,
+    status: document.getElementById('tm-status').value,
+    notes: document.getElementById('tm-notes').value.trim() || null,
+  };
+  if (!payload.name) { alert('Name required'); return; }
+  let saved;
+  if (id) {
+    saved = await supa('team_tournaments', 'PATCH', payload, `?id=eq.${id}`);
+    const i = TM_STATE.tournaments.findIndex(x => x.id === id);
+    if (i >= 0) TM_STATE.tournaments[i] = { ...TM_STATE.tournaments[i], ...payload };
+  } else {
+    saved = await supa('team_tournaments', 'POST', payload);
+    if (saved && saved[0]) TM_STATE.tournaments.push(saved[0]);
+    else TM_STATE.tournaments.push({ ...payload, id: 'local-' + Date.now() });
+  }
+  closeTourneyModal();
+  saveTeamCache();
+  renderTournaments();
+  updateDashboardCards();
+}
+
+async function deleteTournamentFromModal() {
+  const id = document.getElementById('tm-id').value;
+  if (!id) return;
+  if (!confirm('Delete this tournament?')) return;
+  await supa('team_tournaments', 'DELETE', null, `?id=eq.${id}`);
+  TM_STATE.tournaments = TM_STATE.tournaments.filter(x => x.id !== id);
+  closeTourneyModal();
+  saveTeamCache();
+  renderTournaments();
+  updateDashboardCards();
+}
+
+// -----------------------------------------------------
+// Boot
+// -----------------------------------------------------
+(async function bootTeamManagement() {
+  loadTeamCache();
+  renderFullRoster();
+  renderMiniRoster();
+  updateHeader();
+  updateDashboardCards();
+  // Set default date fields
+  const today = new Date().toISOString().slice(0,10);
+  const fexDate = document.getElementById('fex-date'); if (fexDate) fexDate.value = today;
+  const fdoRcv = document.getElementById('fdo-received'); if (fdoRcv) fdoRcv.value = today;
+
+  const ok = await loadFromCloud();
+  if (ok) {
+    renderFullRoster();
+    renderMiniRoster();
+    updateHeader();
+    updateDashboardCards();
+    try { renderFinances(); } catch(e) {}
+    try { renderTournaments(); } catch(e) {}
+    console.log('Team data synced from Supabase');
+  } else {
+    console.log('Supabase unreachable — using local cache');
+  }
 })();
 </script>
 </body>
