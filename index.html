@@ -445,6 +445,52 @@
   }
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .grid-4-tight { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+
+  /* Budget table specifics */
+  #budget-table tbody tr.cat-row td {
+    padding: 12px 12px 6px;
+    background: var(--bg);
+    border-bottom: none;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  #budget-table tbody tr.cat-row:hover { background: var(--bg); }
+  #budget-table td .input {
+    padding: 4px 8px;
+    font-size: 13px;
+  }
+  #budget-table td .qty-cell {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--text-muted); font-size: 12px;
+  }
+  #budget-table tfoot td {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border-strong);
+    border-bottom: none;
+  }
+  #budget-table tfoot tr.total-row td {
+    font-weight: 600;
+    background: var(--bg-elev-2);
+  }
+  #budget-table tfoot tr.per-player-row td {
+    color: var(--text-muted);
+    font-size: 12px;
+    border-top: none;
+  }
+  .basis-tag {
+    display: inline-block;
+    padding: 1px 6px;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'Inter', sans-serif;
+  }
 
   /* ===== CONTACT INLINE ICONS ===== */
   .contact-cell {
@@ -864,33 +910,37 @@
 
       <!-- Budget -->
       <div class="fin-panel" id="fin-panel-budget" style="display:none">
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-title">Assumptions</div>
-            <div class="flex flex-col gap-3">
-              <div class="grid-2" style="gap:10px">
-                <div class="field"><label class="field-label">Field cost / home game ($)</label><input class="input" type="number" id="bm-field"></div>
-                <div class="field"><label class="field-label">Umpire fee / game ($)</label><input class="input" type="number" id="bm-umpire"></div>
-              </div>
-              <div class="grid-2" style="gap:10px">
-                <div class="field"><label class="field-label">Away entry / game ($)</label><input class="input" type="number" id="bm-away"></div>
-                <div class="field"><label class="field-label">Tournament entry avg ($)</label><input class="input" type="number" id="bm-tourney"></div>
-              </div>
-              <div class="grid-3" style="gap:10px">
-                <div class="field"><label class="field-label">Tournaments</label><input class="input" type="number" id="bm-tourneys"></div>
-                <div class="field"><label class="field-label">Home games</label><input class="input" type="number" id="bm-home"></div>
-                <div class="field"><label class="field-label">Away games</label><input class="input" type="number" id="bm-away-games"></div>
-              </div>
-              <div class="grid-2" style="gap:10px">
-                <div class="field"><label class="field-label">Equipment / player ($)</label><input class="input" type="number" id="bm-equip"></div>
-                <div class="field"><label class="field-label">Fundraising target (%)</label><input class="input" type="number" id="bm-fund"></div>
-              </div>
-              <button class="btn btn-primary" onclick="saveBudget()">Save budget</button>
-            </div>
+        <!-- Season parameters -->
+        <div class="card mb-3">
+          <div class="card-title">Season parameters
+            <button class="btn btn-ghost btn-xs" onclick="resetBudget()" title="Reset all budget items to defaults">Reset defaults</button>
           </div>
-          <div class="card">
-            <div class="card-title">Computed</div>
-            <div id="bm-computed" class="flex flex-col gap-2"></div>
+          <div class="grid-4-tight" id="budget-params"></div>
+        </div>
+
+        <!-- Line items table -->
+        <div class="table-wrap">
+          <div class="table-scroll">
+            <table class="data" id="budget-table">
+              <thead>
+                <tr>
+                  <th style="width:220px">Item</th>
+                  <th class="right" style="width:120px">Cost ($)</th>
+                  <th style="width:200px">Basis</th>
+                  <th class="right" style="width:130px">Line total</th>
+                  <th style="width:44px"></th>
+                </tr>
+              </thead>
+              <tbody id="budget-body"></tbody>
+              <tfoot id="budget-foot"></tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div class="mt-3 flex items-center gap-2" style="justify-content:space-between;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="addBudgetItem()">+ Add line item</button>
+          <div class="text-sm text-muted">Fundraising target
+            <input class="input" type="number" style="display:inline-block;width:70px;padding:4px 8px;margin:0 4px" id="bm-fund" onchange="onFundChange()"> %
           </div>
         </div>
       </div>
@@ -1218,8 +1268,39 @@ const DEFAULT_SETTINGS = {
   ],
 };
 const DEFAULT_BUDGET = {
-  fieldCost: 75, umpire: 25, awayEntry: 87.5, tourneyEntry: 350,
-  tourneys: 3, homeGames: 7, awayGames: 12, equipPerPlayer: 448, fundPct: 50,
+  params: {
+    home_games: 7,
+    away_games: 12,
+    tournaments: 3,
+    games_per_tournament: 4,
+  },
+  fundPct: 50,
+  items: [
+    // League & Tournament
+    { id: 'org_dues',       category: 'League & Tournament', label: 'Thunder organization dues',      kind: 'flat',           cost: 350 },
+    { id: 'team_reg',       category: 'League & Tournament', label: 'USSSA/NCS/PG team registration', kind: 'flat',           cost: 300 },
+    { id: 'tourney_entry',  category: 'League & Tournament', label: 'Tournament entry fees',          kind: 'per_tourney',    cost: 500 },
+    { id: 'ump_fee',        category: 'League & Tournament', label: 'Umpire fees',                    kind: 'per_game_total', cost: 70 },
+    { id: 'field_home',     category: 'League & Tournament', label: 'Field cost for home games',      kind: 'per_home_game',  cost: 75 },
+
+    // Equipment
+    { id: 'baseballs',      category: 'Equipment', label: 'Game baseballs',      kind: 'per_qty', cost: 40, qty: 5, unit: 'dozen' },
+    { id: 'catchers_gear',  category: 'Equipment', label: "Catcher's gear",      kind: 'flat',    cost: 600 },
+
+    // Practice Facilities
+    { id: 'facilities',     category: 'Practice Facilities', label: 'Field / indoor / cage rental', kind: 'flat', cost: 500 },
+
+    // Uniforms & Apparel (per player)
+    { id: 'jerseys',         category: 'Uniforms & Apparel', label: 'Jerseys',         kind: 'per_player', cost: 0 },
+    { id: 'pants',           category: 'Uniforms & Apparel', label: 'Pants',           kind: 'per_player', cost: 0 },
+    { id: 'hats',            category: 'Uniforms & Apparel', label: 'Hats',            kind: 'per_player', cost: 0 },
+    { id: 'socks',           category: 'Uniforms & Apparel', label: 'Socks',           kind: 'per_player', cost: 0 },
+    { id: 'belts',           category: 'Uniforms & Apparel', label: 'Belts',           kind: 'per_player', cost: 0 },
+    { id: 'practice_shirts', category: 'Uniforms & Apparel', label: 'Practice shirts', kind: 'per_player', cost: 0 },
+
+    // Contingency
+    { id: 'misc',           category: 'Contingency', label: 'Miscellaneous / unexpected', kind: 'percent', pct: 3 },
+  ],
 };
 const SEED_PLAYERS = [
   { num: '3',  name: 'George Ackal III', jerseySize:'YM', pantsSize:'YM', helmetSize:'', dob:'2017-12-08', address:'8019 Hobbes Way, Palm Beach Gardens, FL 33418', song:'Sunrise — Morgan Wallen', songStart:39,
@@ -1302,7 +1383,7 @@ function loadCache() {
     if (Array.isArray(c.expenses)) TM_STATE.expenses = c.expenses;
     if (Array.isArray(c.donations)) TM_STATE.donations = c.donations;
     if (Array.isArray(c.tournaments)) TM_STATE.tournaments = c.tournaments;
-    if (c.budget) TM_STATE.budget = { ...DEFAULT_BUDGET, ...c.budget };
+    if (c.budget) TM_STATE.budget = migrateBudget(c.budget);
     if (c.settings) TEAM_SETTINGS = { ...DEFAULT_SETTINGS, ...c.settings };
     return true;
   } catch (e) { return false; }
@@ -1346,7 +1427,7 @@ async function loadFromCloud() {
   TM_STATE.donations = donations || [];
   TM_STATE.tournaments = tournaments || [];
   (config || []).forEach(c => {
-    if (c.key === 'budget_model' && c.value) TM_STATE.budget = { ...DEFAULT_BUDGET, ...c.value };
+    if (c.key === 'budget_model' && c.value) TM_STATE.budget = migrateBudget(c.value);
     if (c.key === 'team_settings' && c.value) TEAM_SETTINGS = { ...DEFAULT_SETTINGS, ...c.value };
   });
   saveCache();
@@ -1399,13 +1480,48 @@ function totalRaised() {
        + TM_STATE.donations.reduce((s,d) => s + (Number(d.amount) || 0), 0);
 }
 function totalSpent() { return TM_STATE.expenses.filter(e => Number(e.amount) < 0).reduce((s,e) => s + Math.abs(Number(e.amount)), 0); }
-function computeSeasonTotal() {
-  const b = TM_STATE.budget;
-  return (b.homeGames||0) * ((b.fieldCost||0)+(b.umpire||0))
-       + (b.awayGames||0) * ((b.awayEntry||0)+(b.umpire||0))
-       + (b.tourneys||0) * ((b.tourneyEntry||0)+(b.umpire||0)*4)
-       + (b.equipPerPlayer||0) * PLAYERS.length;
+function migrateBudget(v) {
+  // Already in new shape
+  if (v && Array.isArray(v.items) && v.params) return { ...DEFAULT_BUDGET, ...v, params: { ...DEFAULT_BUDGET.params, ...v.params } };
+  // Old shape → seed new shape but preserve game counts
+  const migrated = JSON.parse(JSON.stringify(DEFAULT_BUDGET));
+  if (v) {
+    if (typeof v.homeGames === 'number') migrated.params.home_games = v.homeGames;
+    if (typeof v.awayGames === 'number') migrated.params.away_games = v.awayGames;
+    if (typeof v.tourneys === 'number')  migrated.params.tournaments = v.tourneys;
+    if (typeof v.fundPct === 'number')   migrated.fundPct = v.fundPct;
+  }
+  return migrated;
 }
+
+function totalGames() {
+  const p = TM_STATE.budget?.params || {};
+  return (p.home_games||0) + (p.away_games||0) + (p.tournaments||0) * (p.games_per_tournament||0);
+}
+function lineTotal(item) {
+  const p = TM_STATE.budget?.params || {};
+  const roster = PLAYERS.length || 0;
+  const cost = Number(item.cost) || 0;
+  switch (item.kind) {
+    case 'flat':           return cost;
+    case 'per_home_game':  return cost * (p.home_games || 0);
+    case 'per_away_game':  return cost * (p.away_games || 0);
+    case 'per_game_total': return cost * totalGames();
+    case 'per_tourney':    return cost * (p.tournaments || 0);
+    case 'per_qty':        return cost * (Number(item.qty) || 0);
+    case 'per_player':     return cost * roster;
+    case 'percent':        return 0; // handled after subtotal
+    default: return 0;
+  }
+}
+function computeSubtotal() {
+  return (TM_STATE.budget?.items || []).filter(i => i.kind !== 'percent').reduce((s, i) => s + lineTotal(i), 0);
+}
+function computeContingency() {
+  const sub = computeSubtotal();
+  return (TM_STATE.budget?.items || []).filter(i => i.kind === 'percent').reduce((s, i) => s + sub * ((Number(i.pct)||0) / 100), 0);
+}
+function computeSeasonTotal() { return computeSubtotal() + computeContingency(); }
 function costPerPlayer() { return computeSeasonTotal() / Math.max(1, PLAYERS.length); }
 function playerRaised(p) {
   const donations = TM_STATE.donations.filter(d => d.player_id && p.cloudId && d.player_id === p.cloudId).reduce((s,d) => s + (Number(d.amount)||0), 0);
@@ -1793,44 +1909,150 @@ function renderSponsors() {
   }).join('');
 }
 
-function renderBudget() {
-  const b = TM_STATE.budget;
-  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  set('bm-field', b.fieldCost); set('bm-umpire', b.umpire); set('bm-away', b.awayEntry);
-  set('bm-tourney', b.tourneyEntry); set('bm-tourneys', b.tourneys);
-  set('bm-home', b.homeGames); set('bm-away-games', b.awayGames);
-  set('bm-equip', b.equipPerPlayer); set('bm-fund', b.fundPct);
-  const rows = [
-    ['Home games', `${fmt$plain((b.fieldCost||0)+(b.umpire||0))} × ${b.homeGames||0}`, fmt$plain(((b.fieldCost||0)+(b.umpire||0))*(b.homeGames||0))],
-    ['Away games', `${fmt$plain((b.awayEntry||0)+(b.umpire||0))} × ${b.awayGames||0}`, fmt$plain(((b.awayEntry||0)+(b.umpire||0))*(b.awayGames||0))],
-    ['Tournaments', `${fmt$plain((b.tourneyEntry||0)+(b.umpire||0)*4)} × ${b.tourneys||0}`, fmt$plain(((b.tourneyEntry||0)+(b.umpire||0)*4)*(b.tourneys||0))],
-    ['Equipment', `${fmt$plain(b.equipPerPlayer||0)} × ${PLAYERS.length}`, fmt$plain((b.equipPerPlayer||0)*PLAYERS.length)],
-  ];
-  document.getElementById('bm-computed').innerHTML = rows.map(([lbl, sub, amt]) => `
-    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-      <div><div>${lbl}</div><div class="text-xs text-muted mono">${sub}</div></div>
-      <div class="mono fw-500">${amt}</div>
-    </div>
-  `).join('') + `
-    <div class="mt-3 pt-3" style="display:flex;justify-content:space-between;border-top:1px solid var(--border-strong);padding-top:12px">
-      <div class="fw-600">Season total</div>
-      <div class="mono fw-600" style="color:var(--text)">${fmt$plain(computeSeasonTotal())}</div>
-    </div>
-    <div style="display:flex;justify-content:space-between">
-      <div class="text-muted text-sm">Cost / player</div>
-      <div class="mono text-sm">${fmt$plain(costPerPlayer())}</div>
-    </div>
-  `;
+const BASIS_LABEL = {
+  flat:           () => 'Fixed',
+  per_home_game:  () => `× ${TM_STATE.budget.params.home_games||0} home games`,
+  per_away_game:  () => `× ${TM_STATE.budget.params.away_games||0} away games`,
+  per_game_total: () => `× ${totalGames()} total games`,
+  per_tourney:    () => `× ${TM_STATE.budget.params.tournaments||0} tournaments`,
+  per_qty:        (item) => `× qty`,
+  per_player:     () => `× ${PLAYERS.length} players`,
+  percent:        (item) => `${item.pct||0}% of subtotal`,
+};
+const KIND_LABEL = {
+  flat: 'Fixed cost', per_home_game: 'Per home game', per_away_game: 'Per away game',
+  per_game_total: 'Per game (all)', per_tourney: 'Per tournament', per_qty: 'Per unit',
+  per_player: 'Per player', percent: 'Percent of subtotal',
+};
+
+let _budgetSaveTimer = null;
+function markBudgetDirty() {
+  clearTimeout(_budgetSaveTimer);
+  _budgetSaveTimer = setTimeout(persistBudget, 500);
 }
-async function saveBudget() {
-  const g = id => parseFloat(document.getElementById(id).value) || 0;
-  TM_STATE.budget = { fieldCost: g('bm-field'), umpire: g('bm-umpire'), awayEntry: g('bm-away'), tourneyEntry: g('bm-tourney'), tourneys: g('bm-tourneys'), homeGames: g('bm-home'), awayGames: g('bm-away-games'), equipPerPlayer: g('bm-equip'), fundPct: g('bm-fund') };
+async function persistBudget() {
   await supa('team_config', 'POST', [{ key: 'budget_model', value: TM_STATE.budget }], '?on_conflict=key', 'resolution=merge-duplicates');
   saveCache();
-  renderBudget();
-  renderFinances();
-  toast('Budget saved');
+  renderFinances(); // refresh KPI strip too
 }
+
+function renderBudget() {
+  const b = TM_STATE.budget;
+  if (!b.items) TM_STATE.budget = migrateBudget(b);
+
+  // Params
+  const params = TM_STATE.budget.params;
+  document.getElementById('budget-params').innerHTML = `
+    <div class="field"><label class="field-label">Home games</label><input class="input" type="number" min="0" value="${params.home_games||0}" oninput="onParamChange('home_games', this.value)"></div>
+    <div class="field"><label class="field-label">Away games</label><input class="input" type="number" min="0" value="${params.away_games||0}" oninput="onParamChange('away_games', this.value)"></div>
+    <div class="field"><label class="field-label">Tournaments</label><input class="input" type="number" min="0" value="${params.tournaments||0}" oninput="onParamChange('tournaments', this.value)"></div>
+    <div class="field"><label class="field-label">Games / tournament</label><input class="input" type="number" min="0" value="${params.games_per_tournament||0}" oninput="onParamChange('games_per_tournament', this.value)"></div>
+    <div class="field"><label class="field-label">Roster size</label><input class="input" type="number" value="${PLAYERS.length}" disabled></div>
+  `;
+
+  // Table
+  const items = TM_STATE.budget.items || [];
+  const grouped = {};
+  items.forEach((item, idx) => {
+    (grouped[item.category] = grouped[item.category] || []).push({ item, idx });
+  });
+
+  const tbody = document.getElementById('budget-body');
+  let html = '';
+  Object.keys(grouped).forEach(cat => {
+    html += `<tr class="cat-row"><td colspan="5">${cat}</td></tr>`;
+    grouped[cat].forEach(({ item, idx }) => {
+      html += `
+        <tr>
+          <td><input class="input" value="${item.label.replace(/"/g,'&quot;')}" oninput="onItemChange(${idx}, 'label', this.value)"></td>
+          <td class="right">
+            ${item.kind === 'percent'
+              ? `<div class="qty-cell" style="justify-content:flex-end"><input class="input mono" type="number" step="0.5" style="width:70px;text-align:right" value="${item.pct||0}" oninput="onItemChange(${idx}, 'pct', this.value)"><span>%</span></div>`
+              : `<input class="input mono" type="number" step="0.01" style="text-align:right" value="${Number(item.cost)||0}" oninput="onItemChange(${idx}, 'cost', this.value)">`}
+          </td>
+          <td>
+            ${item.kind === 'per_qty'
+              ? `<div class="qty-cell"><input class="input mono" type="number" min="0" step="1" style="width:60px" value="${item.qty||0}" oninput="onItemChange(${idx}, 'qty', this.value)"><span>${item.unit || 'ea.'}</span></div>`
+              : `<span class="basis-tag">${BASIS_LABEL[item.kind](item)}</span>`}
+          </td>
+          <td class="right mono">${fmt$plain(item.kind === 'percent' ? computeSubtotal() * ((Number(item.pct)||0)/100) : lineTotal(item))}</td>
+          <td>
+            <button class="btn btn-icon btn-danger" onclick="removeBudgetItem(${idx})" title="Remove">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+  });
+  if (items.length === 0) html = `<tr><td colspan="5" class="table-empty">No budget items yet.</td></tr>`;
+  tbody.innerHTML = html;
+
+  const subtotal = computeSubtotal();
+  const contingency = computeContingency();
+  const total = subtotal + contingency;
+  const perPlayer = total / Math.max(1, PLAYERS.length);
+  const fundPct = TM_STATE.budget.fundPct || 0;
+  const fundTarget = total * (fundPct / 100);
+  document.getElementById('budget-foot').innerHTML = `
+    <tr><td colspan="3" class="right muted">Subtotal</td><td class="right mono">${fmt$plain(subtotal)}</td><td></td></tr>
+    ${contingency > 0 ? `<tr><td colspan="3" class="right muted">Contingency</td><td class="right mono">${fmt$plain(contingency)}</td><td></td></tr>` : ''}
+    <tr class="total-row"><td colspan="3" class="right">Season total</td><td class="right mono">${fmt$plain(total)}</td><td></td></tr>
+    <tr class="per-player-row"><td colspan="3" class="right">Cost / player (${PLAYERS.length})</td><td class="right mono">${fmt$plain(perPlayer)}</td><td></td></tr>
+    ${fundPct > 0 ? `<tr class="per-player-row"><td colspan="3" class="right">Fundraising goal (${fundPct}%)</td><td class="right mono">${fmt$plain(fundTarget)}</td><td></td></tr>` : ''}
+  `;
+
+  const fund = document.getElementById('bm-fund');
+  if (fund) fund.value = fundPct;
+}
+
+function onParamChange(key, val) {
+  TM_STATE.budget.params[key] = parseFloat(val) || 0;
+  renderBudget();
+  markBudgetDirty();
+}
+function onItemChange(idx, key, val) {
+  const item = TM_STATE.budget.items[idx];
+  if (!item) return;
+  if (key === 'label' || key === 'unit') item[key] = val;
+  else item[key] = parseFloat(val) || 0;
+  renderBudget();
+  markBudgetDirty();
+}
+function onFundChange() {
+  TM_STATE.budget.fundPct = parseFloat(document.getElementById('bm-fund').value) || 0;
+  renderBudget();
+  markBudgetDirty();
+}
+
+function addBudgetItem() {
+  const kind = prompt('Item type — one of:\n  flat, per_home_game, per_away_game, per_game_total, per_tourney, per_qty, per_player, percent', 'flat');
+  if (!kind || !KIND_LABEL[kind]) return;
+  const category = prompt('Category (e.g. Equipment, Uniforms & Apparel, Custom):', 'Custom') || 'Custom';
+  const label = prompt('Item name:', 'New item') || 'New item';
+  const item = { id: 'custom_' + Date.now(), category, label, kind, cost: 0 };
+  if (kind === 'per_qty') { item.qty = 1; item.unit = 'ea.'; }
+  if (kind === 'percent') { item.pct = 0; delete item.cost; }
+  TM_STATE.budget.items.push(item);
+  renderBudget();
+  markBudgetDirty();
+}
+function removeBudgetItem(idx) {
+  const item = TM_STATE.budget.items[idx];
+  if (!item) return;
+  if (!confirm(`Remove "${item.label}"?`)) return;
+  TM_STATE.budget.items.splice(idx, 1);
+  renderBudget();
+  markBudgetDirty();
+}
+function resetBudget() {
+  if (!confirm('Reset all budget items to defaults? Your current line items will be replaced.')) return;
+  TM_STATE.budget = JSON.parse(JSON.stringify(DEFAULT_BUDGET));
+  renderBudget();
+  persistBudget();
+  toast('Budget reset');
+}
+async function saveBudget() { await persistBudget(); toast('Budget saved'); }
 
 // ============================================================
 // EXPENSE MODAL
