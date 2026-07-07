@@ -3,1032 +3,1120 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Thunder Baseball · Team</title>
-<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<title>SFL Thunder Black — Team Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --gold: #F0A000;
-    --gold-hi: #FFCC44;
-    --gold-lo: #B87800;
-    --bg: #0A0A0F;
-    --navy: #0D1B2A;
-    --surface: #111827;
-    --surface2: #1C2A3A;
-    --border: rgba(245,166,35,0.18);
-    --border-hi: rgba(245,166,35,0.45);
-    --text: #E8EDF2;
-    --muted: #7A8BA0;
-    --green: #22C55E;
-    --red: #EF4444;
-    --blue: #60A5FA;
+    --bg:            #0b0d10;
+    --bg-elev:       #14171c;
+    --bg-elev-2:     #1a1e24;
+    --bg-hover:      #1e2229;
+    --border:        rgba(255,255,255,0.06);
+    --border-strong: rgba(255,255,255,0.12);
+    --text:          #e8ecf0;
+    --text-muted:    #8b929c;
+    --text-subtle:   #5a6068;
+    --pos:           #22c55e;
+    --neg:           #ef4444;
+    --warn:          #f59e0b;
+    --info:          #60a5fa;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
-  body {
+  html, body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'Barlow', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
     min-height: 100vh;
-    overflow-x: hidden;
   }
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background:
-      radial-gradient(ellipse 80% 50% at 10% 0%, rgba(245,166,35,0.06) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 40% at 90% 100%, rgba(245,166,35,0.04) 0%, transparent 60%);
-    pointer-events: none;
-    z-index: 0;
+
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; }
+
+  .mono { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace; font-variant-numeric: tabular-nums; }
+
+  /* ===== LAYOUT ===== */
+  .app {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    min-height: 100vh;
   }
 
   /* ===== SIDEBAR ===== */
   .sidebar {
-    position: fixed;
-    left: 0; top: 0; bottom: 0;
-    width: 72px;
-    background: var(--navy);
+    background: var(--bg-elev);
     border-right: 1px solid var(--border);
+    padding: 14px 8px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 18px 0;
-    z-index: 100;
-    gap: 6px;
-  }
-  .sidebar-logo {
-    width: 48px; height: 48px;
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: 20px;
-  }
-  .sidebar-logo img { width: 100%; height: 100%; object-fit: contain; }
-  .nav-item {
-    width: 52px; height: 52px;
-    border-radius: 14px;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    transition: all 0.15s;
-    position: relative;
-    color: var(--muted);
-    font-size: 22px;
-    border: 1px solid transparent;
-  }
-  .nav-item:hover { background: rgba(245,166,35,0.08); color: var(--gold); }
-  .nav-item.active {
-    background: rgba(245,166,35,0.14);
-    color: var(--gold);
-    border-color: var(--border-hi);
-    box-shadow: 0 0 14px rgba(245,166,35,0.15);
-  }
-  .nav-item .tooltip {
-    position: absolute;
-    left: 62px;
-    background: var(--surface);
-    color: var(--text);
-    padding: 6px 10px;
-    border-radius: 8px;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.12s;
-    border: 1px solid var(--border);
-    z-index: 200;
-  }
-  .nav-item:hover .tooltip { opacity: 1; }
-
-  /* ===== MAIN LAYOUT ===== */
-  .main { margin-left: 72px; min-height: 100vh; position: relative; z-index: 1; }
-
-  .topbar {
-    height: 60px;
-    background: rgba(13,27,42,0.92);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    padding: 0 24px;
-    gap: 14px;
     position: sticky;
     top: 0;
-    z-index: 50;
-    backdrop-filter: blur(10px);
+    height: 100vh;
+    overflow-y: auto;
   }
-  .topbar-title {
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 20px;
-    color: var(--gold);
-    letter-spacing: 0.03em;
-    flex: 1;
-    display: flex; align-items: center; gap: 10px;
+  .sidebar-brand {
+    padding: 6px 10px 14px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
   }
-  .topbar-sub {
-    font-family: 'Barlow Condensed', sans-serif;
+  .sidebar-brand-name {
     font-weight: 600;
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-  .topbar-badges { display: flex; gap: 8px; align-items: center; }
-  .badge {
-    padding: 5px 11px;
-    border-radius: 20px;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    border: 1px solid transparent;
-  }
-  .badge-gold { background: rgba(245,166,35,0.14); color: var(--gold); border-color: rgba(245,166,35,0.3); }
-  .badge-green { background: rgba(34,197,94,0.14); color: var(--green); border-color: rgba(34,197,94,0.3); }
-  .badge-red { background: rgba(239,68,68,0.14); color: var(--red); border-color: rgba(239,68,68,0.3); }
-  .badge-blue { background: rgba(96,165,250,0.12); color: var(--blue); border-color: rgba(96,165,250,0.3); }
-
-  /* ===== CONTENT ===== */
-  .content { display: none; padding: 24px; max-width: 1200px; }
-  .content.active { display: block; }
-
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    margin-bottom: 22px;
-    gap: 16px;
-    flex-wrap: wrap;
-  }
-  .page-title {
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 36px;
-    color: var(--text);
-    letter-spacing: 0.02em;
-    line-height: 1;
-  }
-  .page-sub {
-    font-family: 'Barlow Condensed', sans-serif;
     font-size: 13px;
-    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .sidebar-brand-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .nav-group-label {
+    font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: var(--muted);
-    margin-top: 6px;
+    color: var(--text-subtle);
+    padding: 12px 10px 4px;
+    font-weight: 500;
   }
-  .page-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-
-  /* Cards */
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 18px;
-    position: relative;
-  }
-  .card-title {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 14px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 12px;
+  .nav-item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.1s, color 0.1s;
+    user-select: none;
   }
-  .card-title .spacer { flex: 1; }
+  .nav-item:hover { background: var(--bg-hover); color: var(--text); }
+  .nav-item.active { background: var(--bg-elev-2); color: var(--text); }
+  .nav-item .nav-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    stroke: currentColor;
+    stroke-width: 1.75;
+    fill: none;
+  }
+  .sidebar-bottom {
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-subtle);
+    padding: 10px;
+  }
 
-  /* Grid helpers */
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-  .stack { display: flex; flex-direction: column; gap: 16px; }
+  /* ===== MAIN ===== */
+  .main { min-width: 0; }
 
-  /* Buttons */
+  /* ===== TOP BAR ===== */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    height: 52px;
+  }
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .topbar-crumb-current { color: var(--text); font-weight: 500; }
+  .topbar-right { display: flex; gap: 6px; }
+
+  /* ===== SECTIONS ===== */
+  .section { display: none; padding: 20px 24px 40px; }
+  .section.active { display: block; }
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .section-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .section-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* ===== KPI STRIP ===== */
+  .kpi-strip {
+    display: flex;
+    gap: 24px;
+    padding: 12px 0 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .kpi {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .kpi-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 500;
+  }
+  .kpi-value {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .kpi-value.mono { font-weight: 500; }
+
+  /* ===== TOOLBAR (search + filters) ===== */
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .toolbar-spacer { flex: 1; }
+
+  /* ===== BUTTONS ===== */
   .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 9px 16px;
-    border-radius: 10px;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 6px;
     font-size: 13px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-weight: 500;
     cursor: pointer;
     border: 1px solid transparent;
-    transition: all 0.12s;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-  .btn-gold {
-    background: linear-gradient(135deg, var(--gold), var(--gold-lo));
-    color: #000;
-  }
-  .btn-gold:hover { filter: brightness(1.1); }
-  .btn-outline {
     background: transparent;
     color: var(--text);
-    border-color: var(--border);
+    transition: background 0.1s, border-color 0.1s;
+    white-space: nowrap;
+    line-height: 1.3;
   }
-  .btn-outline:hover { background: rgba(245,166,35,0.08); color: var(--gold); border-color: var(--border-hi); }
-  .btn-red {
-    background: rgba(239,68,68,0.1);
-    color: var(--red);
-    border-color: rgba(239,68,68,0.4);
+  .btn:hover { background: var(--bg-hover); }
+  .btn-primary {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
   }
-  .btn-red:hover { background: rgba(239,68,68,0.2); }
-  .btn-sm { padding: 6px 11px; font-size: 11px; }
+  .btn-primary:hover { background: #fff; color: var(--bg); }
+  .btn-secondary {
+    background: var(--bg-elev);
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+  .btn-secondary:hover { background: var(--bg-hover); border-color: rgba(255,255,255,0.2); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+  }
+  .btn-ghost:hover { color: var(--text); background: var(--bg-hover); }
+  .btn-danger { color: var(--neg); }
+  .btn-danger:hover { background: rgba(239,68,68,0.08); }
+  .btn-xs {
+    padding: 3px 8px;
+    font-size: 11px;
+    gap: 4px;
+  }
+  .btn-sm {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+  .btn-icon {
+    padding: 4px 6px;
+    color: var(--text-muted);
+    border-radius: 4px;
+  }
+  .btn-icon:hover { color: var(--text); background: var(--bg-hover); }
 
-  /* Inputs */
+  /* ===== INPUTS ===== */
+  .input {
+    background: var(--bg-elev);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    width: 100%;
+    transition: border-color 0.1s;
+    outline: none;
+  }
+  .input:focus { border-color: var(--info); }
+  .input::placeholder { color: var(--text-subtle); }
+  select.input { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b929c' stroke-width='2'%3e%3cpath d='M6 9l6 6 6-6'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 8px center; background-size: 14px; padding-right: 28px; }
+  textarea.input { resize: vertical; min-height: 60px; font-family: 'Inter', sans-serif; }
+
+  .search {
+    position: relative;
+    max-width: 240px;
+    flex: 1;
+  }
+  .search input {
+    padding-left: 30px;
+  }
+  .search::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    background: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b929c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3ccircle cx='11' cy='11' r='7'/%3e%3cpath d='m21 21-4.3-4.3'/%3e%3c/svg%3e") center/contain no-repeat;
+    pointer-events: none;
+  }
+
   .field {
-    display: flex; flex-direction: column; gap: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
   .field-label {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
     font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-  .input {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 10px 12px;
-    border-radius: 8px;
-    font-family: 'Barlow', sans-serif;
-    font-size: 14px;
-    width: 100%;
-    transition: border-color 0.12s;
-  }
-  .input:focus {
-    outline: none;
-    border-color: var(--gold);
-    box-shadow: 0 0 0 2px rgba(245,166,35,0.15);
+    color: var(--text-muted);
+    font-weight: 500;
   }
 
-  /* Tabs */
-  .tabs {
-    display: flex;
-    gap: 4px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 18px;
-    padding-bottom: 0;
-    overflow-x: auto;
+  /* ===== FILTER CHIPS ===== */
+  .chip-group {
+    display: inline-flex;
+    background: var(--bg-elev);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 2px;
   }
-  .tab {
-    padding: 10px 16px;
-    background: transparent;
-    border: none;
-    color: var(--muted);
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 13px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    white-space: nowrap;
-    transition: color 0.12s;
-  }
-  .tab:hover { color: var(--text); }
-  .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
-
-  /* Metric */
-  .metric {
-    display: flex; flex-direction: column;
-  }
-  .metric-label {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-  .metric-value {
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 42px;
-    line-height: 1;
-    color: var(--text);
-    margin-top: 4px;
-  }
-  .metric-sub {
-    font-size: 13px;
-    color: var(--muted);
-    margin-top: 6px;
-  }
-
-  /* Balance card variants */
-  .metric.pos .metric-value { color: var(--green); }
-  .metric.neg .metric-value { color: var(--red); }
-
-  /* Row list */
-  .row {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    transition: border-color 0.12s;
-    overflow: hidden;
-  }
-  .row:hover { border-color: var(--border-hi); }
-  .row-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 14px;
-    gap: 10px;
-    cursor: pointer;
-  }
-  .row-body {
-    padding: 14px;
-    background: rgba(13,27,42,0.5);
-    border-top: 1px solid var(--border);
-    display: none;
-  }
-  .row.open .row-body { display: block; }
-  .row.open .row-caret { transform: rotate(180deg); }
-  .row-caret { color: var(--muted); font-size: 14px; transition: transform 0.2s; }
-
-  .player-num {
-    font-family: 'Black Han Sans', sans-serif;
-    color: var(--gold);
-    font-size: 18px;
-    min-width: 44px;
-  }
-  .player-name {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 16px;
-    color: var(--text);
-    letter-spacing: 0.02em;
-  }
-  .player-meta {
+  .chip {
+    padding: 4px 10px;
+    border-radius: 4px;
     font-size: 12px;
-    color: var(--muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /* Contact icon buttons */
-  .icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 38px; height: 38px;
-    border-radius: 10px;
-    background: rgba(245,166,35,0.08);
-    border: 1px solid var(--border);
-    color: var(--gold);
-    text-decoration: none;
-    font-size: 16px;
+    color: var(--text-muted);
     cursor: pointer;
+    font-weight: 500;
+    transition: background 0.1s, color 0.1s;
+    border: none;
+    background: transparent;
   }
-  .icon-btn:hover { background: rgba(245,166,35,0.18); }
+  .chip:hover { color: var(--text); }
+  .chip.active { background: var(--bg-hover); color: var(--text); }
 
-  .contact-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 11px;
-    background: rgba(245,166,35,0.09);
+  /* ===== TABLE ===== */
+  .table-wrap {
     border: 1px solid var(--border);
-    color: var(--gold);
-    border-radius: 20px;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-decoration: none;
-    white-space: nowrap;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-elev);
   }
-  .contact-chip:hover { background: rgba(245,166,35,0.18); }
-
-  /* Table */
+  .table-scroll { overflow-x: auto; }
   table.data {
     width: 100%;
     border-collapse: collapse;
-  }
-  table.data th, table.data td {
-    padding: 10px 12px;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-    font-size: 14px;
+    font-size: 13px;
   }
   table.data th {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
+    text-align: left;
+    padding: 8px 12px;
+    font-weight: 500;
     font-size: 11px;
-    letter-spacing: 0.08em;
+    color: var(--text-muted);
     text-transform: uppercase;
-    color: var(--muted);
+    letter-spacing: 0.04em;
+    background: var(--bg-elev);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
   }
-  table.data tr:last-child td { border-bottom: none; }
-  .amt-pos { color: var(--green); font-weight: 700; }
-  .amt-neg { color: var(--red); font-weight: 700; }
-
-  /* Tournament card */
-  .tourney {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px;
-    display: flex; flex-direction: column; gap: 6px;
-  }
-  .tourney-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; color: var(--text); }
-  .tourney-meta { font-size: 12px; color: var(--muted); }
-  .tourney-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
-  .mini-btn {
-    padding: 4px 9px;
-    font-size: 11px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: transparent;
+  table.data th.right { text-align: right; }
+  table.data td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
     color: var(--text);
-    cursor: pointer;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    text-decoration: none;
+    vertical-align: middle;
   }
-  .mini-btn:hover { background: rgba(245,166,35,0.1); color: var(--gold); border-color: var(--border-hi); }
-
-  /* Coach card */
-  .coach-row {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 14px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    cursor: pointer;
-    transition: border-color 0.12s;
+  table.data td.right { text-align: right; }
+  table.data td.muted { color: var(--text-muted); }
+  table.data tr:last-child td { border-bottom: none; }
+  table.data tbody tr { transition: background 0.08s; }
+  table.data tbody tr:hover { background: var(--bg-hover); }
+  table.data tbody tr.clickable { cursor: pointer; }
+  table.data .row-actions {
+    display: flex;
+    gap: 2px;
+    justify-content: flex-end;
+    opacity: 0;
+    transition: opacity 0.1s;
   }
-  .coach-row:hover { border-color: var(--border-hi); }
-  .coach-avatar {
-    width: 40px; height: 40px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 14px;
-  }
-  .coach-info { flex: 1; min-width: 0; }
-  .coach-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; color: var(--text); }
-  .coach-role { font-size: 12px; color: var(--muted); }
-
-  /* Progress bar */
-  .bar {
-    height: 8px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 4px;
-    overflow: hidden;
-  }
-  .bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--gold), var(--gold-hi));
-    transition: width 0.4s;
-  }
-
-  /* Empty state */
-  .empty {
+  table.data tbody tr:hover .row-actions { opacity: 1; }
+  .amt-pos { color: var(--pos); }
+  .amt-neg { color: var(--neg); }
+  .table-empty {
+    padding: 32px 16px;
     text-align: center;
-    padding: 32px 20px;
-    color: var(--muted);
-    font-size: 14px;
+    color: var(--text-muted);
+    font-size: 13px;
   }
 
-  /* Modal */
-  .modal-backdrop {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.7);
-    z-index: 500;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 20px;
+  /* ===== PILL ===== */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .pill-pos { background: rgba(34,197,94,0.12); color: var(--pos); }
+  .pill-neg { background: rgba(239,68,68,0.12); color: var(--neg); }
+  .pill-warn { background: rgba(245,158,11,0.12); color: var(--warn); }
+  .pill-info { background: rgba(96,165,250,0.12); color: var(--info); }
+  .pill-muted { background: rgba(255,255,255,0.04); color: var(--text-muted); }
+
+  /* ===== TABS ===== */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .tab {
+    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.1s, border-color 0.1s;
+    font-family: inherit;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--text); }
+
+  /* ===== CARDS (subtle, only when needed) ===== */
+  .card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+
+  /* ===== CONTACT INLINE ICONS ===== */
+  .contact-cell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .contact-name { color: var(--text); }
+  .contact-phone-inline { color: var(--text-muted); font-size: 12px; margin-left: 6px; }
+  .contact-icons {
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+  tr:hover .contact-icons { opacity: 1; }
+
+  /* ===== DRAWER ===== */
+  .drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+  }
+  .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 480px;
+    max-width: 100vw;
+    background: var(--bg-elev);
+    border-left: 1px solid var(--border);
+    z-index: 101;
+    transform: translateX(100%);
+    transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    box-shadow: -20px 0 40px rgba(0,0,0,0.3);
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+  }
+  .drawer-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .drawer-body {
+    flex: 1;
     overflow-y: auto;
+    padding: 20px;
+  }
+  .drawer-section {
+    margin-bottom: 24px;
+  }
+  .drawer-section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+  .drawer-foot {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .drawer-foot .btn-danger { margin-right: auto; }
+
+  /* ===== MODAL ===== */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
   }
   .modal-backdrop.open { display: flex; }
   .modal {
-    background: var(--navy);
-    border: 1px solid var(--border-hi);
-    border-radius: 16px;
-    padding: 22px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    padding: 20px;
     width: 100%;
-    max-width: 620px;
-    margin: 40px auto;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
   }
   .modal-head {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 18px;
-    padding-bottom: 14px;
-    border-bottom: 1px solid var(--border);
-  }
-  .modal-title {
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 18px;
-    color: var(--gold);
-    letter-spacing: 0.08em;
-  }
-  .modal-close {
-    background: transparent;
-    border: none;
-    color: var(--muted);
-    font-size: 26px;
-    cursor: pointer;
-    line-height: 1;
-  }
-  .modal-body { display: flex; flex-direction: column; gap: 12px; }
-  .modal-actions {
-    display: flex; gap: 10px;
-    margin-top: 8px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
-  }
-  .modal-section-label {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 12px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--gold);
-    margin-top: 4px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-  }
-
-  /* Home page tweaks */
-  .home-hero {
-    background: linear-gradient(135deg, rgba(245,166,35,0.10), rgba(245,166,35,0.02));
-    border: 1px solid var(--border-hi);
-    border-radius: 16px;
-    padding: 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 16px;
   }
+  .modal-title { font-size: 15px; font-weight: 600; }
+  .modal-body { display: flex; flex-direction: column; gap: 12px; }
+  .modal-foot {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .modal-foot .btn-danger { margin-right: auto; }
 
-  /* Mobile */
+  /* ===== HINT ===== */
+  .kbd {
+    display: inline-block;
+    padding: 1px 5px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+    color: var(--text-muted);
+    margin-left: 4px;
+  }
+  .hint-bar {
+    padding: 8px 12px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* ===== BAR ===== */
+  .bar {
+    height: 4px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 2px;
+    overflow: hidden;
+    width: 100%;
+  }
+  .bar-fill {
+    height: 100%;
+    background: var(--info);
+    transition: width 0.3s;
+  }
+  .bar-fill.pos { background: var(--pos); }
+  .bar-fill.warn { background: var(--warn); }
+
+  /* ===== TOAST ===== */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    z-index: 300;
+    opacity: 0;
+    transition: transform 0.2s, opacity 0.2s;
+    pointer-events: none;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+  /* ===== MOBILE ===== */
   @media (max-width: 768px) {
+    .app { grid-template-columns: 1fr; }
     .sidebar {
-      top: auto; bottom: 0; left: 0; right: 0;
-      width: 100%; height: 64px;
-      flex-direction: row;
-      justify-content: space-around;
-      padding: 6px 4px;
-      gap: 0;
+      position: fixed;
+      top: auto;
+      bottom: 0;
+      left: 0; right: 0;
+      width: 100%;
+      height: auto;
       border-right: none;
       border-top: 1px solid var(--border);
+      flex-direction: row;
+      padding: 6px 4px;
+      z-index: 50;
     }
-    .sidebar-logo { display: none; }
-    .nav-item { width: 52px; height: 52px; }
-    .nav-item .tooltip { display: none; }
-    .main { margin-left: 0; margin-bottom: 72px; }
-    .topbar { padding: 0 14px; height: 54px; }
-    .topbar-sub { display: none; }
-    .content { padding: 16px 14px; }
-    .page-title { font-size: 28px; }
-    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
-    .grid-4.split-2 { grid-template-columns: 1fr 1fr; }
-    .metric-value { font-size: 34px; }
-    .modal { padding: 18px; margin: 20px 4px; }
-    .modal-body .grid-2, .modal-body .grid-3 { grid-template-columns: 1fr; }
-    table.data th, table.data td { padding: 8px 6px; font-size: 12px; }
+    .sidebar-brand, .nav-group-label, .sidebar-bottom { display: none; }
+    .sidebar > div:not(.nav-item) { display: none; }
+    .nav-item {
+      flex-direction: column;
+      gap: 3px;
+      padding: 6px 8px;
+      font-size: 10px;
+      flex: 1;
+      justify-content: center;
+      text-align: center;
+      border-radius: 6px;
+    }
+    .nav-item .nav-icon { width: 20px; height: 20px; }
+    .main { padding-bottom: 60px; }
+    .topbar { padding: 10px 16px; height: 48px; }
+    .section { padding: 14px 16px 40px; }
+    .kpi-strip { gap: 16px; overflow-x: auto; padding-bottom: 14px; }
+    .kpi { min-width: max-content; }
+    .table-wrap { border-radius: 6px; }
+    table.data th, table.data td { padding: 8px 8px; font-size: 12px; }
+    .drawer { width: 100vw; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .contact-icons { opacity: 1; }
+    .row-actions { opacity: 1 !important; }
+    .hide-mobile { display: none !important; }
   }
 
-  /* Print */
-  @media print {
-    .sidebar, .topbar, .btn, .modal-backdrop, .tabs { display: none !important; }
-    body { background: white; color: black; }
-    .main { margin-left: 0; }
-    .card, .row, .tourney { background: white; border: 1px solid #ddd; color: black; }
-  }
+  /* Utility */
+  .flex { display: flex; }
+  .flex-col { flex-direction: column; }
+  .items-center { align-items: center; }
+  .gap-1 { gap: 4px; } .gap-2 { gap: 8px; } .gap-3 { gap: 12px; }
+  .text-muted { color: var(--text-muted); }
+  .text-subtle { color: var(--text-subtle); }
+  .text-xs { font-size: 11px; }
+  .text-sm { font-size: 12px; }
+  .fw-500 { font-weight: 500; }
+  .fw-600 { font-weight: 600; }
+  .mt-2 { margin-top: 8px; } .mt-3 { margin-top: 12px; } .mt-4 { margin-top: 16px; }
+  .mb-2 { margin-bottom: 8px; } .mb-3 { margin-bottom: 12px; } .mb-4 { margin-bottom: 16px; }
 </style>
 </head>
 <body>
 
-<!-- SIDEBAR -->
-<nav class="sidebar">
-  <div class="sidebar-logo">
-    <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjYxIDEwMCA1NjUgODQ3Ij48ZGVmcz48Y2xpcFBhdGggaWQ9Imd0Ij48cGF0aCBkPSJNIDg1LjUgMzIxIEwgMjAyLjggMzIxIEMgMjA4IDI5OC45IDIxMyAyNzcuMSAyMTguMyAyNTQuNyBMIDI2Ni43IDI1NC43IEMgMjQ1LjYgMzQwLjYgMjI0LjkgNDI1LjQgMjAzLjggNTExLjcgTCAyNjMuNSA1MTEuNyBDIDIxOSA2NDQuOSAxNzUuMiA3NzYuNSAxMzEuNCA5MDguMSBMIDEzOC43IDkxNS42IEMgMTQ2LjggOTEwLjUgMTU3LjkgOTA3LjQgMTYyLjcgOTAwLjIgTCAzNzcuNyA1NzAuOSBDIDQxNC4zIDUxNC44IDQ1MC44IDQ1OC42IDQ4OC44IDQwMC4zIEwgMzkzLjMgNDAwLjMgQyA0MDUuOCAzNTAuNSA0MTcuOSAzMDIuMiA0MjkuOCAyNTQuOSBMIDQ3NS4xIDI1NC45IEMgNDcwIDI3Ny41IDQ2NS4yIDI5OC43IDQ2MC4yIDMyMC44IEwgNjAyLjEgMzIwLjggTCA2MDIuMSAxMjUuMyBMIDg1LjUgMTI1LjMgWiIvPjwvY2xpcFBhdGg+PC9kZWZzPjxyZWN0IHg9IjQ0IiB5PSI4NCIgd2lkdGg9IjYwMCIgaGVpZ2h0PSI4ODAiIGZpbGw9IiNGMEEwMDAiIGNsaXAtcGF0aD0idXJsKCNndCkiLz48L3N2Zz4=" alt="Thunder" />
-  </div>
-  <div class="nav-item active" onclick="navigate('home')" data-section="home">🏠<span class="tooltip">Home</span></div>
-  <div class="nav-item" onclick="navigate('team')" data-section="team">👥<span class="tooltip">Team</span></div>
-  <div class="nav-item" onclick="navigate('money')" data-section="money">💰<span class="tooltip">Money</span></div>
-  <div class="nav-item" onclick="navigate('schedule')" data-section="schedule">🗓️<span class="tooltip">Schedule</span></div>
-  <div class="nav-item" onclick="navigate('settings')" data-section="settings">⚙️<span class="tooltip">Settings</span></div>
-</nav>
-
-<div class="main">
-  <div class="topbar">
-    <div class="topbar-title">
-      <span data-team-field="display_name">THUNDER BASEBALL</span>
-      <span class="topbar-sub" data-team-field="topbar_sub">8U · Spring 2026</span>
+<div class="app">
+  <!-- ================================ SIDEBAR ================================ -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-name" data-team-field="team_name">SFL Thunder Black</div>
+      <div class="sidebar-brand-sub" data-team-field="topbar_sub">8U · Spring 2026</div>
     </div>
-    <div class="topbar-badges">
-      <span class="badge badge-blue" id="badge-player-count">11 Players</span>
-      <span class="badge badge-gold" id="badge-balance" style="display:none">$0</span>
-    </div>
-  </div>
 
-  <!-- ============================== HOME ============================== -->
-  <section class="content active" id="section-home">
-    <div class="page-header">
-      <div>
-        <div class="page-title" data-team-field="team_name">SFL Thunder Black</div>
-        <div class="page-sub" data-team-field="home_sub">8U Coach Pitch · Spring 2026</div>
+    <div class="nav-group-label">Workspace</div>
+    <div class="nav-item active" data-section="roster" onclick="navigate('roster')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Roster
+    </div>
+    <div class="nav-item" data-section="finances" onclick="navigate('finances')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Finances
+    </div>
+    <div class="nav-item" data-section="tournaments" onclick="navigate('tournaments')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Tournaments
+    </div>
+    <div class="nav-item" data-section="settings" onclick="navigate('settings')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </div>
+
+    <div class="sidebar-bottom hide-mobile">
+      <div>Cmd+E · New expense</div>
+      <div>Cmd+K · Search</div>
+    </div>
+  </aside>
+
+  <!-- ================================ MAIN ================================ -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span data-crumb="section">Roster</span>
       </div>
-      <div class="page-actions">
-        <button class="btn btn-outline" onclick="navigate('team')">👥 Roster</button>
-        <button class="btn btn-gold" onclick="focusQuickExpense()">+ Expense</button>
+      <div class="topbar-right">
+        <button class="btn btn-secondary btn-sm" onclick="openExpenseModal()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          New expense
+          <span class="kbd">⌘E</span>
+        </button>
       </div>
     </div>
 
-    <!-- Big money card -->
-    <div class="home-hero">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
-        <div class="metric" id="home-balance-metric">
-          <div class="metric-label">Team Balance</div>
-          <div class="metric-value" id="home-balance">$0</div>
-          <div class="metric-sub" id="home-balance-sub">Raised $0 · Spent $0</div>
+    <!-- ============ ROSTER ============ -->
+    <section class="section active" id="section-roster">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Roster</div>
+          <div class="section-sub" data-team-field="topbar_sub_full">SFL Thunder Black · 8U Coach Pitch · Spring 2026</div>
         </div>
-        <div style="min-width:220px;flex:1;max-width:360px">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px">
-            <span id="home-goal-raised">$0 raised</span>
-            <span id="home-goal-target">of $0 goal</span>
-          </div>
-          <div class="bar"><div class="bar-fill" id="home-goal-bar" style="width:0%"></div></div>
-          <div style="font-size:12px;color:var(--muted);margin-top:6px;text-align:right">
-            <a href="#" onclick="navigate('money');return false" style="color:var(--gold);text-decoration:none">Full finances →</a>
+        <div class="section-actions">
+          <button class="btn btn-secondary btn-sm" onclick="bulkContact('sms')">Text all parents</button>
+          <button class="btn btn-secondary btn-sm" onclick="bulkContact('email')">Email all parents</button>
+          <button class="btn btn-secondary btn-sm hide-mobile" onclick="exportRoster()">Export CSV</button>
+          <button class="btn btn-primary btn-sm" onclick="openPlayerDrawer(-1)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            Add player
+          </button>
+        </div>
+      </div>
+
+      <div class="kpi-strip" id="roster-kpis"></div>
+
+      <div class="toolbar">
+        <div class="search"><input class="input" id="roster-search" placeholder="Search players…" oninput="renderRoster()"></div>
+        <div class="chip-group">
+          <button class="chip active" data-status-filter="all" onclick="setStatusFilter('all')">All</button>
+          <button class="chip" data-status-filter="paid" onclick="setStatusFilter('paid')">Paid up</button>
+          <button class="chip" data-status-filter="partial" onclick="setStatusFilter('partial')">Partial</button>
+          <button class="chip" data-status-filter="owes" onclick="setStatusFilter('owes')">Owes</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table class="data">
+            <thead>
+              <tr>
+                <th style="width:44px" class="right">#</th>
+                <th>Name</th>
+                <th class="hide-mobile">Primary parent</th>
+                <th class="hide-mobile">Uniform</th>
+                <th class="hide-mobile">Sponsor</th>
+                <th class="right">Raised</th>
+                <th>Status</th>
+                <th style="width:60px"></th>
+              </tr>
+            </thead>
+            <tbody id="roster-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FINANCES ============ -->
+    <section class="section" id="section-finances">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Finances</div>
+          <div class="section-sub">Ledger, sponsors, and budget model</div>
+        </div>
+      </div>
+
+      <div class="kpi-strip" id="finances-kpis"></div>
+
+      <div class="tabs">
+        <button class="tab active" data-fin-tab="ledger" onclick="switchFinTab('ledger')">Ledger</button>
+        <button class="tab" data-fin-tab="sponsors" onclick="switchFinTab('sponsors')">Sponsors</button>
+        <button class="tab" data-fin-tab="budget" onclick="switchFinTab('budget')">Budget</button>
+      </div>
+
+      <!-- Ledger -->
+      <div class="fin-panel" id="fin-panel-ledger">
+        <div class="toolbar">
+          <div class="search"><input class="input" id="ledger-search" placeholder="Search descriptions…" oninput="renderLedger()"></div>
+          <div class="chip-group" id="ledger-cat-chips"></div>
+          <div class="toolbar-spacer"></div>
+          <button class="btn btn-primary btn-sm" onclick="openExpenseModal()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            New expense
+          </button>
+        </div>
+        <div class="table-wrap">
+          <div class="table-scroll">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th style="width:90px">Date</th>
+                  <th>Description</th>
+                  <th class="hide-mobile" style="width:110px">Category</th>
+                  <th class="hide-mobile" style="width:90px">Paid by</th>
+                  <th class="right" style="width:90px">In</th>
+                  <th class="right" style="width:90px">Out</th>
+                  <th class="right hide-mobile" style="width:110px">Balance</th>
+                  <th style="width:70px"></th>
+                </tr>
+              </thead>
+              <tbody id="ledger-body"></tbody>
+            </table>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="grid-2">
-      <!-- Quick expense -->
-      <div class="card">
-        <div class="card-title">⚡ Log Expense <span class="spacer"></span> <span style="font-size:11px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">Positive = income · Negative = spend</span></div>
-        <div class="stack" style="gap:10px">
-          <div class="field"><label class="field-label">What / who</label><input class="input" id="qx-desc" placeholder="Umpire fee 8/15"></div>
-          <div class="grid-2">
-            <div class="field"><label class="field-label">Amount ($)</label><input class="input" type="number" step="0.01" id="qx-amount" placeholder="-50"></div>
-            <div class="field"><label class="field-label">Category</label>
-              <select class="input" id="qx-cat">
-                <option value="">—</option>
-                <option>Umpire</option><option>Tournament</option><option>Field</option>
-                <option>Equipment</option><option>Uniforms</option><option>Registration</option>
-                <option>Donation</option><option>Team Party</option><option>Other</option>
-              </select>
+      <!-- Sponsors -->
+      <div class="fin-panel" id="fin-panel-sponsors" style="display:none">
+        <div class="toolbar">
+          <div class="search"><input class="input" id="sponsors-search" placeholder="Search sponsors…" oninput="renderSponsors()"></div>
+          <div class="toolbar-spacer"></div>
+          <button class="btn btn-primary btn-sm" onclick="openSponsorModal(null)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            New sponsor
+          </button>
+        </div>
+        <div class="table-wrap">
+          <div class="table-scroll">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th>Sponsor</th>
+                  <th class="hide-mobile" style="width:110px">Check #</th>
+                  <th class="right" style="width:110px">Amount</th>
+                  <th style="width:110px" class="hide-mobile">Received</th>
+                  <th style="width:140px">To treasurer</th>
+                  <th style="width:70px"></th>
+                </tr>
+              </thead>
+              <tbody id="sponsors-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Budget -->
+      <div class="fin-panel" id="fin-panel-budget" style="display:none">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Assumptions</div>
+            <div class="flex flex-col gap-3">
+              <div class="grid-2" style="gap:10px">
+                <div class="field"><label class="field-label">Field cost / home game ($)</label><input class="input" type="number" id="bm-field"></div>
+                <div class="field"><label class="field-label">Umpire fee / game ($)</label><input class="input" type="number" id="bm-umpire"></div>
+              </div>
+              <div class="grid-2" style="gap:10px">
+                <div class="field"><label class="field-label">Away entry / game ($)</label><input class="input" type="number" id="bm-away"></div>
+                <div class="field"><label class="field-label">Tournament entry avg ($)</label><input class="input" type="number" id="bm-tourney"></div>
+              </div>
+              <div class="grid-3" style="gap:10px">
+                <div class="field"><label class="field-label">Tournaments</label><input class="input" type="number" id="bm-tourneys"></div>
+                <div class="field"><label class="field-label">Home games</label><input class="input" type="number" id="bm-home"></div>
+                <div class="field"><label class="field-label">Away games</label><input class="input" type="number" id="bm-away-games"></div>
+              </div>
+              <div class="grid-2" style="gap:10px">
+                <div class="field"><label class="field-label">Equipment / player ($)</label><input class="input" type="number" id="bm-equip"></div>
+                <div class="field"><label class="field-label">Fundraising target (%)</label><input class="input" type="number" id="bm-fund"></div>
+              </div>
+              <button class="btn btn-primary" onclick="saveBudget()">Save budget</button>
             </div>
           </div>
-          <button class="btn btn-gold" onclick="quickAddExpense()">Save Expense</button>
-        </div>
-      </div>
-
-      <!-- Next tournament -->
-      <div class="card">
-        <div class="card-title">🏆 Next Tournament <span class="spacer"></span>
-          <button class="btn btn-outline btn-sm" onclick="navigate('schedule')">All →</button>
-        </div>
-        <div id="home-next-tourney" class="stack" style="gap:8px"></div>
-      </div>
-    </div>
-
-    <!-- Roster health (only shown when there are gaps) -->
-    <div class="card" id="home-health-card" style="margin-top:16px;display:none">
-      <div class="card-title">🩺 Roster gaps</div>
-      <div id="home-health-body"></div>
-    </div>
-
-    <!-- Recent activity -->
-    <div class="card" style="margin-top:16px">
-      <div class="card-title">📒 Recent activity <span class="spacer"></span>
-        <button class="btn btn-outline btn-sm" onclick="navigate('money')">Ledger →</button>
-      </div>
-      <div id="home-activity"></div>
-    </div>
-  </section>
-
-  <!-- ============================== TEAM ============================== -->
-  <section class="content" id="section-team">
-    <div class="page-header">
-      <div>
-        <div class="page-title">Team</div>
-        <div class="page-sub"><span id="team-count">11</span> players · Tap-to-call · Tap-to-text · Tap-to-email</div>
-      </div>
-      <div class="page-actions">
-        <button class="btn btn-outline" onclick="exportRoster()">📤 Export CSV</button>
-        <button class="btn btn-gold" onclick="openPlayerEditor(-1)">+ Add Player</button>
-      </div>
-    </div>
-
-    <input class="input" id="team-search" placeholder="🔍 Search players…" style="margin-bottom:14px" oninput="renderTeam()">
-    <div id="team-list" class="stack" style="gap:10px"></div>
-  </section>
-
-  <!-- ============================== MONEY ============================== -->
-  <section class="content" id="section-money">
-    <div class="page-header">
-      <div>
-        <div class="page-title">Money</div>
-        <div class="page-sub">Track spending, sponsors, and per-player standing</div>
-      </div>
-      <div class="page-actions">
-        <button class="btn btn-outline" onclick="switchMoneyTab('donations');document.getElementById('fdo-sponsor').focus()">+ Donation</button>
-        <button class="btn btn-gold" onclick="switchMoneyTab('expenses');document.getElementById('fex-desc').focus()">+ Expense</button>
-      </div>
-    </div>
-
-    <div class="grid-4 split-2" style="margin-bottom:18px">
-      <div class="card">
-        <div class="metric-label">Raised</div>
-        <div class="metric-value" id="money-raised" style="color:var(--green);font-size:30px">$0</div>
-      </div>
-      <div class="card">
-        <div class="metric-label">Spent</div>
-        <div class="metric-value" id="money-spent" style="color:var(--red);font-size:30px">$0</div>
-      </div>
-      <div class="card">
-        <div class="metric-label">Balance</div>
-        <div class="metric-value" id="money-balance" style="font-size:30px">$0</div>
-      </div>
-      <div class="card">
-        <div class="metric-label">Cost / Player</div>
-        <div class="metric-value" id="money-per-player" style="color:var(--gold);font-size:30px">$0</div>
-        <div class="metric-sub" id="money-per-player-sub">based on budget</div>
-      </div>
-    </div>
-
-    <div class="tabs">
-      <button class="tab active" data-money-tab="expenses" onclick="switchMoneyTab('expenses')">💸 Expenses</button>
-      <button class="tab" data-money-tab="donations" onclick="switchMoneyTab('donations')">🎁 Donations</button>
-      <button class="tab" data-money-tab="perplayer" onclick="switchMoneyTab('perplayer')">👤 Per-Player</button>
-      <button class="tab" data-money-tab="budget" onclick="switchMoneyTab('budget')">📐 Budget</button>
-    </div>
-
-    <!-- Expenses -->
-    <div class="money-panel" id="money-panel-expenses">
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-title">➕ New Expense</div>
-        <div class="grid-4" style="gap:10px">
-          <div class="field"><label class="field-label">Date</label><input class="input" type="date" id="fex-date"></div>
-          <div class="field" style="grid-column:span 2"><label class="field-label">Description</label><input class="input" id="fex-desc"></div>
-          <div class="field"><label class="field-label">Amount ($)</label><input class="input" type="number" step="0.01" id="fex-amount" placeholder="-spend / +income"></div>
-          <div class="field"><label class="field-label">Paid by</label><input class="input" id="fex-paid" placeholder="Joe"></div>
-          <div class="field"><label class="field-label">Category</label>
-            <select class="input" id="fex-cat">
-              <option value="">—</option>
-              <option>Umpire</option><option>Tournament</option><option>Field</option>
-              <option>Equipment</option><option>Uniforms</option><option>Registration</option>
-              <option>Donation</option><option>Team Party</option><option>Other</option>
-            </select>
+          <div class="card">
+            <div class="card-title">Computed</div>
+            <div id="bm-computed" class="flex flex-col gap-2"></div>
           </div>
-          <div class="field" style="grid-column:span 2"><label class="field-label">Receipt URL (optional)</label><input class="input" id="fex-receipt" placeholder="https://drive.google.com/…"></div>
         </div>
-        <div style="margin-top:12px"><button class="btn btn-gold" onclick="addExpense()">Save Expense</button></div>
       </div>
-      <div class="card" style="overflow-x:auto">
-        <table class="data">
-          <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Paid</th><th style="text-align:right">Amount</th><th>Rcpt</th><th></th></tr></thead>
-          <tbody id="money-expenses-body"></tbody>
-        </table>
-      </div>
-    </div>
+    </section>
 
-    <!-- Donations -->
-    <div class="money-panel" id="money-panel-donations" style="display:none">
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-title">➕ New Donation</div>
-        <div class="grid-4" style="gap:10px">
-          <div class="field"><label class="field-label">Player</label>
-            <select class="input" id="fdo-player"><option value="">— Team-wide —</option></select>
+    <!-- ============ TOURNAMENTS ============ -->
+    <section class="section" id="section-tournaments">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Tournaments</div>
+          <div class="section-sub">All tournaments this season</div>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-primary btn-sm" onclick="openTournamentModal(null)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            Add tournament
+          </button>
+        </div>
+      </div>
+
+      <div class="kpi-strip" id="tourn-kpis"></div>
+
+      <div class="toolbar">
+        <div class="chip-group">
+          <button class="chip active" data-tourn-filter="all" onclick="setTournFilter('all')">All</button>
+          <button class="chip" data-tourn-filter="potential" onclick="setTournFilter('potential')">Potential</button>
+          <button class="chip" data-tourn-filter="registered" onclick="setTournFilter('registered')">Registered</button>
+          <button class="chip" data-tourn-filter="completed" onclick="setTournFilter('completed')">Completed</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table class="data">
+            <thead>
+              <tr>
+                <th style="width:120px">Date</th>
+                <th>Tournament</th>
+                <th style="width:110px">Status</th>
+                <th class="right hide-mobile" style="width:80px">Entry</th>
+                <th class="right hide-mobile" style="width:90px">Ump/game</th>
+                <th class="right hide-mobile" style="width:70px">Games</th>
+                <th class="right" style="width:100px">Est. cost</th>
+                <th style="width:80px"></th>
+              </tr>
+            </thead>
+            <tbody id="tourn-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SETTINGS ============ -->
+    <section class="section" id="section-settings">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Settings</div>
+          <div class="section-sub">Team info, coaches, and tools</div>
+        </div>
+      </div>
+
+      <div style="max-width:640px">
+        <div class="card mb-4">
+          <div class="card-title">Team info</div>
+          <div class="flex flex-col gap-3">
+            <div class="grid-2" style="gap:10px">
+              <div class="field"><label class="field-label">Team name</label><input class="input" id="setting-team-name"></div>
+              <div class="field"><label class="field-label">Manager</label><input class="input" id="setting-manager"></div>
+            </div>
+            <div class="grid-3" style="gap:10px">
+              <div class="field"><label class="field-label">Age division</label><input class="input" id="setting-age-division"></div>
+              <div class="field"><label class="field-label">Season</label><input class="input" id="setting-season"></div>
+              <div class="field"><label class="field-label">Type</label><input class="input" id="setting-season-type" placeholder="Coach Pitch"></div>
+            </div>
+            <div class="field"><label class="field-label">Next practice</label><input class="input" id="setting-next-practice" placeholder="Wed 6:30pm"></div>
+            <div>
+              <button class="btn btn-primary" id="save-settings-btn" onclick="saveTeamSettings()">Save team info</button>
+            </div>
           </div>
-          <div class="field" style="grid-column:span 2"><label class="field-label">Sponsor</label><input class="input" id="fdo-sponsor"></div>
-          <div class="field"><label class="field-label">Check #</label><input class="input" id="fdo-check"></div>
-          <div class="field"><label class="field-label">Amount ($)</label><input class="input" type="number" step="0.01" id="fdo-amount"></div>
-          <div class="field"><label class="field-label">Received</label><input class="input" type="date" id="fdo-received"></div>
-          <div class="field"><label class="field-label">To Treasurer</label><input class="input" type="date" id="fdo-given"></div>
         </div>
-        <div style="margin-top:12px"><button class="btn btn-gold" onclick="addDonation()">Save Donation</button></div>
-      </div>
-      <div class="card" style="overflow-x:auto">
-        <table class="data">
-          <thead><tr><th>Player</th><th>Sponsor</th><th>Check</th><th style="text-align:right">Amount</th><th>Received</th><th>To Treasurer</th><th></th></tr></thead>
-          <tbody id="money-donations-body"></tbody>
-        </table>
-      </div>
-    </div>
 
-    <!-- Per-player -->
-    <div class="money-panel" id="money-panel-perplayer" style="display:none">
-      <div class="card" style="overflow-x:auto">
-        <div class="card-title">👤 Per-player standing</div>
-        <table class="data">
-          <thead><tr><th>#</th><th>Player</th><th>Registered</th><th>Donations</th><th>vs Target</th></tr></thead>
-          <tbody id="money-perplayer-body"></tbody>
-        </table>
-      </div>
-    </div>
+        <div class="card mb-4">
+          <div class="card-title">
+            Coaching staff
+            <button class="btn btn-secondary btn-xs" onclick="openCoachModal(-1)">Add coach</button>
+          </div>
+          <div id="settings-coaches" class="flex flex-col gap-2"></div>
+        </div>
 
-    <!-- Budget -->
-    <div class="money-panel" id="money-panel-budget" style="display:none">
-      <div class="grid-2">
+        <div class="card mb-4">
+          <div class="card-title">Tools</div>
+          <div class="flex flex-col gap-2">
+            <a class="btn btn-ghost" href="coach.html" style="justify-content:flex-start;padding:8px 10px">Coach tools — practice plans, lineup, stats</a>
+            <a class="btn btn-ghost" href="scout.html" style="justify-content:flex-start;padding:8px 10px">Scout — game-day at-bat tracking</a>
+          </div>
+        </div>
+
         <div class="card">
-          <div class="card-title">📐 Assumptions</div>
-          <div class="stack" style="gap:10px">
-            <div class="grid-2">
-              <div class="field"><label class="field-label">Field cost / home game ($)</label><input class="input" type="number" id="bm-field"></div>
-              <div class="field"><label class="field-label">Umpire fee / game ($)</label><input class="input" type="number" id="bm-umpire"></div>
-            </div>
-            <div class="grid-2">
-              <div class="field"><label class="field-label">Away entry / game ($)</label><input class="input" type="number" id="bm-away"></div>
-              <div class="field"><label class="field-label">Tournament entry avg ($)</label><input class="input" type="number" id="bm-tourney"></div>
-            </div>
-            <div class="grid-3">
-              <div class="field"><label class="field-label">Tournaments</label><input class="input" type="number" id="bm-tourneys"></div>
-              <div class="field"><label class="field-label">Home games</label><input class="input" type="number" id="bm-home"></div>
-              <div class="field"><label class="field-label">Away games</label><input class="input" type="number" id="bm-away-games"></div>
-            </div>
-            <div class="grid-2">
-              <div class="field"><label class="field-label">Equipment / player ($)</label><input class="input" type="number" id="bm-equip"></div>
-              <div class="field"><label class="field-label">Fundraising target (%)</label><input class="input" type="number" id="bm-fund"></div>
-            </div>
-            <button class="btn btn-gold" onclick="saveBudget()">Save Budget</button>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-title">🧮 Computed</div>
-          <div id="bm-computed" class="stack" style="gap:8px"></div>
+          <div class="card-title">Data</div>
+          <div class="text-sm text-muted mb-3">Team data syncs across your devices via Supabase.</div>
+          <button class="btn btn-secondary btn-sm" onclick="exportAll()">Export all data (JSON)</button>
         </div>
       </div>
-    </div>
-  </section>
-
-  <!-- ============================== SCHEDULE ============================== -->
-  <section class="content" id="section-schedule">
-    <div class="page-header">
-      <div>
-        <div class="page-title">Schedule</div>
-        <div class="page-sub">Tournaments this season</div>
-      </div>
-      <div class="page-actions">
-        <button class="btn btn-gold" onclick="openTournamentEditor(null)">+ Tournament</button>
-      </div>
-    </div>
-
-    <div class="grid-3">
-      <div class="card">
-        <div class="card-title" style="color:var(--gold)">🎯 Potential</div>
-        <div id="sched-potential" class="stack" style="gap:10px"></div>
-      </div>
-      <div class="card">
-        <div class="card-title" style="color:var(--blue)">✅ Registered</div>
-        <div id="sched-registered" class="stack" style="gap:10px"></div>
-      </div>
-      <div class="card">
-        <div class="card-title" style="color:var(--green)">🏁 Completed</div>
-        <div id="sched-completed" class="stack" style="gap:10px"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============================== SETTINGS ============================== -->
-  <section class="content" id="section-settings">
-    <div class="page-header">
-      <div>
-        <div class="page-title">Settings</div>
-        <div class="page-sub">Team info, coaches, and tools</div>
-      </div>
-    </div>
-
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title">🏟️ Team Info</div>
-        <div class="stack" style="gap:10px">
-          <div class="field"><label class="field-label">Team Name</label><input class="input" id="setting-team-name"></div>
-          <div class="field"><label class="field-label">Display Name (topbar)</label><input class="input" id="setting-display-name"></div>
-          <div class="grid-2">
-            <div class="field"><label class="field-label">Age Division</label><input class="input" id="setting-age-division"></div>
-            <div class="field"><label class="field-label">Season</label><input class="input" id="setting-season"></div>
-          </div>
-          <div class="field"><label class="field-label">Season Type</label><input class="input" id="setting-season-type" placeholder="Coach Pitch / Kid Pitch"></div>
-          <div class="field"><label class="field-label">Manager</label><input class="input" id="setting-manager"></div>
-          <div class="field"><label class="field-label">Next Practice</label><input class="input" id="setting-next-practice" placeholder="Wed 6:30pm"></div>
-          <button class="btn btn-gold" id="save-settings-btn" onclick="saveTeamSettings()">Save Team Info</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">🏆 Coaches
-          <span class="spacer"></span>
-          <button class="btn btn-gold btn-sm" onclick="openCoachEditor(-1)">+ Coach</button>
-        </div>
-        <div id="settings-coaches-list" class="stack" style="gap:8px"></div>
-      </div>
-    </div>
-
-    <div class="grid-2" style="margin-top:16px">
-      <div class="card">
-        <div class="card-title">🔧 Tools</div>
-        <div class="stack" style="gap:10px">
-          <a href="coach.html" class="btn btn-outline" style="justify-content:flex-start">📋 Coach Tools (practice plans, lineup, stats)</a>
-          <a href="scout.html" class="btn btn-outline" style="justify-content:flex-start">🎯 Scout Tool (game-day at-bat tracking)</a>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">📊 Data</div>
-        <div class="stack" style="gap:10px">
-          <div style="font-size:13px;color:var(--muted);line-height:1.5">
-            Team data syncs across your phone and laptop via Supabase. Edit anywhere — see it everywhere.
-          </div>
-          <button class="btn btn-outline" onclick="exportAll()">📥 Export all data (JSON)</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
+    </section>
+  </main>
 </div>
 
-<!-- ============================== MODALS ============================== -->
+<!-- ================================ DRAWER (Player) ================================ -->
+<div class="drawer-backdrop" id="player-drawer-backdrop" onclick="closePlayerDrawer()"></div>
+<div class="drawer" id="player-drawer">
+  <div class="drawer-head">
+    <div>
+      <div class="drawer-title" id="pd-title">Player</div>
+      <div class="text-xs text-muted mt-1" id="pd-sub"></div>
+    </div>
+    <button class="btn btn-icon" onclick="closePlayerDrawer()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body">
+    <input type="hidden" id="pd-idx">
 
-<!-- Player editor -->
-<div class="modal-backdrop" id="player-modal">
+    <div class="drawer-section">
+      <div class="drawer-section-title">Player</div>
+      <div class="grid-2" style="gap:10px">
+        <div class="field"><label class="field-label">Jersey #</label><input class="input" id="pd-num"></div>
+        <div class="field"><label class="field-label">Name</label><input class="input" id="pd-name"></div>
+      </div>
+      <div class="field mt-3"><label class="field-label">Date of birth</label><input class="input" type="date" id="pd-dob"></div>
+      <div class="field mt-3"><label class="field-label">Address</label><input class="input" id="pd-address"></div>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">Uniform</div>
+      <div class="grid-3" style="gap:10px">
+        <div class="field"><label class="field-label">Jersey</label>
+          <select class="input" id="pd-jsize"><option value="">—</option><option>YS</option><option>YM</option><option>YL</option><option>YXL</option><option>AS</option><option>AM</option><option>AL</option></select>
+        </div>
+        <div class="field"><label class="field-label">Pants</label>
+          <select class="input" id="pd-psize"><option value="">—</option><option>YXS</option><option>YS</option><option>YM</option><option>YL</option><option>YXL</option></select>
+        </div>
+        <div class="field"><label class="field-label">Helmet</label><input class="input" id="pd-hsize" placeholder="6 3/8"></div>
+      </div>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">Parent 1 (primary)</div>
+      <div class="grid-2" style="gap:10px">
+        <div class="field"><label class="field-label">Name</label><input class="input" id="pd-p1-name"></div>
+        <div class="field"><label class="field-label">Phone</label><input class="input" id="pd-p1-phone"></div>
+      </div>
+      <div class="field mt-3"><label class="field-label">Email</label><input class="input" id="pd-p1-email"></div>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">Parent 2</div>
+      <div class="grid-2" style="gap:10px">
+        <div class="field"><label class="field-label">Name</label><input class="input" id="pd-p2-name"></div>
+        <div class="field"><label class="field-label">Phone</label><input class="input" id="pd-p2-phone"></div>
+      </div>
+      <div class="field mt-3"><label class="field-label">Email</label><input class="input" id="pd-p2-email"></div>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">Walk-up</div>
+      <div class="grid-2" style="gap:10px">
+        <div class="field" style="grid-column:span 2"><label class="field-label">Song</label><input class="input" id="pd-song" placeholder="Title — Artist"></div>
+      </div>
+      <div class="field mt-3" style="max-width:120px"><label class="field-label">Start (sec)</label><input class="input" type="number" id="pd-song-start" min="0"></div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn btn-danger" id="pd-delete" onclick="deletePlayer()">Delete</button>
+    <button class="btn btn-ghost" onclick="closePlayerDrawer()">Cancel</button>
+    <button class="btn btn-primary" onclick="savePlayer()">Save changes</button>
+  </div>
+</div>
+
+<!-- ================================ MODAL: Expense ================================ -->
+<div class="modal-backdrop" id="expense-modal">
   <div class="modal">
     <div class="modal-head">
-      <div class="modal-title" id="pm-title">EDIT PLAYER</div>
-      <button class="modal-close" onclick="closePlayerModal()">×</button>
+      <div class="modal-title">New expense</div>
+      <button class="btn btn-icon" onclick="closeExpenseModal()">✕</button>
     </div>
-    <input type="hidden" id="pm-idx">
     <div class="modal-body">
-      <div class="grid-2">
-        <div class="field"><label class="field-label">Jersey #</label><input class="input" id="pm-num"></div>
-        <div class="field"><label class="field-label">Name</label><input class="input" id="pm-name"></div>
+      <div class="grid-2" style="gap:10px">
+        <div class="field"><label class="field-label">Date</label><input class="input" type="date" id="em-date"></div>
+        <div class="field"><label class="field-label">Amount ($)</label><input class="input" type="number" step="0.01" id="em-amount" placeholder="-50 spend / +50 income"></div>
       </div>
-      <div class="grid-3">
-        <div class="field"><label class="field-label">Jersey size</label>
-          <select class="input" id="pm-jsize"><option value="">—</option><option>YS</option><option>YM</option><option>YL</option><option>YXL</option><option>AS</option><option>AM</option><option>AL</option></select>
+      <div class="field"><label class="field-label">Description</label><input class="input" id="em-desc" placeholder="Umpire fee 8/15"></div>
+      <div class="grid-2" style="gap:10px">
+        <div class="field"><label class="field-label">Category</label>
+          <select class="input" id="em-cat">
+            <option value="">—</option>
+            <option>Umpire</option><option>Tournament</option><option>Field</option>
+            <option>Equipment</option><option>Uniforms</option><option>Registration</option>
+            <option>Team Party</option><option>Other</option>
+          </select>
         </div>
-        <div class="field"><label class="field-label">Pants size</label>
-          <select class="input" id="pm-psize"><option value="">—</option><option>YXS</option><option>YS</option><option>YM</option><option>YL</option><option>YXL</option></select>
-        </div>
-        <div class="field"><label class="field-label">Helmet</label><input class="input" id="pm-hsize"></div>
+        <div class="field"><label class="field-label">Paid by</label><input class="input" id="em-paid" placeholder="Joe"></div>
       </div>
-      <div class="grid-2">
-        <div class="field"><label class="field-label">DOB</label><input class="input" type="date" id="pm-dob"></div>
-        <div class="field"><label class="field-label">Address</label><input class="input" id="pm-address"></div>
-      </div>
-      <div class="grid-2">
-        <div class="field"><label class="field-label">Walk-up song</label><input class="input" id="pm-song"></div>
-        <div class="field"><label class="field-label">Start (s)</label><input class="input" type="number" id="pm-song-start" min="0"></div>
-      </div>
-
-      <div class="modal-section-label">👤 Parent 1 (primary)</div>
-      <div class="grid-2">
-        <div class="field"><label class="field-label">Name</label><input class="input" id="pm-p1-name"></div>
-        <div class="field"><label class="field-label">Phone</label><input class="input" id="pm-p1-phone"></div>
-      </div>
-      <div class="field"><label class="field-label">Email</label><input class="input" id="pm-p1-email"></div>
-
-      <div class="modal-section-label">👤 Parent 2</div>
-      <div class="grid-2">
-        <div class="field"><label class="field-label">Name</label><input class="input" id="pm-p2-name"></div>
-        <div class="field"><label class="field-label">Phone</label><input class="input" id="pm-p2-phone"></div>
-      </div>
-      <div class="field"><label class="field-label">Email</label><input class="input" id="pm-p2-email"></div>
+      <div class="field"><label class="field-label">Receipt URL (optional)</label><input class="input" id="em-receipt" placeholder="https://drive.google.com/…"></div>
     </div>
-    <div class="modal-actions">
-      <button class="btn btn-gold" style="flex:1" onclick="savePlayer()">Save</button>
-      <button class="btn btn-red" id="pm-delete" onclick="deletePlayer()">Delete</button>
-      <button class="btn btn-outline" onclick="closePlayerModal()">Cancel</button>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeExpenseModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitExpense()">Save expense</button>
     </div>
   </div>
 </div>
 
-<!-- Tournament editor -->
+<!-- ================================ MODAL: Tournament ================================ -->
 <div class="modal-backdrop" id="tourney-modal">
-  <div class="modal" style="max-width:520px">
+  <div class="modal">
     <div class="modal-head">
-      <div class="modal-title" id="tm-title">TOURNAMENT</div>
-      <button class="modal-close" onclick="closeTourneyModal()">×</button>
+      <div class="modal-title" id="tm-title">Tournament</div>
+      <button class="btn btn-icon" onclick="closeTourneyModal()">✕</button>
     </div>
     <input type="hidden" id="tm-id">
     <div class="modal-body">
       <div class="field"><label class="field-label">Name</label><input class="input" id="tm-name"></div>
-      <div class="grid-2">
-        <div class="field"><label class="field-label">Start</label><input class="input" type="date" id="tm-start"></div>
-        <div class="field"><label class="field-label">End</label><input class="input" type="date" id="tm-end"></div>
+      <div class="grid-2" style="gap:10px">
+        <div class="field"><label class="field-label">Start date</label><input class="input" type="date" id="tm-start"></div>
+        <div class="field"><label class="field-label">End date</label><input class="input" type="date" id="tm-end"></div>
       </div>
-      <div class="grid-3">
+      <div class="grid-3" style="gap:10px">
         <div class="field"><label class="field-label">Entry ($)</label><input class="input" type="number" id="tm-entry"></div>
         <div class="field"><label class="field-label">Ump/game ($)</label><input class="input" type="number" id="tm-ump"></div>
         <div class="field"><label class="field-label">Est. games</label><input class="input" type="number" id="tm-games"></div>
@@ -1041,51 +1129,71 @@
           <option value="completed">Completed</option>
         </select>
       </div>
-      <div class="field"><label class="field-label">Notes</label><textarea class="input" rows="2" id="tm-notes" style="resize:vertical"></textarea></div>
+      <div class="field"><label class="field-label">Notes</label><textarea class="input" rows="2" id="tm-notes"></textarea></div>
     </div>
-    <div class="modal-actions">
-      <button class="btn btn-gold" style="flex:1" onclick="saveTournament()">Save</button>
-      <button class="btn btn-red" id="tm-delete" onclick="deleteTournament()">Delete</button>
-      <button class="btn btn-outline" onclick="closeTourneyModal()">Cancel</button>
+    <div class="modal-foot">
+      <button class="btn btn-danger" id="tm-delete" onclick="deleteTournament()">Delete</button>
+      <button class="btn btn-ghost" onclick="closeTourneyModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTournament()">Save</button>
     </div>
   </div>
 </div>
 
-<!-- Coach editor -->
-<div class="modal-backdrop" id="coach-modal">
-  <div class="modal" style="max-width:440px">
+<!-- ================================ MODAL: Sponsor ================================ -->
+<div class="modal-backdrop" id="sponsor-modal">
+  <div class="modal">
     <div class="modal-head">
-      <div class="modal-title" id="cm-title">COACH</div>
-      <button class="modal-close" onclick="closeCoachModal()">×</button>
+      <div class="modal-title" id="sm-title">Sponsor / donation</div>
+      <button class="btn btn-icon" onclick="closeSponsorModal()">✕</button>
+    </div>
+    <input type="hidden" id="sm-id">
+    <div class="modal-body">
+      <div class="field"><label class="field-label">Player</label>
+        <select class="input" id="sm-player"><option value="">Team-wide</option></select>
+      </div>
+      <div class="field"><label class="field-label">Sponsor name</label><input class="input" id="sm-sponsor"></div>
+      <div class="grid-2" style="gap:10px">
+        <div class="field"><label class="field-label">Check #</label><input class="input" id="sm-check"></div>
+        <div class="field"><label class="field-label">Amount ($)</label><input class="input" type="number" step="0.01" id="sm-amount"></div>
+      </div>
+      <div class="grid-2" style="gap:10px">
+        <div class="field"><label class="field-label">Received</label><input class="input" type="date" id="sm-received"></div>
+        <div class="field"><label class="field-label">To treasurer</label><input class="input" type="date" id="sm-given"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger" id="sm-delete" onclick="deleteSponsor()">Delete</button>
+      <button class="btn btn-ghost" onclick="closeSponsorModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSponsor()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================ MODAL: Coach ================================ -->
+<div class="modal-backdrop" id="coach-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-head">
+      <div class="modal-title" id="cm-title">Coach</div>
+      <button class="btn btn-icon" onclick="closeCoachModal()">✕</button>
     </div>
     <input type="hidden" id="cm-idx">
     <div class="modal-body">
       <div class="field"><label class="field-label">Name</label><input class="input" id="cm-name"></div>
-      <div class="field"><label class="field-label">Role</label><input class="input" id="cm-role" placeholder="Assistant Coach · Micah's Dad"></div>
-      <div class="grid-2">
-        <div class="field"><label class="field-label">Initials</label><input class="input" id="cm-initials" maxlength="3" placeholder="Auto"></div>
-        <div class="field"><label class="field-label">Color</label>
-          <select class="input" id="cm-color">
-            <option value="gold">Gold</option>
-            <option value="blue">Blue</option>
-            <option value="green">Green</option>
-            <option value="purple">Purple</option>
-            <option value="muted">Muted</option>
-          </select>
-        </div>
-      </div>
-      <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text);cursor:pointer">
-        <input type="checkbox" id="cm-mgr" style="accent-color:var(--gold);width:16px;height:16px">
-        Manager (shows MGR badge)
+      <div class="field"><label class="field-label">Role</label><input class="input" id="cm-role" placeholder="Assistant Coach"></div>
+      <label class="flex items-center gap-2" style="font-size:13px">
+        <input type="checkbox" id="cm-mgr">
+        Manager
       </label>
     </div>
-    <div class="modal-actions">
-      <button class="btn btn-gold" style="flex:1" onclick="saveCoach()">Save</button>
-      <button class="btn btn-red" id="cm-delete" onclick="deleteCoach()">Delete</button>
-      <button class="btn btn-outline" onclick="closeCoachModal()">Cancel</button>
+    <div class="modal-foot">
+      <button class="btn btn-danger" id="cm-delete" onclick="deleteCoach()">Delete</button>
+      <button class="btn btn-ghost" onclick="closeCoachModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCoach()">Save</button>
     </div>
   </div>
 </div>
+
+<div class="toast" id="toast"></div>
 
 <script>
 // ============================================================
@@ -1096,28 +1204,23 @@ const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 
 const DEFAULT_SETTINGS = {
   team_name: 'SFL Thunder Black',
-  display_name: 'THUNDER BASEBALL',
   age_division: '8U',
   season: 'Spring 2026',
   season_type: 'Coach Pitch',
   manager: 'Joe DeSane',
   next_practice: 'TBD',
   coaches: [
-    { name: 'Joe DeSane', role: 'Manager', initials: 'JD', color: 'gold', isMgr: true },
-    { name: 'Kevin Dubler', role: "Assistant Coach · Micah's Dad", initials: 'KD', color: 'blue' },
-    { name: 'Jeff Sharkey', role: "Assistant Coach · Ryder's Dad", initials: 'JS', color: 'purple' },
-    { name: 'Danny Wright', role: "Assistant Coach · Eli's Dad", initials: 'DW', color: 'green' },
-    { name: 'Ken Langley', role: 'Assistant Coach', initials: 'KL', color: 'muted' },
+    { name: 'Joe DeSane', role: 'Manager', isMgr: true },
+    { name: 'Kevin Dubler', role: "Assistant Coach · Micah's Dad" },
+    { name: 'Jeff Sharkey', role: "Assistant Coach · Ryder's Dad" },
+    { name: 'Danny Wright', role: "Assistant Coach · Eli's Dad" },
+    { name: 'Ken Langley', role: 'Assistant Coach' },
   ],
 };
-
 const DEFAULT_BUDGET = {
   fieldCost: 75, umpire: 25, awayEntry: 87.5, tourneyEntry: 350,
-  tourneys: 3, homeGames: 7, awayGames: 12, equipPerPlayer: 448,
-  fundPct: 50,
+  tourneys: 3, homeGames: 7, awayGames: 12, equipPerPlayer: 448, fundPct: 50,
 };
-
-// Seed players (spreadsheet import)
 const SEED_PLAYERS = [
   { num: '3',  name: 'George Ackal III', jerseySize:'YM', pantsSize:'YM', helmetSize:'', dob:'2017-12-08', address:'8019 Hobbes Way, Palm Beach Gardens, FL 33418', song:'Sunrise — Morgan Wallen', songStart:39,
     parents:[{name:'Ashley Crispin Ackal', phone:'352-284-2321', email:'ashleycrispin@icloud.com', primary:true},{name:'George Ackal Jr', phone:'954-734-0348', email:'lilg0205@att.net', primary:false}]},
@@ -1149,8 +1252,15 @@ const SEED_PLAYERS = [
 let PLAYERS = [];
 let TM_STATE = { expenses: [], donations: [], tournaments: [], budget: { ...DEFAULT_BUDGET } };
 let TEAM_SETTINGS = { ...DEFAULT_SETTINGS };
+let UI = {
+  section: 'roster',
+  finTab: 'ledger',
+  statusFilter: 'all',
+  tournFilter: 'all',
+  ledgerCat: 'all',
+};
 
-const CACHE_KEY = 'thunder_v2_cache';
+const CACHE_KEY = 'thunder_admin_cache_v3';
 
 // ============================================================
 // SUPABASE
@@ -1181,16 +1291,7 @@ async function supa(table, method, body, query, extraPrefer) {
 // CACHE
 // ============================================================
 function saveCache() {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({
-      players: PLAYERS,
-      expenses: TM_STATE.expenses,
-      donations: TM_STATE.donations,
-      tournaments: TM_STATE.tournaments,
-      budget: TM_STATE.budget,
-      settings: TEAM_SETTINGS,
-    }));
-  } catch (e) {}
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ players: PLAYERS, ...TM_STATE, settings: TEAM_SETTINGS })); } catch (e) {}
 }
 function loadCache() {
   try {
@@ -1208,7 +1309,7 @@ function loadCache() {
 }
 
 // ============================================================
-// LOAD FROM SUPABASE
+// LOAD FROM CLOUD
 // ============================================================
 async function loadFromCloud() {
   const [players, parents, expenses, donations, tournaments, config] = await Promise.all([
@@ -1220,13 +1321,10 @@ async function loadFromCloud() {
     supa('team_config', 'GET', null, '?select=*'),
   ]);
   if (players === null) return false;
-
   if (players.length === 0) {
     await seedInitial();
     return await loadFromCloud();
   }
-
-  // Merge parents into players
   const parentsByPlayer = {};
   (parents || []).forEach(p => { (parentsByPlayer[p.player_id] = parentsByPlayer[p.player_id] || []).push(p); });
   PLAYERS = players.map(pl => ({
@@ -1244,7 +1342,6 @@ async function loadFromCloud() {
       .sort((a,b) => (b.is_primary?1:0) - (a.is_primary?1:0))
       .map(p => ({ id: p.id, name: p.name||'', phone: p.phone||'', email: p.email||'', primary: !!p.is_primary })),
   }));
-
   TM_STATE.expenses = expenses || [];
   TM_STATE.donations = donations || [];
   TM_STATE.tournaments = tournaments || [];
@@ -1255,19 +1352,11 @@ async function loadFromCloud() {
   saveCache();
   return true;
 }
-
 async function seedInitial() {
   const rows = SEED_PLAYERS.map((p, i) => ({
-    name: p.name,
-    jersey_number: p.num,
-    jersey_size: p.jerseySize || null,
-    pants_size: p.pantsSize || null,
-    helmet_size: p.helmetSize || null,
-    dob: p.dob || null,
-    address: p.address || null,
-    walk_up_song: p.song || null,
-    walk_up_start_seconds: p.songStart || 0,
-    sort_order: i,
+    name: p.name, jersey_number: p.num, jersey_size: p.jerseySize || null, pants_size: p.pantsSize || null,
+    helmet_size: p.helmetSize || null, dob: p.dob || null, address: p.address || null,
+    walk_up_song: p.song || null, walk_up_start_seconds: p.songStart || 0, sort_order: i,
   }));
   const inserted = await supa('team_players', 'POST', rows);
   if (!inserted) return;
@@ -1277,33 +1366,11 @@ async function seedInitial() {
     if (!local) return;
     (local.parents || []).forEach(par => {
       if (par && (par.name || par.phone || par.email)) {
-        parents.push({
-          player_id: row.id,
-          name: par.name || null,
-          phone: par.phone || null,
-          email: par.email || null,
-          is_primary: !!par.primary,
-        });
+        parents.push({ player_id: row.id, name: par.name || null, phone: par.phone || null, email: par.email || null, is_primary: !!par.primary });
       }
     });
   });
   if (parents.length) await supa('team_parents', 'POST', parents);
-
-  // Tournaments only if there are none yet
-  const existing = await supa('team_tournaments', 'GET', null, '?select=id&limit=1');
-  if (Array.isArray(existing) && existing.length === 0) {
-    await supa('team_tournaments', 'POST', [
-      { name: 'PB Labor Day Bash', start_date: '2026-08-26', end_date: '2026-09-01', status: 'potential', registration_url: 'https://www.hometeamsonline.com/teams/default.asp?u=LAKEWORTHTRAVELBASEB&s=baseball', entry_fee: 350, umpire_fee: 25, estimated_games: 4 },
-      { name: 'PB Fall Bash', start_date: '2026-10-07', end_date: '2026-10-13', status: 'potential', entry_fee: 350, umpire_fee: 25, estimated_games: 4 },
-      { name: 'PB Winter Bash', start_date: '2026-11-11', end_date: '2026-11-17', status: 'potential', entry_fee: 350, umpire_fee: 25, estimated_games: 4 },
-    ]);
-  }
-
-  // Config
-  await supa('team_config', 'POST', [
-    { key: 'budget_model', value: DEFAULT_BUDGET },
-    { key: 'team_settings', value: DEFAULT_SETTINGS },
-  ], '?on_conflict=key', 'resolution=merge-duplicates');
 }
 
 // ============================================================
@@ -1315,27 +1382,23 @@ function fmt$(n) {
   const s = Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: v % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 });
   return (neg ? '−$' : '$') + s;
 }
-function fmtDate(d) {
-  if (!d) return '';
-  try { const dt = new Date(d + 'T00:00:00'); if (isNaN(dt)) return d; return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
-  catch { return d; }
+function fmt$plain(n) {
+  const v = Number(n) || 0;
+  return '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: v % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 });
 }
 function fmtShortDate(d) {
   if (!d) return '';
-  try { const dt = new Date(d + 'T00:00:00'); if (isNaN(dt)) return d; return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
-  catch { return d; }
+  try { const dt = new Date(d + 'T00:00:00'); if (isNaN(dt)) return d; return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch { return d; }
 }
 function digits(s) { return (s || '').replace(/[^\d+]/g, ''); }
-function initials(name) { return (name || '').trim().split(/\s+/).map(w => w[0]).filter(Boolean).slice(0,3).join('').toUpperCase(); }
+function currentBalance() {
+  return TM_STATE.expenses.reduce((s,e) => s + Number(e.amount), 0) + TM_STATE.donations.reduce((s,d) => s + (Number(d.amount) || 0), 0);
+}
 function totalRaised() {
   return TM_STATE.expenses.filter(e => Number(e.amount) > 0).reduce((s,e) => s + Number(e.amount), 0)
        + TM_STATE.donations.reduce((s,d) => s + (Number(d.amount) || 0), 0);
 }
 function totalSpent() { return TM_STATE.expenses.filter(e => Number(e.amount) < 0).reduce((s,e) => s + Math.abs(Number(e.amount)), 0); }
-function currentBalance() {
-  return TM_STATE.expenses.reduce((s,e) => s + Number(e.amount), 0)
-       + TM_STATE.donations.reduce((s,d) => s + (Number(d.amount) || 0), 0);
-}
 function computeSeasonTotal() {
   const b = TM_STATE.budget;
   return (b.homeGames||0) * ((b.fieldCost||0)+(b.umpire||0))
@@ -1343,604 +1406,391 @@ function computeSeasonTotal() {
        + (b.tourneys||0) * ((b.tourneyEntry||0)+(b.umpire||0)*4)
        + (b.equipPerPlayer||0) * PLAYERS.length;
 }
-function computeCostPerPlayer() { return computeSeasonTotal() / Math.max(1, PLAYERS.length); }
-function coachColor(c) {
-  return ({
-    gold: { bg: 'rgba(245,166,35,0.15)', fg: 'var(--gold)' },
-    blue: { bg: 'rgba(96,165,250,0.12)', fg: 'var(--blue)' },
-    green: { bg: 'rgba(34,197,94,0.12)', fg: 'var(--green)' },
-    purple: { bg: 'rgba(168,85,247,0.12)', fg: '#A855F7' },
-    muted: { bg: 'rgba(245,166,35,0.06)', fg: 'var(--muted)' },
-  }[c] || { bg: 'rgba(245,166,35,0.15)', fg: 'var(--gold)' });
+function costPerPlayer() { return computeSeasonTotal() / Math.max(1, PLAYERS.length); }
+function playerRaised(p) {
+  const donations = TM_STATE.donations.filter(d => d.player_id && p.cloudId && d.player_id === p.cloudId).reduce((s,d) => s + (Number(d.amount)||0), 0);
+  const first = (p.name || '').split(' ')[0].toLowerCase();
+  const registered = TM_STATE.expenses.filter(e => Number(e.amount) > 0 && (e.description||'').toLowerCase().includes(first)).reduce((s,e) => s + Number(e.amount), 0);
+  return donations + registered;
+}
+function playerStatus(p) {
+  const target = costPerPlayer();
+  const raised = playerRaised(p);
+  if (raised >= target) return { key: 'paid', label: 'Paid up', cls: 'pill-pos' };
+  if (raised >= target * 0.5) return { key: 'partial', label: 'Partial', cls: 'pill-warn' };
+  if (raised > 0) return { key: 'partial', label: 'Partial', cls: 'pill-warn' };
+  return { key: 'owes', label: 'Owes ' + fmt$plain(target - raised), cls: 'pill-neg' };
+}
+function playerSponsor(p) {
+  return TM_STATE.donations.filter(d => d.player_id && p.cloudId && d.player_id === p.cloudId);
+}
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
 }
 
 // ============================================================
 // NAVIGATION
 // ============================================================
 function navigate(section) {
-  document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
+  UI.section = section;
+  document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   document.getElementById('section-' + section)?.classList.add('active');
   document.querySelector(`[data-section="${section}"]`)?.classList.add('active');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (section === 'home') renderHome();
-  if (section === 'team') renderTeam();
-  if (section === 'money') renderMoney();
-  if (section === 'schedule') renderSchedule();
+  const crumb = document.querySelector('[data-crumb="section"]');
+  if (crumb) crumb.textContent = section.charAt(0).toUpperCase() + section.slice(1);
+  window.scrollTo(0, 0);
+  if (section === 'roster') renderRoster();
+  if (section === 'finances') renderFinances();
+  if (section === 'tournaments') renderTournaments();
   if (section === 'settings') renderSettings();
-}
-function focusQuickExpense() {
-  navigate('home');
-  setTimeout(() => document.getElementById('qx-desc')?.focus(), 100);
 }
 
 // ============================================================
-// TEAM SETTINGS
+// SETTINGS APPLY
 // ============================================================
 function applyTeamSettings() {
   const s = TEAM_SETTINGS;
   const derived = {
-    display_name: s.display_name || 'THUNDER BASEBALL',
-    topbar_sub: `${s.age_division || ''} · ${s.season || ''}`.trim().replace(/^·\s*|\s*·\s*$/g, ''),
     team_name: s.team_name || 'Team',
-    home_sub: `${s.age_division || ''} ${s.season_type || ''} · ${s.season || ''}`.trim().replace(/\s+·\s+·\s+/g, ' · '),
+    topbar_sub: `${s.age_division || ''} · ${s.season || ''}`.replace(/^·\s*|\s*·\s*$/g, ''),
+    topbar_sub_full: `${s.team_name || ''} · ${s.age_division || ''} ${s.season_type || ''} · ${s.season || ''}`.replace(/\s+·\s+·\s+/g, ' · '),
   };
   Object.keys(derived).forEach(k => {
     document.querySelectorAll(`[data-team-field="${k}"]`).forEach(el => { el.textContent = derived[k]; });
   });
-  document.title = `${s.team_name || 'Thunder Baseball'} · Team`;
-  updateHeaderBadges();
-  renderCoachesInSettings();
-}
-
-async function persistTeamSettings() {
-  saveCache();
-  await supa('team_config', 'POST', [{ key: 'team_settings', value: TEAM_SETTINGS }], '?on_conflict=key', 'resolution=merge-duplicates');
-}
-
-async function saveTeamSettings() {
-  const g = id => (document.getElementById(id)?.value || '').trim();
-  TEAM_SETTINGS = {
-    ...TEAM_SETTINGS,
-    team_name: g('setting-team-name'),
-    display_name: g('setting-display-name'),
-    age_division: g('setting-age-division'),
-    season: g('setting-season'),
-    season_type: g('setting-season-type'),
-    manager: g('setting-manager'),
-    next_practice: g('setting-next-practice'),
-  };
-  applyTeamSettings();
-  const btn = document.getElementById('save-settings-btn');
-  if (btn) { btn.textContent = '⏳ Saving…'; }
-  await persistTeamSettings();
-  if (btn) { btn.textContent = '✅ Saved'; setTimeout(() => { if (btn) btn.textContent = 'Save Team Info'; }, 1500); }
-}
-
-function renderSettings() {
-  const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
-  set('setting-team-name', TEAM_SETTINGS.team_name);
-  set('setting-display-name', TEAM_SETTINGS.display_name);
-  set('setting-age-division', TEAM_SETTINGS.age_division);
-  set('setting-season', TEAM_SETTINGS.season);
-  set('setting-season-type', TEAM_SETTINGS.season_type);
-  set('setting-manager', TEAM_SETTINGS.manager);
-  set('setting-next-practice', TEAM_SETTINGS.next_practice);
-  renderCoachesInSettings();
-}
-
-function renderCoachesInSettings() {
-  const el = document.getElementById('settings-coaches-list');
-  if (!el) return;
-  const coaches = TEAM_SETTINGS.coaches || [];
-  if (coaches.length === 0) { el.innerHTML = '<div class="empty">No coaches yet.</div>'; return; }
-  el.innerHTML = coaches.map((c, i) => {
-    const col = coachColor(c.color);
-    return `
-      <div class="coach-row" onclick="openCoachEditor(${i})">
-        <div class="coach-avatar" style="background:${col.bg};color:${col.fg}">${c.initials || initials(c.name)}</div>
-        <div class="coach-info">
-          <div class="coach-name">${c.name}</div>
-          <div class="coach-role">${c.role || ''}</div>
-        </div>
-        ${c.isMgr ? '<span class="badge badge-gold">MGR</span>' : ''}
-        <span style="color:var(--muted)">✎</span>
-      </div>
-    `;
-  }).join('');
+  document.title = `${s.team_name || 'Team'} — Team Manager`;
 }
 
 // ============================================================
-// TOP BADGES
+// ROSTER
 // ============================================================
-function updateHeaderBadges() {
-  const el = document.getElementById('badge-player-count');
-  if (el) el.textContent = PLAYERS.length + ' Players';
-  const bal = document.getElementById('badge-balance');
-  if (bal) {
-    const b = currentBalance();
-    bal.style.display = 'inline-block';
-    bal.textContent = fmt$(b);
-    if (b < 0) { bal.className = 'badge badge-red'; }
-    else { bal.className = 'badge badge-gold'; }
-  }
-}
-
-// ============================================================
-// HOME
-// ============================================================
-function renderHome() {
+function renderRoster() {
+  // KPI strip
   const raised = totalRaised(), spent = totalSpent(), bal = currentBalance();
-  const balEl = document.getElementById('home-balance');
-  if (balEl) balEl.textContent = fmt$(bal);
-  const metric = document.getElementById('home-balance-metric');
-  if (metric) { metric.classList.toggle('pos', bal > 0); metric.classList.toggle('neg', bal < 0); }
-  const sub = document.getElementById('home-balance-sub');
-  if (sub) sub.textContent = `Raised ${fmt$(raised)} · Spent ${fmt$(spent)}`;
-
-  // Fundraising bar
-  const seasonTotal = computeSeasonTotal();
-  const goalPct = TM_STATE.budget.fundPct || 50;
-  const goalDollars = seasonTotal * goalPct / 100;
-  const pct = goalDollars > 0 ? Math.min(100, Math.round(raised / goalDollars * 100)) : 0;
-  document.getElementById('home-goal-raised').textContent = fmt$(raised) + ' raised';
-  document.getElementById('home-goal-target').textContent = `of ${fmt$(goalDollars)} goal (${goalPct}%)`;
-  document.getElementById('home-goal-bar').style.width = pct + '%';
-
-  // Next tournament
-  const nt = TM_STATE.tournaments
-    .filter(t => t.status !== 'completed' && t.start_date)
-    .sort((a,b) => (a.start_date || '').localeCompare(b.start_date || ''))[0];
-  const ntEl = document.getElementById('home-next-tourney');
+  const nt = TM_STATE.tournaments.filter(t => t.status !== 'completed' && t.start_date).sort((a,b) => (a.start_date||'').localeCompare(b.start_date||''))[0];
+  let nextLabel = 'None scheduled';
   if (nt) {
-    const d = new Date(nt.start_date + 'T00:00:00');
-    const days = Math.round((d - new Date()) / 86400000);
-    const cost = (nt.entry_fee || 0) + (nt.umpire_fee || 0) * (nt.estimated_games || 0);
-    ntEl.innerHTML = `
-      <div style="font-family:'Black Han Sans',sans-serif;font-size:22px;color:var(--green);line-height:1.15">${nt.name}</div>
-      <div style="font-size:13px;color:var(--muted)">📅 ${fmtShortDate(nt.start_date)}${nt.end_date && nt.end_date !== nt.start_date ? ' – ' + fmtShortDate(nt.end_date) : ''} ${days >= 0 ? `· in ${days} day${days===1?'':'s'}` : ''}</div>
-      <div style="font-size:13px;color:var(--muted)">${nt.entry_fee ? fmt$(nt.entry_fee) + ' entry' : ''}${nt.estimated_games ? ' · ~' + nt.estimated_games + ' games' : ''}${cost ? ' · est. ' + fmt$(cost) : ''}</div>
-      <div style="display:flex;gap:6px;margin-top:8px">
-        ${nt.registration_url ? `<a class="mini-btn" href="${nt.registration_url}" target="_blank">🔗 Register</a>` : ''}
-        <button class="mini-btn" onclick="openTournamentEditor('${nt.id}')">Edit</button>
-      </div>
-    `;
-  } else {
-    ntEl.innerHTML = '<div class="empty" style="padding:8px 0">No tournaments scheduled. Add one in Schedule.</div>';
+    const days = Math.round((new Date(nt.start_date + 'T00:00:00') - new Date()) / 86400000);
+    nextLabel = `${nt.name}${days >= 0 ? ` · ${days} day${days===1?'':'s'}` : ''}`;
   }
+  document.getElementById('roster-kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Players</div><div class="kpi-value">${PLAYERS.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Raised</div><div class="kpi-value mono" style="color:var(--pos)">${fmt$plain(raised)}</div></div>
+    <div class="kpi"><div class="kpi-label">Spent</div><div class="kpi-value mono" style="color:var(--neg)">${fmt$plain(spent)}</div></div>
+    <div class="kpi"><div class="kpi-label">Balance</div><div class="kpi-value mono" style="color:${bal>=0?'var(--pos)':'var(--neg)'}">${fmt$(bal)}</div></div>
+    <div class="kpi"><div class="kpi-label">Next tournament</div><div class="kpi-value" style="font-size:13px">${nextLabel}</div></div>
+  `;
 
-  // Roster gaps
-  const gaps = [];
-  PLAYERS.forEach(p => {
-    const issues = [];
-    if (!p.parents || !p.parents.some(par => par && (par.phone || par.email))) issues.push('no contact');
-    if (!p.jerseySize) issues.push('no jersey size');
-    if (!p.song) issues.push('no walk-up song');
-    if (issues.length) gaps.push({ p, issues });
-  });
-  const hCard = document.getElementById('home-health-card');
-  const hBody = document.getElementById('home-health-body');
-  if (gaps.length === 0) {
-    hCard.style.display = 'none';
-  } else {
-    hCard.style.display = 'block';
-    hBody.innerHTML = gaps.map(({p, issues}) =>
-      `<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:8px;align-items:center">
-         <div><span class="player-num" style="font-size:14px">#${p.num}</span> <span class="player-name" style="font-size:14px">${p.name}</span></div>
-         <div style="font-size:12px;color:var(--red)">${issues.join(' · ')}</div>
-         <button class="mini-btn" onclick="openPlayerEditor(${PLAYERS.indexOf(p)})">Fix</button>
-       </div>`
-    ).join('');
-  }
+  // Table
+  const q = (document.getElementById('roster-search')?.value || '').toLowerCase().trim();
+  const filter = UI.statusFilter;
+  const rows = PLAYERS.map((p, i) => ({ p, i, status: playerStatus(p), raised: playerRaised(p) }))
+    .filter(({ p, status }) => {
+      if (q && !p.name.toLowerCase().includes(q) && !String(p.num).includes(q)) return false;
+      if (filter !== 'all' && status.key !== filter) return false;
+      return true;
+    });
 
-  // Recent activity
-  const activity = [];
-  TM_STATE.expenses.forEach(e => activity.push({ date: e.date, type: 'exp', row: e }));
-  TM_STATE.donations.forEach(d => activity.push({ date: d.received_date || '', type: 'don', row: d }));
-  activity.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
-  const actEl = document.getElementById('home-activity');
-  if (activity.length === 0) {
-    actEl.innerHTML = '<div class="empty" style="padding:8px 0">No activity yet. Log your first expense above.</div>';
-  } else {
-    actEl.innerHTML = activity.slice(0, 6).map(a => {
-      if (a.type === 'exp') {
-        const amt = Number(a.row.amount);
-        return `<div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px">
-          <div style="min-width:0;flex:1">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px">${a.row.description}</div>
-            <div style="font-size:12px;color:var(--muted)">${fmtShortDate(a.date)} · ${a.row.category || 'expense'}${a.row.paid_by ? ' · ' + a.row.paid_by : ''}</div>
-          </div>
-          <div class="${amt<0?'amt-neg':'amt-pos'}">${fmt$(amt)}</div>
-        </div>`;
-      } else {
-        const player = PLAYERS.find(p => p.cloudId === a.row.player_id);
-        return `<div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px">
-          <div style="min-width:0;flex:1">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px">🎁 ${a.row.sponsor_name}</div>
-            <div style="font-size:12px;color:var(--muted)">${fmtShortDate(a.date)}${player ? ' · #' + player.num + ' ' + player.name : ' · Team-wide'}</div>
-          </div>
-          <div class="amt-pos">${fmt$(Number(a.row.amount)||0)}</div>
-        </div>`;
-      }
-    }).join('');
-  }
-}
-
-async function quickAddExpense() {
-  const desc = document.getElementById('qx-desc').value.trim();
-  const amt = parseFloat(document.getElementById('qx-amount').value);
-  const cat = document.getElementById('qx-cat').value;
-  if (!desc || isNaN(amt)) { alert('Description and amount required'); return; }
-  const today = new Date().toISOString().slice(0,10);
-  const row = { date: today, description: desc, amount: amt, paid_by: TEAM_SETTINGS.manager || null, category: cat || null, receipt_url: null };
-  const saved = await supa('team_expenses', 'POST', row);
-  if (saved && saved[0]) TM_STATE.expenses.unshift(saved[0]);
-  else TM_STATE.expenses.unshift({ ...row, id: 'local-' + Date.now() });
-  document.getElementById('qx-desc').value = '';
-  document.getElementById('qx-amount').value = '';
-  document.getElementById('qx-cat').value = '';
-  saveCache();
-  updateHeaderBadges();
-  renderHome();
-}
-
-// ============================================================
-// TEAM
-// ============================================================
-function renderTeam() {
-  const list = document.getElementById('team-list');
-  document.getElementById('team-count').textContent = PLAYERS.length;
-  const q = (document.getElementById('team-search')?.value || '').toLowerCase().trim();
-  const filtered = PLAYERS.map((p,i) => ({p,i})).filter(({p}) => !q || p.name.toLowerCase().includes(q) || String(p.num).includes(q));
-  if (filtered.length === 0) {
-    list.innerHTML = '<div class="empty">No players match.</div>';
+  const tbody = document.getElementById('roster-body');
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">No players match.</td></tr>`;
     return;
   }
-  list.innerHTML = filtered.map(({p,i}) => {
-    const par1 = p.parents?.[0] || {};
-    const mapsUrl = p.address ? 'https://maps.apple.com/?q=' + encodeURIComponent(p.address) : '';
-    const parentBlocks = (p.parents || []).filter(par => par && (par.name || par.phone || par.email)).map(par => `
-      <div style="padding:10px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.05em">${par.name || 'Parent'}</span>
-          ${par.primary ? '<span class="badge badge-gold">Primary</span>' : ''}
-        </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          ${par.phone ? `<a class="contact-chip" href="tel:${digits(par.phone)}">📞 ${par.phone}</a>` : ''}
-          ${par.phone ? `<a class="contact-chip" href="sms:${digits(par.phone)}">💬 Text</a>` : ''}
-          ${par.email ? `<a class="contact-chip" href="mailto:${par.email}">✉️ Email</a>` : ''}
-        </div>
-      </div>
-    `).join('');
+  tbody.innerHTML = rows.map(({ p, i, status, raised }) => {
+    const par = p.parents?.[0] || {};
+    const sponsors = playerSponsor(p);
+    const sponsorLabel = sponsors.length ? sponsors[0].sponsor_name + (sponsors.length > 1 ? ` +${sponsors.length-1}` : '') : '';
+    const sponsorAmt = sponsors.reduce((s,d) => s + (Number(d.amount)||0), 0);
     return `
-      <div class="row" data-team-idx="${i}">
-        <div class="row-head" onclick="toggleRow(${i})">
-          <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
-            <div class="player-num">#${p.num}</div>
-            <div style="flex:1;min-width:0">
-              <div class="player-name">${p.name}</div>
-              <div class="player-meta">${par1.name || 'No contact'}${par1.phone ? ' · ' + par1.phone : ''}</div>
-            </div>
+      <tr class="clickable" onclick="openPlayerDrawer(${i})">
+        <td class="right mono muted">${p.num}</td>
+        <td><div style="font-weight:500">${p.name}</div></td>
+        <td class="hide-mobile">
+          <div class="contact-cell">
+            <span>
+              <span class="contact-name">${par.name || '<span style="color:var(--text-subtle)">No contact</span>'}</span>
+              ${par.phone ? `<span class="contact-phone-inline mono">${par.phone}</span>` : ''}
+            </span>
+            <span class="contact-icons">
+              ${par.phone ? `<a class="btn btn-icon" onclick="event.stopPropagation()" href="tel:${digits(par.phone)}" title="Call">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></a>` : ''}
+              ${par.phone ? `<a class="btn btn-icon" onclick="event.stopPropagation()" href="sms:${digits(par.phone)}" title="Text">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></a>` : ''}
+              ${par.email ? `<a class="btn btn-icon" onclick="event.stopPropagation()" href="mailto:${par.email}" title="Email">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></a>` : ''}
+            </span>
           </div>
-          <div style="display:flex;gap:6px;align-items:center">
-            ${par1.phone ? `<a class="icon-btn" onclick="event.stopPropagation()" href="tel:${digits(par1.phone)}">📞</a>` : ''}
-            ${par1.phone ? `<a class="icon-btn" onclick="event.stopPropagation()" href="sms:${digits(par1.phone)}">💬</a>` : ''}
-            ${par1.email ? `<a class="icon-btn" onclick="event.stopPropagation()" href="mailto:${par1.email}">✉️</a>` : ''}
-            <span class="row-caret">▾</span>
+        </td>
+        <td class="hide-mobile muted mono text-sm">${p.jerseySize || '—'} · ${p.pantsSize || '—'}</td>
+        <td class="hide-mobile">${sponsorLabel ? `<span>${sponsorLabel}</span> <span class="mono muted text-xs">${fmt$plain(sponsorAmt)}</span>` : '<span style="color:var(--text-subtle)">—</span>'}</td>
+        <td class="right mono">${raised > 0 ? fmt$plain(raised) : '<span style="color:var(--text-subtle)">—</span>'}</td>
+        <td><span class="pill ${status.cls}">${status.label}</span></td>
+        <td>
+          <div class="row-actions">
+            <button class="btn btn-icon" onclick="event.stopPropagation();openPlayerDrawer(${i})" title="Edit">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            </button>
           </div>
-        </div>
-        <div class="row-body">
-          <div class="grid-2" style="gap:10px">
-            ${parentBlocks || '<div class="empty" style="padding:8px 0;text-align:left;color:var(--muted)">No parent contacts yet. Tap Edit to add.</div>'}
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:12px;font-size:13px">
-            <div><div class="field-label">DOB</div><div>${p.dob ? fmtDate(p.dob) : '<span style="color:var(--muted)">—</span>'}</div></div>
-            <div><div class="field-label">Jersey / Pants</div><div>${p.jerseySize || '—'} / ${p.pantsSize || '—'}</div></div>
-            <div style="grid-column:1/-1"><div class="field-label">Address</div>${p.address ? `<a href="${mapsUrl}" target="_blank" style="color:var(--gold);text-decoration:none">📍 ${p.address}</a>` : '<span style="color:var(--muted)">—</span>'}</div>
-            <div style="grid-column:1/-1"><div class="field-label">Walk-up song</div><div>${p.song ? p.song + (p.songStart ? ` <span style="color:var(--muted)">· start ${p.songStart}s</span>` : '') : '<span style="color:var(--red)">— missing —</span>'}</div></div>
-          </div>
-          <div style="margin-top:12px;display:flex;gap:8px">
-            <button class="btn btn-outline btn-sm" onclick="openPlayerEditor(${i})">Edit Player</button>
-          </div>
-        </div>
-      </div>
+        </td>
+      </tr>
     `;
   }).join('');
 }
 
-function toggleRow(i) {
-  const row = document.querySelector(`.row[data-team-idx="${i}"]`);
-  if (row) row.classList.toggle('open');
+function setStatusFilter(f) {
+  UI.statusFilter = f;
+  document.querySelectorAll('[data-status-filter]').forEach(el => el.classList.toggle('active', el.dataset.statusFilter === f));
+  renderRoster();
+}
+
+function bulkContact(kind) {
+  const contacts = [];
+  PLAYERS.forEach(p => (p.parents || []).forEach(par => {
+    if (kind === 'sms' && par.phone) contacts.push(digits(par.phone));
+    if (kind === 'email' && par.email) contacts.push(par.email);
+  }));
+  if (contacts.length === 0) { toast('No contacts on file.'); return; }
+  const unique = [...new Set(contacts)];
+  if (kind === 'sms') {
+    // iOS uses ; as separator; other platforms use ,. Trying comma first is safer.
+    window.location.href = 'sms:' + unique.join(',');
+  } else {
+    window.location.href = 'mailto:?bcc=' + unique.join(',');
+  }
 }
 
 function exportRoster() {
   const rows = [['#','Name','DOB','Jersey','Pants','Address','Walk-Up Song','Parent 1','Phone 1','Email 1','Parent 2','Phone 2','Email 2']];
   PLAYERS.forEach(p => {
     const p1 = p.parents?.[0] || {}, p2 = p.parents?.[1] || {};
-    rows.push([p.num, p.name, p.dob||'', p.jerseySize||'', p.pantsSize||'', p.address||'', p.song||'',
-      p1.name||'', p1.phone||'', p1.email||'',
-      p2.name||'', p2.phone||'', p2.email||'']);
+    rows.push([p.num, p.name, p.dob||'', p.jerseySize||'', p.pantsSize||'', p.address||'', p.song||'', p1.name||'', p1.phone||'', p1.email||'', p2.name||'', p2.phone||'', p2.email||'']);
   });
   const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
-  const a = document.createElement('a');
-  a.href = url; a.download = 'thunder-roster.csv'; a.click();
+  const a = document.createElement('a'); a.href = url; a.download = 'roster.csv'; a.click();
   URL.revokeObjectURL(url);
 }
 
 function exportAll() {
   const data = { settings: TEAM_SETTINGS, players: PLAYERS, expenses: TM_STATE.expenses, donations: TM_STATE.donations, tournaments: TM_STATE.tournaments, budget: TM_STATE.budget };
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type:'application/json'}));
-  const a = document.createElement('a');
-  a.href = url; a.download = 'thunder-team-data.json'; a.click();
+  const a = document.createElement('a'); a.href = url; a.download = 'team-data.json'; a.click();
   URL.revokeObjectURL(url);
 }
 
 // ============================================================
-// PLAYER MODAL
+// PLAYER DRAWER
 // ============================================================
-function openPlayerEditor(idx) {
+function openPlayerDrawer(idx) {
   const isNew = idx === -1;
   const p = isNew ? { num:'', name:'', jerseySize:'', pantsSize:'', helmetSize:'', dob:'', address:'', song:'', songStart:0, parents:[{},{}] } : PLAYERS[idx];
   const par1 = p.parents?.[0] || {}, par2 = p.parents?.[1] || {};
-  document.getElementById('pm-title').textContent = isNew ? 'ADD PLAYER' : 'EDIT PLAYER';
-  document.getElementById('pm-idx').value = isNew ? '' : idx;
+  document.getElementById('pd-title').textContent = isNew ? 'Add player' : p.name;
+  document.getElementById('pd-sub').textContent = isNew ? 'New roster entry' : `#${p.num} · ${p.jerseySize || 'no size'} · ${p.dob || 'no DOB'}`;
+  document.getElementById('pd-idx').value = isNew ? '' : idx;
   const g = id => document.getElementById(id);
-  g('pm-num').value = p.num ?? '';
-  g('pm-name').value = p.name || '';
-  g('pm-jsize').value = p.jerseySize || '';
-  g('pm-psize').value = p.pantsSize || '';
-  g('pm-hsize').value = p.helmetSize || '';
-  g('pm-dob').value = p.dob || '';
-  g('pm-address').value = p.address || '';
-  g('pm-song').value = p.song || '';
-  g('pm-song-start').value = p.songStart || 0;
-  g('pm-p1-name').value = par1.name || '';
-  g('pm-p1-phone').value = par1.phone || '';
-  g('pm-p1-email').value = par1.email || '';
-  g('pm-p2-name').value = par2.name || '';
-  g('pm-p2-phone').value = par2.phone || '';
-  g('pm-p2-email').value = par2.email || '';
-  g('pm-delete').style.display = isNew ? 'none' : 'inline-flex';
-  document.getElementById('player-modal').classList.add('open');
+  g('pd-num').value = p.num ?? '';
+  g('pd-name').value = p.name || '';
+  g('pd-jsize').value = p.jerseySize || '';
+  g('pd-psize').value = p.pantsSize || '';
+  g('pd-hsize').value = p.helmetSize || '';
+  g('pd-dob').value = p.dob || '';
+  g('pd-address').value = p.address || '';
+  g('pd-song').value = p.song || '';
+  g('pd-song-start').value = p.songStart || 0;
+  g('pd-p1-name').value = par1.name || '';
+  g('pd-p1-phone').value = par1.phone || '';
+  g('pd-p1-email').value = par1.email || '';
+  g('pd-p2-name').value = par2.name || '';
+  g('pd-p2-phone').value = par2.phone || '';
+  g('pd-p2-email').value = par2.email || '';
+  g('pd-delete').style.display = isNew ? 'none' : 'inline-flex';
+  document.getElementById('player-drawer-backdrop').classList.add('open');
+  document.getElementById('player-drawer').classList.add('open');
 }
-function closePlayerModal() { document.getElementById('player-modal').classList.remove('open'); }
+function closePlayerDrawer() {
+  document.getElementById('player-drawer-backdrop').classList.remove('open');
+  document.getElementById('player-drawer').classList.remove('open');
+}
 
 async function savePlayer() {
-  const idxStr = document.getElementById('pm-idx').value;
+  const idxStr = document.getElementById('pd-idx').value;
   const isNew = idxStr === '';
   const g = id => document.getElementById(id).value.trim();
-  const num = g('pm-num'); // preserve "00"
   const built = {
-    num,
-    name: g('pm-name'),
-    jerseySize: g('pm-jsize'),
-    pantsSize: g('pm-psize'),
-    helmetSize: g('pm-hsize'),
-    dob: g('pm-dob'),
-    address: g('pm-address'),
-    song: g('pm-song'),
-    songStart: parseInt(g('pm-song-start')) || 0,
+    num: g('pd-num'),
+    name: g('pd-name'),
+    jerseySize: g('pd-jsize'),
+    pantsSize: g('pd-psize'),
+    helmetSize: g('pd-hsize'),
+    dob: g('pd-dob'),
+    address: g('pd-address'),
+    song: g('pd-song'),
+    songStart: parseInt(g('pd-song-start')) || 0,
     parents: [
-      { name: g('pm-p1-name'), phone: g('pm-p1-phone'), email: g('pm-p1-email'), primary: true },
-      { name: g('pm-p2-name'), phone: g('pm-p2-phone'), email: g('pm-p2-email'), primary: false },
+      { name: g('pd-p1-name'), phone: g('pd-p1-phone'), email: g('pd-p1-email'), primary: true },
+      { name: g('pd-p2-name'), phone: g('pd-p2-phone'), email: g('pd-p2-email'), primary: false },
     ],
   };
-  if (!built.name) { alert('Name required'); return; }
+  if (!built.name) { toast('Name required'); return; }
   let idx;
   if (isNew) { PLAYERS.push(built); idx = PLAYERS.length - 1; }
   else { idx = parseInt(idxStr); PLAYERS[idx] = { ...PLAYERS[idx], ...built }; }
-  closePlayerModal();
+  closePlayerDrawer();
   saveCache();
+  renderRoster();
+  toast('Saved');
   await syncPlayer(idx);
-  renderTeam();
-  renderHome();
-  updateHeaderBadges();
 }
-
 async function syncPlayer(idx) {
   const p = PLAYERS[idx];
   if (!p) return;
   const payload = {
-    name: p.name,
-    jersey_number: String(p.num),
-    jersey_size: p.jerseySize || null,
-    pants_size: p.pantsSize || null,
-    helmet_size: p.helmetSize || null,
-    dob: p.dob || null,
-    address: p.address || null,
-    walk_up_song: p.song || null,
-    walk_up_start_seconds: p.songStart || 0,
-    sort_order: idx,
+    name: p.name, jersey_number: String(p.num),
+    jersey_size: p.jerseySize || null, pants_size: p.pantsSize || null, helmet_size: p.helmetSize || null,
+    dob: p.dob || null, address: p.address || null,
+    walk_up_song: p.song || null, walk_up_start_seconds: p.songStart || 0, sort_order: idx,
   };
-  let row;
   if (p.cloudId) {
-    row = await supa('team_players', 'PATCH', payload, `?id=eq.${p.cloudId}`);
+    await supa('team_players', 'PATCH', payload, `?id=eq.${p.cloudId}`);
   } else {
-    row = await supa('team_players', 'POST', payload);
+    const row = await supa('team_players', 'POST', payload);
     if (row && row[0]) p.cloudId = row[0].id;
   }
   if (!p.cloudId) return;
   await supa('team_parents', 'DELETE', null, `?player_id=eq.${p.cloudId}`);
-  const parentPayload = (p.parents || [])
-    .filter(par => par && (par.name || par.phone || par.email))
+  const parents = (p.parents || []).filter(par => par && (par.name || par.phone || par.email))
     .map(par => ({ player_id: p.cloudId, name: par.name || null, phone: par.phone || null, email: par.email || null, is_primary: !!par.primary }));
-  if (parentPayload.length) await supa('team_parents', 'POST', parentPayload);
+  if (parents.length) await supa('team_parents', 'POST', parents);
   saveCache();
 }
-
 async function deletePlayer() {
-  const idxStr = document.getElementById('pm-idx').value;
+  const idxStr = document.getElementById('pd-idx').value;
   if (idxStr === '') return;
   const idx = parseInt(idxStr);
   const p = PLAYERS[idx];
   if (!confirm(`Delete ${p.name}? This can't be undone.`)) return;
   const cloudId = p.cloudId;
   PLAYERS.splice(idx, 1);
-  closePlayerModal();
+  closePlayerDrawer();
   saveCache();
+  renderRoster();
   if (cloudId) await supa('team_players', 'DELETE', null, `?id=eq.${cloudId}`);
-  renderTeam();
-  renderHome();
-  updateHeaderBadges();
+  toast('Deleted');
 }
 
 // ============================================================
-// MONEY
+// FINANCES
 // ============================================================
-function switchMoneyTab(tab) {
-  document.querySelectorAll('.money-panel').forEach(el => el.style.display = 'none');
-  document.querySelectorAll('[data-money-tab]').forEach(el => el.classList.remove('active'));
-  document.getElementById('money-panel-' + tab).style.display = 'block';
-  document.querySelector(`[data-money-tab="${tab}"]`)?.classList.add('active');
+function switchFinTab(tab) {
+  UI.finTab = tab;
+  document.querySelectorAll('.fin-panel').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('[data-fin-tab]').forEach(el => el.classList.remove('active'));
+  document.getElementById('fin-panel-' + tab).style.display = 'block';
+  document.querySelector(`[data-fin-tab="${tab}"]`)?.classList.add('active');
+  if (tab === 'ledger') renderLedger();
+  if (tab === 'sponsors') renderSponsors();
   if (tab === 'budget') renderBudget();
 }
 
-function renderMoney() {
+function renderFinances() {
   const raised = totalRaised(), spent = totalSpent(), bal = currentBalance();
-  document.getElementById('money-raised').textContent = fmt$(raised);
-  document.getElementById('money-spent').textContent = fmt$(spent);
-  const balEl = document.getElementById('money-balance');
-  balEl.textContent = fmt$(bal);
-  balEl.style.color = bal >= 0 ? 'var(--green)' : 'var(--red)';
-  document.getElementById('money-per-player').textContent = fmt$(computeCostPerPlayer());
-  document.getElementById('money-per-player-sub').textContent = 'Season total ' + fmt$(computeSeasonTotal());
+  document.getElementById('finances-kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Raised</div><div class="kpi-value mono" style="color:var(--pos)">${fmt$plain(raised)}</div></div>
+    <div class="kpi"><div class="kpi-label">Spent</div><div class="kpi-value mono" style="color:var(--neg)">${fmt$plain(spent)}</div></div>
+    <div class="kpi"><div class="kpi-label">Balance</div><div class="kpi-value mono" style="color:${bal>=0?'var(--pos)':'var(--neg)'}">${fmt$(bal)}</div></div>
+    <div class="kpi"><div class="kpi-label">Cost / player</div><div class="kpi-value mono">${fmt$plain(costPerPlayer())}</div></div>
+    <div class="kpi"><div class="kpi-label">Season total</div><div class="kpi-value mono">${fmt$plain(computeSeasonTotal())}</div></div>
+  `;
+  switchFinTab(UI.finTab);
+}
 
-  // Expenses
-  const eb = document.getElementById('money-expenses-body');
-  if (TM_STATE.expenses.length === 0) {
-    eb.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">No expenses yet.</td></tr>`;
-  } else {
-    eb.innerHTML = TM_STATE.expenses.map(e => `
+function renderLedger() {
+  // Category chips
+  const cats = ['all', ...new Set(TM_STATE.expenses.map(e => e.category).filter(Boolean))];
+  document.getElementById('ledger-cat-chips').innerHTML = cats.map(c => `
+    <button class="chip ${UI.ledgerCat === c ? 'active' : ''}" onclick="setLedgerCat('${c}')">${c === 'all' ? 'All' : c}</button>
+  `).join('');
+
+  // Rows w/ running balance
+  const q = (document.getElementById('ledger-search')?.value || '').toLowerCase().trim();
+  const sorted = [...TM_STATE.expenses].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  let running = 0;
+  const rowsWithBalance = sorted.map(e => { running += Number(e.amount); return { e, balance: running }; });
+  // Newest first
+  rowsWithBalance.reverse();
+  const filtered = rowsWithBalance.filter(({e}) => {
+    if (UI.ledgerCat !== 'all' && e.category !== UI.ledgerCat) return false;
+    if (q && !(e.description||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('ledger-body');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">No expenses logged. Add your first with the button above or ⌘E.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(({e, balance}) => {
+    const amt = Number(e.amount);
+    return `
       <tr>
-        <td style="white-space:nowrap;color:var(--muted);font-size:12px">${fmtShortDate(e.date)}</td>
+        <td class="mono muted">${fmtShortDate(e.date)}</td>
         <td>${e.description || ''}</td>
-        <td>${e.category ? `<span class="badge badge-gold" style="font-size:10px">${e.category}</span>` : ''}</td>
-        <td style="color:var(--muted);font-size:12px">${e.paid_by || ''}</td>
-        <td style="text-align:right" class="${Number(e.amount)<0?'amt-neg':'amt-pos'}">${fmt$(Number(e.amount))}</td>
-        <td>${e.receipt_url ? `<a href="${e.receipt_url}" target="_blank" style="color:var(--gold)">📎</a>` : ''}</td>
-        <td><button class="btn btn-outline btn-sm" onclick="deleteExpense('${e.id}')">×</button></td>
+        <td class="hide-mobile">${e.category ? `<span class="pill pill-muted">${e.category}</span>` : ''}</td>
+        <td class="hide-mobile muted">${e.paid_by || ''}</td>
+        <td class="right mono">${amt > 0 ? `<span class="amt-pos">${fmt$plain(amt)}</span>` : ''}</td>
+        <td class="right mono">${amt < 0 ? `<span class="amt-neg">${fmt$plain(Math.abs(amt))}</span>` : ''}</td>
+        <td class="right mono hide-mobile" style="color:${balance>=0?'var(--text)':'var(--neg)'}">${fmt$(balance)}</td>
+        <td>
+          <div class="row-actions">
+            ${e.receipt_url ? `<a class="btn btn-icon" href="${e.receipt_url}" target="_blank" title="Receipt">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''}
+            <button class="btn btn-icon btn-danger" onclick="deleteExpense('${e.id}')" title="Delete">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            </button>
+          </div>
+        </td>
       </tr>
-    `).join('');
-  }
-
-  // Donations
-  const db = document.getElementById('money-donations-body');
-  if (TM_STATE.donations.length === 0) {
-    db.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">No donations yet.</td></tr>`;
-  } else {
-    db.innerHTML = TM_STATE.donations.map(d => {
-      const player = PLAYERS.find(p => p.cloudId === d.player_id);
-      return `
-        <tr>
-          <td>${player ? `#${player.num} ${player.name}` : '<span style="color:var(--muted)">Team</span>'}</td>
-          <td>${d.sponsor_name || ''}</td>
-          <td style="color:var(--muted);font-size:12px">${d.check_number || ''}</td>
-          <td style="text-align:right" class="amt-pos">${fmt$(Number(d.amount)||0)}</td>
-          <td style="color:var(--muted);font-size:12px">${fmtShortDate(d.received_date)}</td>
-          <td style="font-size:12px;color:${d.given_to_treasurer_date?'var(--green)':'var(--red)'}">${d.given_to_treasurer_date ? fmtShortDate(d.given_to_treasurer_date) : '⏳ Pending'}</td>
-          <td><button class="btn btn-outline btn-sm" onclick="deleteDonation('${d.id}')">×</button></td>
-        </tr>
-      `;
-    }).join('');
-  }
-
-  // Per-player
-  const target = computeCostPerPlayer();
-  const pb = document.getElementById('money-perplayer-body');
-  pb.innerHTML = PLAYERS.map(p => {
-    const donations = TM_STATE.donations.filter(d => d.player_id && p.cloudId && d.player_id === p.cloudId).reduce((s,d) => s + (Number(d.amount)||0), 0);
-    const firstName = p.name.split(' ')[0].toLowerCase();
-    const registered = TM_STATE.expenses.filter(e => Number(e.amount) > 0 && (e.description||'').toLowerCase().includes(firstName)).reduce((s,e) => s + Number(e.amount), 0);
-    const raisedP = donations + registered;
-    const remaining = target - raisedP;
-    const pct = target > 0 ? Math.min(100, Math.round(raisedP/target*100)) : 0;
-    return `<tr>
-      <td class="player-num" style="font-size:14px">#${p.num}</td>
-      <td class="player-name" style="font-size:14px">${p.name}</td>
-      <td>${fmt$(registered)}</td>
-      <td>${fmt$(donations)}</td>
-      <td style="min-width:180px">
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:3px">
-          <span>${fmt$(raisedP)}</span><span>of ${fmt$(target)}</span>
-        </div>
-        <div class="bar"><div class="bar-fill" style="width:${pct}%;background:${remaining<=0?'var(--green)':'var(--gold)'}"></div></div>
-        <div style="font-size:11px;color:${remaining<=0?'var(--green)':'var(--red)'};margin-top:3px">${remaining<=0 ? '✓ Covered' : fmt$(remaining) + ' remaining'}</div>
-      </td>
-    </tr>`;
+    `;
   }).join('');
+}
+function setLedgerCat(c) { UI.ledgerCat = c; renderLedger(); }
 
-  // Populate donation-player dropdown
-  const sel = document.getElementById('fdo-player');
-  if (sel && sel.dataset.filled !== '1') {
-    sel.innerHTML = '<option value="">— Team-wide —</option>' + PLAYERS.map(p => `<option value="${p.cloudId || ''}">#${p.num} ${p.name}</option>`).join('');
-    sel.dataset.filled = '1';
+function renderSponsors() {
+  const q = (document.getElementById('sponsors-search')?.value || '').toLowerCase().trim();
+  const rows = TM_STATE.donations.filter(d => !q ||
+    (d.sponsor_name||'').toLowerCase().includes(q) ||
+    (PLAYERS.find(p => p.cloudId === d.player_id)?.name || '').toLowerCase().includes(q)
+  );
+  const tbody = document.getElementById('sponsors-body');
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="table-empty">No sponsors yet.</td></tr>`;
+    return;
   }
-
-  // Default dates
-  const today = new Date().toISOString().slice(0,10);
-  if (!document.getElementById('fex-date').value) document.getElementById('fex-date').value = today;
-  if (!document.getElementById('fdo-received').value) document.getElementById('fdo-received').value = today;
-}
-
-async function addExpense() {
-  const desc = document.getElementById('fex-desc').value.trim();
-  const amt = parseFloat(document.getElementById('fex-amount').value);
-  const date = document.getElementById('fex-date').value || new Date().toISOString().slice(0,10);
-  if (!desc || isNaN(amt)) { alert('Description and amount required'); return; }
-  const row = {
-    date, description: desc, amount: amt,
-    paid_by: document.getElementById('fex-paid').value.trim() || null,
-    category: document.getElementById('fex-cat').value || null,
-    receipt_url: document.getElementById('fex-receipt').value.trim() || null,
-  };
-  const saved = await supa('team_expenses', 'POST', row);
-  if (saved && saved[0]) TM_STATE.expenses.unshift(saved[0]);
-  else TM_STATE.expenses.unshift({ ...row, id: 'local-' + Date.now() });
-  ['fex-desc','fex-amount','fex-paid','fex-receipt'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  saveCache();
-  updateHeaderBadges();
-  renderMoney();
-}
-
-async function deleteExpense(id) {
-  if (!confirm('Delete this expense?')) return;
-  if (!String(id).startsWith('local-')) await supa('team_expenses', 'DELETE', null, `?id=eq.${id}`);
-  TM_STATE.expenses = TM_STATE.expenses.filter(e => e.id !== id);
-  saveCache();
-  updateHeaderBadges();
-  renderMoney();
-}
-
-async function addDonation() {
-  const player_id = document.getElementById('fdo-player').value || null;
-  const sponsor = document.getElementById('fdo-sponsor').value.trim();
-  const amt = parseFloat(document.getElementById('fdo-amount').value);
-  if (!sponsor || isNaN(amt)) { alert('Sponsor and amount required'); return; }
-  const row = {
-    player_id: player_id || null,
-    sponsor_name: sponsor,
-    check_number: document.getElementById('fdo-check').value.trim() || null,
-    amount: amt,
-    received_date: document.getElementById('fdo-received').value || null,
-    given_to_treasurer_date: document.getElementById('fdo-given').value || null,
-  };
-  const saved = await supa('team_donations', 'POST', row);
-  if (saved && saved[0]) TM_STATE.donations.unshift(saved[0]);
-  else TM_STATE.donations.unshift({ ...row, id: 'local-' + Date.now() });
-  ['fdo-sponsor','fdo-check','fdo-amount','fdo-received','fdo-given'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  saveCache();
-  updateHeaderBadges();
-  renderMoney();
-}
-
-async function deleteDonation(id) {
-  if (!confirm('Delete this donation?')) return;
-  if (!String(id).startsWith('local-')) await supa('team_donations', 'DELETE', null, `?id=eq.${id}`);
-  TM_STATE.donations = TM_STATE.donations.filter(d => d.id !== id);
-  saveCache();
-  updateHeaderBadges();
-  renderMoney();
+  tbody.innerHTML = rows.map(d => {
+    const player = PLAYERS.find(p => p.cloudId === d.player_id);
+    return `
+      <tr class="clickable" onclick="openSponsorModal('${d.id}')">
+        <td>${player ? `<span class="mono muted">#${player.num}</span> ${player.name}` : '<span style="color:var(--text-subtle)">Team-wide</span>'}</td>
+        <td>${d.sponsor_name || ''}</td>
+        <td class="hide-mobile mono muted">${d.check_number || ''}</td>
+        <td class="right mono amt-pos">${fmt$plain(Number(d.amount)||0)}</td>
+        <td class="hide-mobile mono muted">${fmtShortDate(d.received_date)}</td>
+        <td>${d.given_to_treasurer_date ? `<span class="pill pill-pos mono">${fmtShortDate(d.given_to_treasurer_date)}</span>` : '<span class="pill pill-warn">Pending</span>'}</td>
+        <td>
+          <div class="row-actions">
+            <button class="btn btn-icon btn-danger" onclick="event.stopPropagation();deleteSponsorRow('${d.id}')" title="Delete">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
 
 function renderBudget() {
@@ -1950,92 +1800,215 @@ function renderBudget() {
   set('bm-tourney', b.tourneyEntry); set('bm-tourneys', b.tourneys);
   set('bm-home', b.homeGames); set('bm-away-games', b.awayGames);
   set('bm-equip', b.equipPerPlayer); set('bm-fund', b.fundPct);
-
   const rows = [
-    ['Home games', `${fmt$((b.fieldCost||0)+(b.umpire||0))} × ${b.homeGames||0}`, fmt$(((b.fieldCost||0)+(b.umpire||0))*(b.homeGames||0))],
-    ['Away games', `${fmt$((b.awayEntry||0)+(b.umpire||0))} × ${b.awayGames||0}`, fmt$(((b.awayEntry||0)+(b.umpire||0))*(b.awayGames||0))],
-    ['Tournaments', `${fmt$((b.tourneyEntry||0)+(b.umpire||0)*4)} × ${b.tourneys||0}`, fmt$(((b.tourneyEntry||0)+(b.umpire||0)*4)*(b.tourneys||0))],
-    ['Equipment / player', `${fmt$(b.equipPerPlayer||0)} × ${PLAYERS.length}`, fmt$((b.equipPerPlayer||0)*PLAYERS.length)],
+    ['Home games', `${fmt$plain((b.fieldCost||0)+(b.umpire||0))} × ${b.homeGames||0}`, fmt$plain(((b.fieldCost||0)+(b.umpire||0))*(b.homeGames||0))],
+    ['Away games', `${fmt$plain((b.awayEntry||0)+(b.umpire||0))} × ${b.awayGames||0}`, fmt$plain(((b.awayEntry||0)+(b.umpire||0))*(b.awayGames||0))],
+    ['Tournaments', `${fmt$plain((b.tourneyEntry||0)+(b.umpire||0)*4)} × ${b.tourneys||0}`, fmt$plain(((b.tourneyEntry||0)+(b.umpire||0)*4)*(b.tourneys||0))],
+    ['Equipment', `${fmt$plain(b.equipPerPlayer||0)} × ${PLAYERS.length}`, fmt$plain((b.equipPerPlayer||0)*PLAYERS.length)],
   ];
   document.getElementById('bm-computed').innerHTML = rows.map(([lbl, sub, amt]) => `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--surface2);border-radius:8px">
-      <div><div style="font-weight:700">${lbl}</div><div style="font-size:12px;color:var(--muted)">${sub}</div></div>
-      <div style="font-family:'Black Han Sans',sans-serif;color:var(--gold);font-size:18px">${amt}</div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div><div>${lbl}</div><div class="text-xs text-muted mono">${sub}</div></div>
+      <div class="mono fw-500">${amt}</div>
     </div>
   `).join('') + `
-    <div style="padding:14px;background:rgba(245,166,35,0.08);border:1px solid var(--border-hi);border-radius:8px;margin-top:8px">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:0.06em">Season Total</div>
-        <div style="font-family:'Black Han Sans',sans-serif;font-size:26px;color:var(--gold)">${fmt$(computeSeasonTotal())}</div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:6px">
-        <div style="color:var(--muted);font-size:12px">Cost / player</div>
-        <div style="font-weight:700">${fmt$(computeCostPerPlayer())}</div>
-      </div>
+    <div class="mt-3 pt-3" style="display:flex;justify-content:space-between;border-top:1px solid var(--border-strong);padding-top:12px">
+      <div class="fw-600">Season total</div>
+      <div class="mono fw-600" style="color:var(--text)">${fmt$plain(computeSeasonTotal())}</div>
+    </div>
+    <div style="display:flex;justify-content:space-between">
+      <div class="text-muted text-sm">Cost / player</div>
+      <div class="mono text-sm">${fmt$plain(costPerPlayer())}</div>
     </div>
   `;
 }
-
 async function saveBudget() {
   const g = id => parseFloat(document.getElementById(id).value) || 0;
-  TM_STATE.budget = {
-    fieldCost: g('bm-field'), umpire: g('bm-umpire'), awayEntry: g('bm-away'),
-    tourneyEntry: g('bm-tourney'), tourneys: g('bm-tourneys'),
-    homeGames: g('bm-home'), awayGames: g('bm-away-games'),
-    equipPerPlayer: g('bm-equip'), fundPct: g('bm-fund'),
-  };
+  TM_STATE.budget = { fieldCost: g('bm-field'), umpire: g('bm-umpire'), awayEntry: g('bm-away'), tourneyEntry: g('bm-tourney'), tourneys: g('bm-tourneys'), homeGames: g('bm-home'), awayGames: g('bm-away-games'), equipPerPlayer: g('bm-equip'), fundPct: g('bm-fund') };
   await supa('team_config', 'POST', [{ key: 'budget_model', value: TM_STATE.budget }], '?on_conflict=key', 'resolution=merge-duplicates');
   saveCache();
   renderBudget();
-  renderMoney();
-  renderHome();
+  renderFinances();
+  toast('Budget saved');
 }
 
 // ============================================================
-// SCHEDULE
+// EXPENSE MODAL
 // ============================================================
-function renderSchedule() {
-  const cols = { potential: [], registered: [], completed: [] };
-  TM_STATE.tournaments.forEach(t => (cols[t.status || 'potential'] || cols.potential).push(t));
-  const sortBy = arr => arr.sort((a,b) => (a.start_date || '9999').localeCompare(b.start_date || '9999'));
-  const html = arr => arr.length === 0 ? '<div class="empty" style="padding:12px 0">—</div>' : arr.map(tourneyCardHtml).join('');
-  document.getElementById('sched-potential').innerHTML = html(sortBy(cols.potential));
-  document.getElementById('sched-registered').innerHTML = html(sortBy(cols.registered));
-  document.getElementById('sched-completed').innerHTML = html(sortBy(cols.completed));
+function openExpenseModal() {
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('em-date').value = today;
+  document.getElementById('em-amount').value = '';
+  document.getElementById('em-desc').value = '';
+  document.getElementById('em-cat').value = '';
+  document.getElementById('em-paid').value = TEAM_SETTINGS.manager || '';
+  document.getElementById('em-receipt').value = '';
+  document.getElementById('expense-modal').classList.add('open');
+  setTimeout(() => document.getElementById('em-desc').focus(), 100);
+}
+function closeExpenseModal() { document.getElementById('expense-modal').classList.remove('open'); }
+async function submitExpense() {
+  const desc = document.getElementById('em-desc').value.trim();
+  const amt = parseFloat(document.getElementById('em-amount').value);
+  if (!desc || isNaN(amt)) { toast('Description and amount required'); return; }
+  const row = {
+    date: document.getElementById('em-date').value || new Date().toISOString().slice(0,10),
+    description: desc,
+    amount: amt,
+    paid_by: document.getElementById('em-paid').value.trim() || null,
+    category: document.getElementById('em-cat').value || null,
+    receipt_url: document.getElementById('em-receipt').value.trim() || null,
+  };
+  const saved = await supa('team_expenses', 'POST', row);
+  if (saved && saved[0]) TM_STATE.expenses.unshift(saved[0]);
+  else TM_STATE.expenses.unshift({ ...row, id: 'local-' + Date.now() });
+  closeExpenseModal();
+  saveCache();
+  toast('Expense saved');
+  if (UI.section === 'finances') { renderFinances(); }
+  if (UI.section === 'roster') { renderRoster(); }
+}
+async function deleteExpense(id) {
+  if (!confirm('Delete this expense?')) return;
+  if (!String(id).startsWith('local-')) await supa('team_expenses', 'DELETE', null, `?id=eq.${id}`);
+  TM_STATE.expenses = TM_STATE.expenses.filter(e => e.id !== id);
+  saveCache();
+  renderFinances();
+  toast('Deleted');
 }
 
-function tourneyCardHtml(t) {
-  const dateStr = t.start_date ? (fmtShortDate(t.start_date) + (t.end_date && t.end_date !== t.start_date ? ' – ' + fmtShortDate(t.end_date) : '')) : 'Date TBD';
-  const cost = (t.entry_fee || 0) + (t.umpire_fee || 0) * (t.estimated_games || 0);
-  const actions = [];
-  if (t.registration_url) actions.push(`<a class="mini-btn" href="${t.registration_url}" target="_blank">🔗 Site</a>`);
-  if (t.status === 'potential') actions.push(`<button class="mini-btn" onclick="setTournamentStatus('${t.id}','registered')">✓ Register</button>`);
-  if (t.status === 'registered') actions.push(`<button class="mini-btn" onclick="setTournamentStatus('${t.id}','completed')">🏁 Done</button>`);
-  if (t.status === 'completed') actions.push(`<button class="mini-btn" onclick="setTournamentStatus('${t.id}','registered')">↩ Reopen</button>`);
-  actions.push(`<button class="mini-btn" onclick="openTournamentEditor('${t.id}')">Edit</button>`);
-  return `
-    <div class="tourney">
-      <div class="tourney-name">${t.name}</div>
-      <div class="tourney-meta">📅 ${dateStr}</div>
-      <div class="tourney-meta">${t.entry_fee ? fmt$(t.entry_fee) + ' entry' : ''}${t.estimated_games ? ' · ~' + t.estimated_games + ' games' : ''}${cost ? ' · est. ' + fmt$(cost) : ''}</div>
-      ${t.notes ? `<div style="font-size:12px;color:var(--muted);font-style:italic">${t.notes}</div>` : ''}
-      <div class="tourney-actions">${actions.join('')}</div>
-    </div>
+// ============================================================
+// SPONSOR MODAL
+// ============================================================
+function openSponsorModal(id) {
+  const d = id ? TM_STATE.donations.find(x => x.id === id) : null;
+  document.getElementById('sm-title').textContent = d ? 'Edit sponsor' : 'New sponsor';
+  document.getElementById('sm-id').value = id || '';
+  // Populate player dropdown
+  const sel = document.getElementById('sm-player');
+  sel.innerHTML = '<option value="">Team-wide</option>' + PLAYERS.map(p => `<option value="${p.cloudId||''}">#${p.num} ${p.name}</option>`).join('');
+  sel.value = d?.player_id || '';
+  document.getElementById('sm-sponsor').value = d?.sponsor_name || '';
+  document.getElementById('sm-check').value = d?.check_number || '';
+  document.getElementById('sm-amount').value = d?.amount ?? '';
+  document.getElementById('sm-received').value = d?.received_date || new Date().toISOString().slice(0,10);
+  document.getElementById('sm-given').value = d?.given_to_treasurer_date || '';
+  document.getElementById('sm-delete').style.display = d ? 'inline-flex' : 'none';
+  document.getElementById('sponsor-modal').classList.add('open');
+}
+function closeSponsorModal() { document.getElementById('sponsor-modal').classList.remove('open'); }
+async function saveSponsor() {
+  const id = document.getElementById('sm-id').value;
+  const payload = {
+    player_id: document.getElementById('sm-player').value || null,
+    sponsor_name: document.getElementById('sm-sponsor').value.trim(),
+    check_number: document.getElementById('sm-check').value.trim() || null,
+    amount: parseFloat(document.getElementById('sm-amount').value) || 0,
+    received_date: document.getElementById('sm-received').value || null,
+    given_to_treasurer_date: document.getElementById('sm-given').value || null,
+  };
+  if (!payload.sponsor_name) { toast('Sponsor name required'); return; }
+  if (id) {
+    await supa('team_donations', 'PATCH', payload, `?id=eq.${id}`);
+    const i = TM_STATE.donations.findIndex(x => x.id === id);
+    if (i >= 0) TM_STATE.donations[i] = { ...TM_STATE.donations[i], ...payload };
+  } else {
+    const saved = await supa('team_donations', 'POST', payload);
+    if (saved && saved[0]) TM_STATE.donations.unshift(saved[0]);
+    else TM_STATE.donations.unshift({ ...payload, id: 'local-' + Date.now() });
+  }
+  closeSponsorModal();
+  saveCache();
+  renderFinances();
+  renderRoster();
+  toast('Sponsor saved');
+}
+async function deleteSponsor() {
+  const id = document.getElementById('sm-id').value;
+  if (!id) return;
+  await deleteSponsorRow(id);
+  closeSponsorModal();
+}
+async function deleteSponsorRow(id) {
+  if (!confirm('Delete this sponsor?')) return;
+  if (!String(id).startsWith('local-')) await supa('team_donations', 'DELETE', null, `?id=eq.${id}`);
+  TM_STATE.donations = TM_STATE.donations.filter(x => x.id !== id);
+  saveCache();
+  renderFinances();
+  renderRoster();
+  toast('Deleted');
+}
+
+// ============================================================
+// TOURNAMENTS
+// ============================================================
+function renderTournaments() {
+  const counts = { potential: 0, registered: 0, completed: 0 };
+  TM_STATE.tournaments.forEach(t => { counts[t.status || 'potential']++; });
+  const nt = TM_STATE.tournaments.filter(t => t.status !== 'completed' && t.start_date).sort((a,b) => (a.start_date||'').localeCompare(b.start_date||''))[0];
+  const nextLabel = nt ? `${nt.name} (${fmtShortDate(nt.start_date)})` : 'None scheduled';
+  document.getElementById('tourn-kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Potential</div><div class="kpi-value">${counts.potential}</div></div>
+    <div class="kpi"><div class="kpi-label">Registered</div><div class="kpi-value">${counts.registered}</div></div>
+    <div class="kpi"><div class="kpi-label">Completed</div><div class="kpi-value">${counts.completed}</div></div>
+    <div class="kpi"><div class="kpi-label">Next</div><div class="kpi-value" style="font-size:13px">${nextLabel}</div></div>
   `;
-}
 
-async function setTournamentStatus(id, status) {
+  const rows = [...TM_STATE.tournaments]
+    .filter(t => UI.tournFilter === 'all' || t.status === UI.tournFilter)
+    .sort((a,b) => (a.start_date || '9999').localeCompare(b.start_date || '9999'));
+  const tbody = document.getElementById('tourn-body');
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">No tournaments in this view.</td></tr>`;
+    return;
+  }
+  const statusPill = s => {
+    if (s === 'registered') return `<span class="pill pill-info">Registered</span>`;
+    if (s === 'completed') return `<span class="pill pill-pos">Completed</span>`;
+    return `<span class="pill pill-muted">Potential</span>`;
+  };
+  tbody.innerHTML = rows.map(t => {
+    const cost = (t.entry_fee || 0) + (t.umpire_fee || 0) * (t.estimated_games || 0);
+    const dateStr = t.start_date ? (fmtShortDate(t.start_date) + (t.end_date && t.end_date !== t.start_date ? ' – ' + fmtShortDate(t.end_date) : '')) : 'TBD';
+    const nextStatus = t.status === 'potential' ? 'registered' : t.status === 'registered' ? 'completed' : null;
+    const nextLabel = nextStatus === 'registered' ? 'Register' : nextStatus === 'completed' ? 'Complete' : '';
+    return `
+      <tr class="clickable" onclick="openTournamentModal('${t.id}')">
+        <td class="mono muted">${dateStr}</td>
+        <td><div style="font-weight:500">${t.name}</div>${t.notes ? `<div class="text-xs text-muted">${t.notes}</div>` : ''}</td>
+        <td>${statusPill(t.status)}</td>
+        <td class="right mono hide-mobile">${t.entry_fee ? fmt$plain(t.entry_fee) : '—'}</td>
+        <td class="right mono hide-mobile">${t.umpire_fee ? fmt$plain(t.umpire_fee) : '—'}</td>
+        <td class="right mono hide-mobile">${t.estimated_games || '—'}</td>
+        <td class="right mono">${cost ? fmt$plain(cost) : '—'}</td>
+        <td>
+          <div class="row-actions">
+            ${t.registration_url ? `<a class="btn btn-icon" href="${t.registration_url}" target="_blank" onclick="event.stopPropagation()" title="Registration site">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''}
+            ${nextStatus ? `<button class="btn btn-icon" onclick="event.stopPropagation();setTournStatus('${t.id}','${nextStatus}')" title="${nextLabel}">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>` : ''}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+function setTournFilter(f) {
+  UI.tournFilter = f;
+  document.querySelectorAll('[data-tourn-filter]').forEach(el => el.classList.toggle('active', el.dataset.tournFilter === f));
+  renderTournaments();
+}
+async function setTournStatus(id, status) {
   await supa('team_tournaments', 'PATCH', { status }, `?id=eq.${id}`);
   const t = TM_STATE.tournaments.find(x => x.id === id);
   if (t) t.status = status;
   saveCache();
-  renderSchedule();
-  renderHome();
+  renderTournaments();
+  toast('Status updated');
 }
-
-function openTournamentEditor(id) {
+function openTournamentModal(id) {
   const t = id ? TM_STATE.tournaments.find(x => x.id === id) : null;
-  document.getElementById('tm-title').textContent = t ? 'EDIT TOURNAMENT' : 'ADD TOURNAMENT';
+  document.getElementById('tm-title').textContent = t ? 'Edit tournament' : 'New tournament';
   document.getElementById('tm-id').value = id || '';
   document.getElementById('tm-name').value = t?.name || '';
   document.getElementById('tm-start').value = t?.start_date || '';
@@ -2050,7 +2023,6 @@ function openTournamentEditor(id) {
   document.getElementById('tourney-modal').classList.add('open');
 }
 function closeTourneyModal() { document.getElementById('tourney-modal').classList.remove('open'); }
-
 async function saveTournament() {
   const id = document.getElementById('tm-id').value;
   const payload = {
@@ -2064,7 +2036,7 @@ async function saveTournament() {
     status: document.getElementById('tm-status').value,
     notes: document.getElementById('tm-notes').value.trim() || null,
   };
-  if (!payload.name) { alert('Name required'); return; }
+  if (!payload.name) { toast('Name required'); return; }
   if (id) {
     await supa('team_tournaments', 'PATCH', payload, `?id=eq.${id}`);
     const i = TM_STATE.tournaments.findIndex(x => x.id === id);
@@ -2076,10 +2048,9 @@ async function saveTournament() {
   }
   closeTourneyModal();
   saveCache();
-  renderSchedule();
-  renderHome();
+  renderTournaments();
+  toast('Saved');
 }
-
 async function deleteTournament() {
   const id = document.getElementById('tm-id').value;
   if (!id) return;
@@ -2088,38 +2059,75 @@ async function deleteTournament() {
   TM_STATE.tournaments = TM_STATE.tournaments.filter(x => x.id !== id);
   closeTourneyModal();
   saveCache();
-  renderSchedule();
-  renderHome();
+  renderTournaments();
+  toast('Deleted');
 }
 
 // ============================================================
-// COACHES
+// SETTINGS
 // ============================================================
-function openCoachEditor(idx) {
+function renderSettings() {
+  const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+  set('setting-team-name', TEAM_SETTINGS.team_name);
+  set('setting-age-division', TEAM_SETTINGS.age_division);
+  set('setting-season', TEAM_SETTINGS.season);
+  set('setting-season-type', TEAM_SETTINGS.season_type);
+  set('setting-manager', TEAM_SETTINGS.manager);
+  set('setting-next-practice', TEAM_SETTINGS.next_practice);
+  renderCoachesInSettings();
+}
+function renderCoachesInSettings() {
+  const el = document.getElementById('settings-coaches');
+  if (!el) return;
+  const coaches = TEAM_SETTINGS.coaches || [];
+  if (coaches.length === 0) { el.innerHTML = '<div class="text-muted text-sm">No coaches yet.</div>'; return; }
+  el.innerHTML = coaches.map((c, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-elev-2);border-radius:6px;cursor:pointer" onclick="openCoachModal(${i})">
+      <div style="flex:1">
+        <div style="font-weight:500">${c.name}</div>
+        <div class="text-xs text-muted">${c.role || ''}</div>
+      </div>
+      ${c.isMgr ? '<span class="pill pill-info">Manager</span>' : ''}
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-subtle)"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+    </div>
+  `).join('');
+}
+async function saveTeamSettings() {
+  const g = id => (document.getElementById(id)?.value || '').trim();
+  TEAM_SETTINGS = {
+    ...TEAM_SETTINGS,
+    team_name: g('setting-team-name'),
+    age_division: g('setting-age-division'),
+    season: g('setting-season'),
+    season_type: g('setting-season-type'),
+    manager: g('setting-manager'),
+    next_practice: g('setting-next-practice'),
+  };
+  applyTeamSettings();
+  saveCache();
+  await supa('team_config', 'POST', [{ key: 'team_settings', value: TEAM_SETTINGS }], '?on_conflict=key', 'resolution=merge-duplicates');
+  toast('Saved');
+}
+function openCoachModal(idx) {
   const isNew = idx === -1;
   const c = isNew ? {} : (TEAM_SETTINGS.coaches[idx] || {});
-  document.getElementById('cm-title').textContent = isNew ? 'ADD COACH' : 'EDIT COACH';
+  document.getElementById('cm-title').textContent = isNew ? 'Add coach' : 'Edit coach';
   document.getElementById('cm-idx').value = isNew ? '' : idx;
   document.getElementById('cm-name').value = c.name || '';
   document.getElementById('cm-role').value = c.role || '';
-  document.getElementById('cm-initials').value = c.initials || '';
-  document.getElementById('cm-color').value = c.color || 'gold';
   document.getElementById('cm-mgr').checked = !!c.isMgr;
   document.getElementById('cm-delete').style.display = isNew ? 'none' : 'inline-flex';
   document.getElementById('coach-modal').classList.add('open');
 }
 function closeCoachModal() { document.getElementById('coach-modal').classList.remove('open'); }
-
 async function saveCoach() {
   const idxStr = document.getElementById('cm-idx').value;
   const isNew = idxStr === '';
   const name = document.getElementById('cm-name').value.trim();
-  if (!name) { alert('Name required'); return; }
+  if (!name) { toast('Name required'); return; }
   const built = {
     name,
     role: document.getElementById('cm-role').value.trim(),
-    initials: document.getElementById('cm-initials').value.trim() || initials(name),
-    color: document.getElementById('cm-color').value,
     isMgr: document.getElementById('cm-mgr').checked,
   };
   if (built.isMgr) TEAM_SETTINGS.coaches.forEach(c => c.isMgr = false);
@@ -2127,9 +2135,10 @@ async function saveCoach() {
   else TEAM_SETTINGS.coaches[parseInt(idxStr)] = built;
   closeCoachModal();
   renderCoachesInSettings();
-  await persistTeamSettings();
+  saveCache();
+  await supa('team_config', 'POST', [{ key: 'team_settings', value: TEAM_SETTINGS }], '?on_conflict=key', 'resolution=merge-duplicates');
+  toast('Saved');
 }
-
 async function deleteCoach() {
   const idxStr = document.getElementById('cm-idx').value;
   if (idxStr === '') return;
@@ -2137,8 +2146,29 @@ async function deleteCoach() {
   TEAM_SETTINGS.coaches.splice(parseInt(idxStr), 1);
   closeCoachModal();
   renderCoachesInSettings();
-  await persistTeamSettings();
+  saveCache();
+  await supa('team_config', 'POST', [{ key: 'team_settings', value: TEAM_SETTINGS }], '?on_conflict=key', 'resolution=merge-duplicates');
+  toast('Deleted');
 }
+
+// ============================================================
+// KEYBOARD SHORTCUTS
+// ============================================================
+document.addEventListener('keydown', (e) => {
+  const target = e.target;
+  const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT');
+  if ((e.metaKey || e.ctrlKey) && e.key === 'e' && !isInput) {
+    e.preventDefault();
+    openExpenseModal();
+  }
+  if (e.key === 'Escape') {
+    closePlayerDrawer();
+    closeExpenseModal();
+    closeTourneyModal();
+    closeSponsorModal();
+    closeCoachModal();
+  }
+});
 
 // ============================================================
 // BOOT
@@ -2146,19 +2176,15 @@ async function deleteCoach() {
 (async function boot() {
   loadCache();
   applyTeamSettings();
-  renderHome();
-  updateHeaderBadges();
+  renderRoster();
 
   const ok = await loadFromCloud();
   if (ok) {
     applyTeamSettings();
-    updateHeaderBadges();
-    // Re-render whichever section is active
-    const active = document.querySelector('.content.active')?.id?.replace('section-','') || 'home';
-    navigate(active);
-    console.log('Synced from Supabase');
-  } else {
-    console.log('Offline — using cache');
+    if (UI.section === 'roster') renderRoster();
+    if (UI.section === 'finances') renderFinances();
+    if (UI.section === 'tournaments') renderTournaments();
+    if (UI.section === 'settings') renderSettings();
   }
 })();
 </script>
