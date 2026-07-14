@@ -752,6 +752,10 @@
       <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       Tournaments
     </div>
+    <div class="nav-item" data-section="uniforms" onclick="navigate('uniforms')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>
+      Uniforms
+    </div>
     <div class="nav-item" data-section="settings" onclick="navigate('settings')">
       <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Settings
@@ -988,6 +992,54 @@
               </tr>
             </thead>
             <tbody id="tourn-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ UNIFORMS ============ -->
+    <section class="section" id="section-uniforms">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Uniform Orders</div>
+          <div class="section-sub">Parent-submitted uniform orders for the season</div>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-secondary btn-sm" onclick="copyUniformFormLink()">Copy form link</button>
+          <button class="btn btn-secondary btn-sm hide-mobile" onclick="exportUniforms()">Export CSV</button>
+          <button class="btn btn-primary btn-sm" onclick="loadUniformOrders(true)">Refresh</button>
+        </div>
+      </div>
+
+      <div class="kpi-strip" id="uniforms-kpis"></div>
+
+      <div class="grid-2" style="gap:12px; margin-bottom:16px">
+        <div class="card">
+          <div class="card-title">Game jerseys by size</div>
+          <div id="uniforms-jersey-rollup"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Practice jerseys · hats</div>
+          <div id="uniforms-gear-rollup"></div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th class="hide-mobile" style="width:100px">Submitted</th>
+                <th style="width:70px">Jersey</th>
+                <th style="width:80px" class="hide-mobile">Practice</th>
+                <th style="width:80px" class="hide-mobile">Black hat</th>
+                <th style="width:80px" class="hide-mobile">Grey hat</th>
+                <th class="hide-mobile">Notes</th>
+                <th style="width:60px"></th>
+              </tr>
+            </thead>
+            <tbody id="uniforms-body"></tbody>
           </table>
         </div>
       </div>
@@ -1562,6 +1614,7 @@ function navigate(section) {
   if (section === 'roster') renderRoster();
   if (section === 'finances') renderFinances();
   if (section === 'tournaments') renderTournaments();
+  if (section === 'uniforms') { renderUniforms(); loadUniformOrders(); }
   if (section === 'settings') renderSettings();
 }
 
@@ -1696,6 +1749,150 @@ function exportAll() {
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type:'application/json'}));
   const a = document.createElement('a'); a.href = url; a.download = 'team-data.json'; a.click();
   URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// UNIFORM ORDERS
+// ============================================================
+const JERSEY_ORDER = ['YXS','YS','YM','YL','YXL'];
+const HAT_ORDER    = ['XS','S','M','L','XL'];
+let UNIFORM_ORDERS = [];
+let UNIFORMS_LOADED_AT = 0;
+
+async function loadUniformOrders(force) {
+  const cacheOk = !force && UNIFORMS_LOADED_AT && (Date.now() - UNIFORMS_LOADED_AT < 30_000);
+  if (cacheOk) return;
+  const rows = await supa('uniform_orders', 'GET', null, '?select=*&order=submitted_at.desc');
+  if (Array.isArray(rows)) {
+    UNIFORM_ORDERS = rows;
+    UNIFORMS_LOADED_AT = Date.now();
+    renderUniforms();
+  }
+}
+
+function renderUniforms() {
+  const orders = UNIFORM_ORDERS;
+
+  // KPIs
+  const totalGame     = orders.length;
+  const totalPractice = orders.reduce((s,o) => s + (o.practice_jersey_qty || 0), 0);
+  const totalBlack    = orders.reduce((s,o) => s + (o.black_hat_qty || 0), 0);
+  const totalGrey     = orders.reduce((s,o) => s + (o.grey_hat_qty || 0), 0);
+  const rostered      = PLAYERS.length;
+  const missing       = Math.max(0, rostered - totalGame);
+
+  document.getElementById('uniforms-kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Orders in</div><div class="kpi-value">${totalGame}${rostered ? ` <span style="color:var(--text-subtle);font-size:12px">/ ${rostered}</span>` : ''}</div></div>
+    <div class="kpi"><div class="kpi-label">Still missing</div><div class="kpi-value" style="color:${missing>0?'var(--warn)':'var(--pos)'}">${missing}</div></div>
+    <div class="kpi"><div class="kpi-label">Practice jerseys</div><div class="kpi-value mono">${totalPractice}</div></div>
+    <div class="kpi"><div class="kpi-label">Black hats</div><div class="kpi-value mono">${totalBlack}</div></div>
+    <div class="kpi"><div class="kpi-label">Grey hats</div><div class="kpi-value mono">${totalGrey}</div></div>
+  `;
+
+  // Roll-ups
+  const jerseyCounts   = countBy(orders, o => o.jersey_size, JERSEY_ORDER);
+  const practiceCounts = countBy(orders, o => o.practice_jersey_qty > 0 ? o.practice_jersey_size : null, JERSEY_ORDER, o => o.practice_jersey_qty || 0);
+  const blackCounts    = countBy(orders, o => o.black_hat_qty > 0 ? o.black_hat_size : null, HAT_ORDER, o => o.black_hat_qty || 0);
+  const greyCounts     = countBy(orders, o => o.grey_hat_qty > 0 ? o.grey_hat_size : null, HAT_ORDER, o => o.grey_hat_qty || 0);
+
+  document.getElementById('uniforms-jersey-rollup').innerHTML = rollupChips(JERSEY_ORDER, jerseyCounts);
+  document.getElementById('uniforms-gear-rollup').innerHTML = `
+    <div style="font-size:11px;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.06em;margin:2px 0 6px">Practice</div>
+    ${rollupChips(JERSEY_ORDER, practiceCounts)}
+    <div style="font-size:11px;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 6px">Black hat</div>
+    ${rollupChips(HAT_ORDER, blackCounts)}
+    <div style="font-size:11px;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 6px">Grey hat</div>
+    ${rollupChips(HAT_ORDER, greyCounts)}
+  `;
+
+  // Table
+  const tbody = document.getElementById('uniforms-body');
+  if (!orders.length) {
+    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">No orders yet. Share the parent form link to get started.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = orders.map(o => `
+    <tr>
+      <td><div style="font-weight:600">${esc(o.player_name)}</div></td>
+      <td class="hide-mobile mono" style="color:var(--text-muted);font-size:12px">${fmtDate(o.submitted_at)}</td>
+      <td><span style="display:inline-block;padding:2px 8px;border-radius:6px;background:var(--bg-elev-2);border:1px solid var(--border);font-weight:600;font-size:12px">${esc(o.jersey_size || '—')}</span></td>
+      <td class="hide-mobile mono">${o.practice_jersey_qty ? `${o.practice_jersey_qty} × ${esc(o.practice_jersey_size)}` : '<span style="color:var(--text-subtle)">—</span>'}</td>
+      <td class="hide-mobile mono">${o.black_hat_qty ? `${o.black_hat_qty} × ${esc(o.black_hat_size)}` : '<span style="color:var(--text-subtle)">—</span>'}</td>
+      <td class="hide-mobile mono">${o.grey_hat_qty ? `${o.grey_hat_qty} × ${esc(o.grey_hat_size)}` : '<span style="color:var(--text-subtle)">—</span>'}</td>
+      <td class="hide-mobile" style="color:var(--text-muted);font-size:12px">${esc(o.notes || '')}</td>
+      <td class="right"><button class="btn btn-ghost btn-xs" onclick="deleteUniformOrder('${o.id}')" title="Delete">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+function countBy(items, keyFn, order, qtyFn) {
+  const counts = Object.fromEntries(order.map(k => [k, 0]));
+  items.forEach(it => {
+    const k = keyFn(it);
+    if (k && counts.hasOwnProperty(k)) counts[k] += qtyFn ? qtyFn(it) : 1;
+  });
+  return counts;
+}
+
+function rollupChips(order, counts) {
+  const total = order.reduce((s,k) => s + (counts[k]||0), 0);
+  if (!total) return `<div style="color:var(--text-subtle);font-size:12px">None</div>`;
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px">${
+    order.map(k => {
+      const v = counts[k] || 0;
+      const active = v > 0;
+      return `<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;background:${active?'var(--bg-elev-2)':'transparent'};border:1px solid ${active?'var(--border-strong)':'var(--border)'};font-size:12px">
+        <span style="font-weight:600;color:${active?'var(--text)':'var(--text-subtle)'}">${k}</span>
+        <span class="mono" style="color:${active?'var(--info)':'var(--text-subtle)'}">${v}</span>
+      </div>`;
+    }).join('')
+  }</div>`;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function deleteUniformOrder(id) {
+  if (!confirm('Delete this uniform order?')) return;
+  const ok = await supa('uniform_orders', 'DELETE', null, `?id=eq.${id}`);
+  if (ok) {
+    UNIFORM_ORDERS = UNIFORM_ORDERS.filter(o => o.id !== id);
+    renderUniforms();
+    toast('Order deleted');
+  } else {
+    toast('Delete failed');
+  }
+}
+
+function exportUniforms() {
+  const rows = [['Player','Submitted','Game Jersey','Practice Qty','Practice Size','Black Hat Qty','Black Hat Size','Grey Hat Qty','Grey Hat Size','Notes']];
+  UNIFORM_ORDERS.forEach(o => {
+    rows.push([
+      o.player_name, o.submitted_at, o.jersey_size || '',
+      o.practice_jersey_qty || 0, o.practice_jersey_size || '',
+      o.black_hat_qty || 0, o.black_hat_size || '',
+      o.grey_hat_qty || 0, o.grey_hat_size || '',
+      o.notes || '',
+    ]);
+  });
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  const a = document.createElement('a'); a.href = url; a.download = 'uniform-orders.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function copyUniformFormLink() {
+  const link = new URL('uniform.html', window.location.href).toString();
+  navigator.clipboard.writeText(link).then(
+    () => toast('Form link copied'),
+    () => toast(link)
+  );
 }
 
 // ============================================================
