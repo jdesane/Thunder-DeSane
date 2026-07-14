@@ -1887,11 +1887,11 @@ function exportUniforms() {
   URL.revokeObjectURL(url);
 }
 
+const UNIFORM_FORM_URL = 'https://jdesane.github.io/thunder-uniform-form/';
 function copyUniformFormLink() {
-  const link = new URL('uniform.html', window.location.href).toString();
-  navigator.clipboard.writeText(link).then(
+  navigator.clipboard.writeText(UNIFORM_FORM_URL).then(
     () => toast('Form link copied'),
-    () => toast(link)
+    () => toast(UNIFORM_FORM_URL)
   );
 }
 
