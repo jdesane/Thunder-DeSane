@@ -1163,6 +1163,15 @@
       </div>
       <div class="field mt-3" style="max-width:120px"><label class="field-label">Start (sec)</label><input class="input" type="number" id="pd-song-start" min="0"></div>
     </div>
+
+    <div class="drawer-section" id="pd-financials" style="display:none">
+      <div class="drawer-section-title flex items-center" style="justify-content:space-between">
+        <span>Individual charges</span>
+        <button class="btn btn-secondary btn-xs" onclick="addPlayerCharge()">+ Add charge</button>
+      </div>
+      <div id="pd-charges-summary" class="text-xs text-muted mb-2"></div>
+      <div id="pd-charges-list"></div>
+    </div>
   </div>
   <div class="drawer-foot">
     <button class="btn btn-danger" id="pd-delete" onclick="deletePlayer()">Delete</button>
@@ -1195,7 +1204,13 @@
         </div>
         <div class="field"><label class="field-label">Paid by</label><input class="input" id="em-paid" placeholder="Joe"></div>
       </div>
-      <div class="field"><label class="field-label">Receipt URL (optional)</label><input class="input" id="em-receipt" placeholder="https://drive.google.com/…"></div>
+      <div class="grid-2" style="gap:10px">
+        <div class="field"><label class="field-label">Player (optional)</label>
+          <select class="input" id="em-player"><option value="">— Team-wide —</option></select>
+        </div>
+        <div class="field"><label class="field-label">Receipt URL (optional)</label><input class="input" id="em-receipt" placeholder="https://drive.google.com/…"></div>
+      </div>
+      <div class="text-xs text-muted" style="margin-top:-4px">Attach to a player when the cost is charged to them individually (e.g. replacement jersey).</div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeExpenseModal()">Cancel</button>
@@ -1575,19 +1590,32 @@ function computeContingency() {
 }
 function computeSeasonTotal() { return computeSubtotal() + computeContingency(); }
 function costPerPlayer() { return computeSeasonTotal() / Math.max(1, PLAYERS.length); }
+function playerAttachedExpenses(p) {
+  if (!p.cloudId) return [];
+  return TM_STATE.expenses.filter(e => e.player_id === p.cloudId);
+}
+function playerCharges(p) {
+  // Individual costs charged TO the player (negative attributed expenses treated as amount owed by that player)
+  return playerAttachedExpenses(p).filter(e => Number(e.amount) < 0).reduce((s,e) => s + Math.abs(Number(e.amount)), 0);
+}
+function playerCredits(p) {
+  // Positive attributed expenses credited to the player (e.g. their registration payment)
+  return playerAttachedExpenses(p).filter(e => Number(e.amount) > 0).reduce((s,e) => s + Number(e.amount), 0);
+}
 function playerRaised(p) {
   const donations = TM_STATE.donations.filter(d => d.player_id && p.cloudId && d.player_id === p.cloudId).reduce((s,d) => s + (Number(d.amount)||0), 0);
-  const first = (p.name || '').split(' ')[0].toLowerCase();
-  const registered = TM_STATE.expenses.filter(e => Number(e.amount) > 0 && (e.description||'').toLowerCase().includes(first)).reduce((s,e) => s + Number(e.amount), 0);
-  return donations + registered;
+  return donations + playerCredits(p);
+}
+function playerTarget(p) {
+  return costPerPlayer() + playerCharges(p);
 }
 function playerStatus(p) {
-  const target = costPerPlayer();
+  const target = playerTarget(p);
   const raised = playerRaised(p);
-  if (raised >= target) return { key: 'paid', label: 'Paid up', cls: 'pill-pos' };
-  if (raised >= target * 0.5) return { key: 'partial', label: 'Partial', cls: 'pill-warn' };
-  if (raised > 0) return { key: 'partial', label: 'Partial', cls: 'pill-warn' };
-  return { key: 'owes', label: 'Owes ' + fmt$plain(target - raised), cls: 'pill-neg' };
+  const owed = target - raised;
+  if (owed <= 0) return { key: 'paid', label: 'Paid up', cls: 'pill-pos' };
+  if (raised > 0) return { key: 'partial', label: 'Partial · owes ' + fmt$plain(owed), cls: 'pill-warn' };
+  return { key: 'owes', label: 'Owes ' + fmt$plain(owed), cls: 'pill-neg' };
 }
 function playerSponsor(p) {
   return TM_STATE.donations.filter(d => d.player_id && p.cloudId && d.player_id === p.cloudId);
@@ -1922,8 +1950,62 @@ function openPlayerDrawer(idx) {
   g('pd-p2-phone').value = par2.phone || '';
   g('pd-p2-email').value = par2.email || '';
   g('pd-delete').style.display = isNew ? 'none' : 'inline-flex';
+  renderPlayerFinancials(isNew ? null : p);
   document.getElementById('player-drawer-backdrop').classList.add('open');
   document.getElementById('player-drawer').classList.add('open');
+}
+
+function renderPlayerFinancials(p) {
+  const wrap = document.getElementById('pd-financials');
+  const summary = document.getElementById('pd-charges-summary');
+  const list = document.getElementById('pd-charges-list');
+  if (!p || !p.cloudId) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  const target = playerTarget(p);
+  const raised = playerRaised(p);
+  const charges = playerCharges(p);
+  const owed = target - raised;
+  summary.innerHTML = `Base ${fmt$plain(costPerPlayer())} + individual ${fmt$plain(charges)} = target ${fmt$plain(target)} · raised ${fmt$plain(raised)} · <span style="color:${owed<=0?'var(--pos)':'var(--neg)'}">${owed<=0 ? 'paid up' : 'owes ' + fmt$plain(owed)}</span>`;
+  const rows = playerAttachedExpenses(p).sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  if (rows.length === 0) {
+    list.innerHTML = '<div class="text-sm text-muted" style="padding:8px 0">No individual charges yet.</div>';
+    return;
+  }
+  list.innerHTML = `<table class="data" style="margin-top:6px">
+    <thead><tr><th style="width:70px">Date</th><th>Description</th><th class="right" style="width:80px">Amount</th><th style="width:30px"></th></tr></thead>
+    <tbody>
+    ${rows.map(e => {
+      const amt = Number(e.amount);
+      return `<tr>
+        <td class="mono muted">${fmtShortDate(e.date)}</td>
+        <td>${e.description || ''}</td>
+        <td class="right mono ${amt<0?'amt-neg':'amt-pos'}">${amt<0 ? '−' : ''}${fmt$plain(Math.abs(amt))}</td>
+        <td><button class="btn btn-icon btn-danger" onclick="deletePlayerCharge('${e.id}')" title="Delete"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button></td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table>`;
+}
+
+function addPlayerCharge() {
+  const idxStr = document.getElementById('pd-idx').value;
+  if (idxStr === '') { toast('Save the player first, then add charges.'); return; }
+  const p = PLAYERS[parseInt(idxStr)];
+  if (!p || !p.cloudId) { toast('Player not yet synced — try again in a second.'); return; }
+  openExpenseModal(p.cloudId);
+}
+
+async function deletePlayerCharge(id) {
+  if (!confirm('Delete this charge?')) return;
+  if (!String(id).startsWith('local-')) await supa('team_expenses', 'DELETE', null, `?id=eq.${id}`);
+  TM_STATE.expenses = TM_STATE.expenses.filter(e => e.id !== id);
+  saveCache();
+  // Refresh the drawer contents
+  const idxStr = document.getElementById('pd-idx').value;
+  if (idxStr !== '') renderPlayerFinancials(PLAYERS[parseInt(idxStr)]);
+  renderRoster();
+  renderFinances();
+  toast('Deleted');
 }
 function closePlayerDrawer() {
   document.getElementById('player-drawer-backdrop').classList.remove('open');
@@ -2049,10 +2131,11 @@ function renderLedger() {
   }
   tbody.innerHTML = filtered.map(({e, balance}) => {
     const amt = Number(e.amount);
+    const attachedPlayer = e.player_id ? PLAYERS.find(p => p.cloudId === e.player_id) : null;
     return `
       <tr>
         <td class="mono muted">${fmtShortDate(e.date)}</td>
-        <td>${e.description || ''}</td>
+        <td>${e.description || ''}${attachedPlayer ? ` <span class="pill pill-info" style="margin-left:6px">#${attachedPlayer.num} ${attachedPlayer.name}</span>` : ''}</td>
         <td class="hide-mobile">${e.category ? `<span class="pill pill-muted">${e.category}</span>` : ''}</td>
         <td class="hide-mobile muted">${e.paid_by || ''}</td>
         <td class="right mono">${amt > 0 ? `<span class="amt-pos">${fmt$plain(amt)}</span>` : ''}</td>
@@ -2254,7 +2337,7 @@ async function saveBudget() { await persistBudget(); toast('Budget saved'); }
 // ============================================================
 // EXPENSE MODAL
 // ============================================================
-function openExpenseModal() {
+function openExpenseModal(preselectPlayerCloudId) {
   const today = new Date().toISOString().slice(0,10);
   document.getElementById('em-date').value = today;
   document.getElementById('em-amount').value = '';
@@ -2262,6 +2345,9 @@ function openExpenseModal() {
   document.getElementById('em-cat').value = '';
   document.getElementById('em-paid').value = TEAM_SETTINGS.manager || '';
   document.getElementById('em-receipt').value = '';
+  const sel = document.getElementById('em-player');
+  sel.innerHTML = '<option value="">— Team-wide —</option>' + PLAYERS.map(p => `<option value="${p.cloudId||''}">#${p.num} ${p.name}</option>`).join('');
+  sel.value = preselectPlayerCloudId || '';
   document.getElementById('expense-modal').classList.add('open');
   setTimeout(() => document.getElementById('em-desc').focus(), 100);
 }
@@ -2277,6 +2363,7 @@ async function submitExpense() {
     paid_by: document.getElementById('em-paid').value.trim() || null,
     category: document.getElementById('em-cat').value || null,
     receipt_url: document.getElementById('em-receipt').value.trim() || null,
+    player_id: document.getElementById('em-player').value || null,
   };
   const saved = await supa('team_expenses', 'POST', row);
   if (saved && saved[0]) TM_STATE.expenses.unshift(saved[0]);
@@ -2284,8 +2371,14 @@ async function submitExpense() {
   closeExpenseModal();
   saveCache();
   toast('Expense saved');
-  if (UI.section === 'finances') { renderFinances(); }
-  if (UI.section === 'roster') { renderRoster(); }
+  // Always keep views in sync — expense may be player-attached and affect status/target
+  try { renderFinances(); } catch (e) {}
+  try { renderRoster(); } catch (e) {}
+  // If the player drawer is open on this player, refresh it
+  const drawerIdx = document.getElementById('pd-idx')?.value;
+  if (drawerIdx !== '' && drawerIdx != null && document.getElementById('player-drawer')?.classList.contains('open')) {
+    renderPlayerFinancials(PLAYERS[parseInt(drawerIdx)]);
+  }
 }
 async function deleteExpense(id) {
   if (!confirm('Delete this expense?')) return;
@@ -2293,6 +2386,7 @@ async function deleteExpense(id) {
   TM_STATE.expenses = TM_STATE.expenses.filter(e => e.id !== id);
   saveCache();
   renderFinances();
+  try { renderRoster(); } catch (e) {}
   toast('Deleted');
 }
 
