@@ -846,6 +846,7 @@
 
       <div class="tabs">
         <button class="tab active" data-fin-tab="ledger" onclick="switchFinTab('ledger')">Ledger</button>
+        <button class="tab" data-fin-tab="payments" onclick="switchFinTab('payments')">Payments</button>
         <button class="tab" data-fin-tab="sponsors" onclick="switchFinTab('sponsors')">Sponsors</button>
         <button class="tab" data-fin-tab="budget" onclick="switchFinTab('budget')">Budget</button>
       </div>
@@ -877,6 +878,34 @@
                 </tr>
               </thead>
               <tbody id="ledger-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payments -->
+      <div class="fin-panel" id="fin-panel-payments" style="display:none">
+        <div class="toolbar">
+          <div class="search"><input class="input" id="payments-search" placeholder="Search…" oninput="renderPayments()"></div>
+          <select class="input" id="payments-player-filter" style="max-width:200px" onchange="onPaymentsPlayerFilter(this.value)">
+            <option value="">All players</option>
+          </select>
+          <div class="toolbar-spacer"></div>
+        </div>
+        <div class="table-wrap">
+          <div class="table-scroll">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th style="width:90px">Date</th>
+                  <th>Player</th>
+                  <th class="hide-mobile" style="width:90px">Method</th>
+                  <th class="hide-mobile">Reference</th>
+                  <th class="right" style="width:110px">Amount</th>
+                  <th style="width:60px"></th>
+                </tr>
+              </thead>
+              <tbody id="payments-body"></tbody>
             </table>
           </div>
         </div>
@@ -1083,6 +1112,28 @@
         </div>
 
         <div class="card mb-4">
+          <div class="card-title">Payment plan</div>
+          <div class="flex flex-col gap-3">
+            <div class="grid-2" style="gap:10px">
+              <div class="field"><label class="field-label">Initial deposit ($)</label><input class="input" type="number" step="1" id="pp-initial-amount"></div>
+              <div class="field"><label class="field-label">Initial due date</label><input class="input" type="date" id="pp-initial-due"></div>
+            </div>
+            <div class="grid-3" style="gap:10px">
+              <div class="field"><label class="field-label">Sept due</label><input class="input" type="date" id="pp-sept-due"></div>
+              <div class="field"><label class="field-label">Oct due</label><input class="input" type="date" id="pp-oct-due"></div>
+              <div class="field"><label class="field-label">Nov due</label><input class="input" type="date" id="pp-nov-due"></div>
+            </div>
+            <div class="text-xs text-muted">Each player's monthly amount = (their balance − initial − credits) ÷ 3. Individual charges and team fundraising both flow into the math automatically.</div>
+            <div class="grid-2" style="gap:10px">
+              <div class="field"><label class="field-label">Zelle handle</label><input class="input" id="pp-zelle" placeholder="joe@example.com or 561-…"></div>
+              <div class="field"><label class="field-label">Venmo handle</label><input class="input" id="pp-venmo" placeholder="@joedesane"></div>
+            </div>
+            <div class="field"><label class="field-label">Checks payable to</label><input class="input" id="pp-check-to" placeholder="SFL Thunder Black"></div>
+            <div><button class="btn btn-primary" id="save-payment-plan-btn" onclick="savePaymentPlan()">Save payment plan</button></div>
+          </div>
+        </div>
+
+        <div class="card mb-4">
           <div class="card-title">Tools</div>
           <div class="flex flex-col gap-2">
             <a class="btn btn-ghost" href="coach.html" style="justify-content:flex-start;padding:8px 10px">Coach tools — practice plans, lineup, stats</a>
@@ -1171,6 +1222,23 @@
       </div>
       <div id="pd-charges-summary" class="text-xs text-muted mb-2"></div>
       <div id="pd-charges-list"></div>
+    </div>
+
+    <div class="drawer-section" id="pd-invoice-section" style="display:none">
+      <div class="drawer-section-title flex items-center" style="justify-content:space-between">
+        <span>Payments &amp; invoice</span>
+        <div class="flex gap-1">
+          <button class="btn btn-secondary btn-xs" onclick="printInvoice()">Preview</button>
+          <button class="btn btn-primary btn-xs" onclick="emailInvoice()">📧 Email</button>
+        </div>
+      </div>
+      <div id="pd-invoice-summary" class="text-xs text-muted mb-3"></div>
+      <div id="pd-schedule" class="mb-3"></div>
+      <div class="flex items-center" style="justify-content:space-between;margin-bottom:6px">
+        <div class="drawer-section-title" style="margin:0;padding:0;border:none">Payments received</div>
+        <button class="btn btn-secondary btn-xs" onclick="openPaymentModal()">+ Log payment</button>
+      </div>
+      <div id="pd-payments-list"></div>
     </div>
   </div>
   <div class="drawer-foot">
@@ -1310,6 +1378,44 @@
   </div>
 </div>
 
+<!-- ============================== MODAL: Log payment ============================== -->
+<div class="modal-backdrop" id="payment-modal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-head">
+      <div class="modal-title" id="ppm-title">Log payment</div>
+      <button class="btn btn-icon" onclick="closePaymentModal()">✕</button>
+    </div>
+    <input type="hidden" id="ppm-id">
+    <input type="hidden" id="ppm-player-id">
+    <div class="modal-body">
+      <div class="text-sm text-muted" id="ppm-player-label"></div>
+      <div class="grid-2" style="gap:10px">
+        <div class="field"><label class="field-label">Date</label><input class="input" type="date" id="ppm-date"></div>
+        <div class="field"><label class="field-label">Amount ($)</label><input class="input" type="number" step="0.01" id="ppm-amount" placeholder="500"></div>
+      </div>
+      <div class="grid-2" style="gap:10px">
+        <div class="field"><label class="field-label">Method</label>
+          <select class="input" id="ppm-method">
+            <option value="">—</option>
+            <option value="zelle">Zelle</option>
+            <option value="venmo">Venmo</option>
+            <option value="check">Check</option>
+            <option value="cash">Cash</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="field"><label class="field-label">Reference (check # / confirmation)</label><input class="input" id="ppm-ref"></div>
+      </div>
+      <div class="field"><label class="field-label">Notes (optional)</label><input class="input" id="ppm-notes"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger" id="ppm-delete" onclick="deletePayment()">Delete</button>
+      <button class="btn btn-ghost" onclick="closePaymentModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="savePayment()">Save payment</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1398,7 +1504,17 @@ const SEED_PLAYERS = [
 // STATE
 // ============================================================
 let PLAYERS = [];
-let TM_STATE = { expenses: [], donations: [], tournaments: [], budget: { ...DEFAULT_BUDGET } };
+const DEFAULT_PAYMENT_PLAN = {
+  initial_amount: 500,
+  initial_due: '2026-08-15',
+  installments: [
+    { key: 'sept', label: 'September', due_date: '2026-09-01' },
+    { key: 'oct',  label: 'October',  due_date: '2026-10-01' },
+    { key: 'nov',  label: 'November', due_date: '2026-11-01' },
+  ],
+};
+
+let TM_STATE = { expenses: [], donations: [], tournaments: [], payments: [], budget: { ...DEFAULT_BUDGET }, payment_plan: JSON.parse(JSON.stringify(DEFAULT_PAYMENT_PLAN)) };
 let TEAM_SETTINGS = { ...DEFAULT_SETTINGS };
 let UI = {
   section: 'roster',
@@ -1406,6 +1522,7 @@ let UI = {
   statusFilter: 'all',
   tournFilter: 'all',
   ledgerCat: 'all',
+  paymentsFilterPlayer: '',
 };
 
 const CACHE_KEY = 'thunder_admin_cache_v3';
@@ -1450,7 +1567,9 @@ function loadCache() {
     if (Array.isArray(c.expenses)) TM_STATE.expenses = c.expenses;
     if (Array.isArray(c.donations)) TM_STATE.donations = c.donations;
     if (Array.isArray(c.tournaments)) TM_STATE.tournaments = c.tournaments;
+    if (Array.isArray(c.payments)) TM_STATE.payments = c.payments;
     if (c.budget) TM_STATE.budget = migrateBudget(c.budget);
+    if (c.payment_plan) TM_STATE.payment_plan = { ...DEFAULT_PAYMENT_PLAN, ...c.payment_plan };
     if (c.settings) TEAM_SETTINGS = { ...DEFAULT_SETTINGS, ...c.settings };
     return true;
   } catch (e) { return false; }
@@ -1460,12 +1579,13 @@ function loadCache() {
 // LOAD FROM CLOUD
 // ============================================================
 async function loadFromCloud() {
-  const [players, parents, expenses, donations, tournaments, config] = await Promise.all([
+  const [players, parents, expenses, donations, tournaments, payments, config] = await Promise.all([
     supa('team_players', 'GET', null, '?select=*&order=sort_order.asc'),
     supa('team_parents', 'GET', null, '?select=*'),
     supa('team_expenses', 'GET', null, '?select=*&order=date.desc'),
     supa('team_donations', 'GET', null, '?select=*&order=received_date.desc.nullslast'),
     supa('team_tournaments', 'GET', null, '?select=*&order=start_date.asc.nullslast'),
+    supa('team_player_payments', 'GET', null, '?select=*&order=date.desc'),
     supa('team_config', 'GET', null, '?select=*'),
   ]);
   if (players === null) return false;
@@ -1493,9 +1613,11 @@ async function loadFromCloud() {
   TM_STATE.expenses = expenses || [];
   TM_STATE.donations = donations || [];
   TM_STATE.tournaments = tournaments || [];
+  TM_STATE.payments = payments || [];
   (config || []).forEach(c => {
     if (c.key === 'budget_model' && c.value) TM_STATE.budget = migrateBudget(c.value);
     if (c.key === 'team_settings' && c.value) TEAM_SETTINGS = { ...DEFAULT_SETTINGS, ...c.value };
+    if (c.key === 'payment_plan' && c.value) TM_STATE.payment_plan = { ...DEFAULT_PAYMENT_PLAN, ...c.value };
   });
   saveCache();
   return true;
@@ -1610,16 +1732,96 @@ function playerTarget(p) {
   return costPerPlayer() + playerCharges(p);
 }
 function playerStatus(p) {
-  const target = playerTarget(p);
-  const raised = playerRaised(p);
-  const owed = target - raised;
-  if (owed <= 0) return { key: 'paid', label: 'Paid up', cls: 'pill-pos' };
-  if (raised > 0) return { key: 'partial', label: 'Partial · owes ' + fmt$plain(owed), cls: 'pill-warn' };
-  return { key: 'owes', label: 'Owes ' + fmt$plain(owed), cls: 'pill-neg' };
+  const { schedule, obligation, paid } = computeInstallments(p);
+  if (obligation <= 0.005) return { key: 'paid', label: 'Paid up', cls: 'pill-pos' };
+  // Past-due first
+  const past = schedule.find(r => r.status === 'past');
+  if (past) return { key: 'owes', label: 'Past due ' + fmt$plain(past.outstanding), cls: 'pill-neg' };
+  const next = schedule.find(r => r.amount > 0.005 && r.outstanding > 0.005);
+  if (!next) return { key: 'paid', label: 'Paid up', cls: 'pill-pos' };
+  const due = fmt$plain(next.outstanding);
+  const when = next.due_date ? fmtShortDate(next.due_date) : '';
+  if (paid > 0.005) return { key: 'partial', label: `Partial · next ${due}${when ? ' ' + when : ''}`, cls: 'pill-warn' };
+  return { key: 'owes', label: `Next ${due}${when ? ' ' + when : ''}`, cls: 'pill-info' };
 }
 function playerSponsor(p) {
   return TM_STATE.donations.filter(d => d.player_id && p.cloudId && d.player_id === p.cloudId);
 }
+
+// ============================================================
+// PAYMENTS / INVOICES
+// ============================================================
+function playerPayments(p) {
+  if (!p.cloudId) return [];
+  return TM_STATE.payments.filter(x => x.player_id === p.cloudId);
+}
+function playerPaymentsTotal(p) {
+  return playerPayments(p).reduce((s,x) => s + Number(x.amount||0), 0);
+}
+function teamWideDonations() {
+  return TM_STATE.donations.filter(d => !d.player_id).reduce((s,d) => s + Number(d.amount||0), 0);
+}
+function teamWidePositiveExpenses() {
+  return TM_STATE.expenses.filter(e => !e.player_id && Number(e.amount) > 0).reduce((s,e) => s + Number(e.amount), 0);
+}
+function fundraisingCreditPerPlayer() {
+  const total = teamWideDonations() + teamWidePositiveExpenses();
+  return total / Math.max(1, PLAYERS.length);
+}
+function playerReceivedTotal(p) {
+  return playerRaised(p)              // attributed donations + positive attributed expenses
+       + playerPaymentsTotal(p)       // parent payments
+       + fundraisingCreditPerPlayer();
+}
+function playerBalance(p) {
+  return playerTarget(p) - playerReceivedTotal(p);
+}
+
+// Payment plan schedule for a player. Returns array of installments with amounts + status.
+function computeInstallments(p) {
+  const plan = TM_STATE.payment_plan || DEFAULT_PAYMENT_PLAN;
+  const target = playerTarget(p);
+  const credits = playerRaised(p) + fundraisingCreditPerPlayer();
+  const obligation = Math.max(0, target - credits); // parent's total obligation after credits
+  const initial = Math.min(plan.initial_amount || 0, obligation);
+  const remaining = Math.max(0, obligation - initial);
+  const monthly = (plan.installments || []).length > 0 ? remaining / plan.installments.length : 0;
+
+  const schedule = [
+    { key: 'initial', label: 'Initial deposit', due_date: plan.initial_due, amount: initial },
+    ...((plan.installments || []).map(inst => ({ key: inst.key, label: inst.label, due_date: inst.due_date, amount: monthly }))),
+  ];
+
+  // Apply payments in date order → oldest first goes to earliest installment
+  const paid = playerPaymentsTotal(p);
+  let remainingPaid = paid;
+  schedule.forEach(row => {
+    if (remainingPaid <= 0) { row.paid = 0; return; }
+    const applied = Math.min(row.amount, remainingPaid);
+    row.paid = applied;
+    remainingPaid -= applied;
+  });
+  // Any "overpayment" beyond total obligation: shown as credit
+  const overpayment = remainingPaid;
+
+  const today = new Date().toISOString().slice(0,10);
+  schedule.forEach(row => {
+    const outstanding = row.amount - (row.paid || 0);
+    if (row.amount <= 0.005) row.status = 'none';
+    else if (outstanding <= 0.005) row.status = 'paid';
+    else if (row.due_date && row.due_date < today) row.status = 'past';
+    else if (row.paid > 0.005) row.status = 'partial';
+    else row.status = 'due';
+    row.outstanding = outstanding;
+  });
+  return { schedule, obligation, paid, overpayment, credits, target };
+}
+
+function nextDueInstallment(p) {
+  const { schedule } = computeInstallments(p);
+  return schedule.find(row => row.amount > 0.005 && row.outstanding > 0.005);
+}
+
 function toast(msg) {
   const el = document.getElementById('toast');
   el.textContent = msg;
@@ -1951,6 +2153,7 @@ function openPlayerDrawer(idx) {
   g('pd-p2-email').value = par2.email || '';
   g('pd-delete').style.display = isNew ? 'none' : 'inline-flex';
   renderPlayerFinancials(isNew ? null : p);
+  renderPlayerInvoice(isNew ? null : p);
   document.getElementById('player-drawer-backdrop').classList.add('open');
   document.getElementById('player-drawer').classList.add('open');
 }
@@ -2002,10 +2205,305 @@ async function deletePlayerCharge(id) {
   saveCache();
   // Refresh the drawer contents
   const idxStr = document.getElementById('pd-idx').value;
-  if (idxStr !== '') renderPlayerFinancials(PLAYERS[parseInt(idxStr)]);
+  if (idxStr !== '') { renderPlayerFinancials(PLAYERS[parseInt(idxStr)]); renderPlayerInvoice(PLAYERS[parseInt(idxStr)]); }
   renderRoster();
   renderFinances();
   toast('Deleted');
+}
+
+// ============================================================
+// PLAYER INVOICE / PAYMENTS PANEL (in drawer)
+// ============================================================
+function methodLabel(m) {
+  return ({ zelle: 'Zelle', venmo: 'Venmo', check: 'Check', cash: 'Cash', other: 'Other' })[m] || (m || '—');
+}
+
+function renderPlayerInvoice(p) {
+  const wrap = document.getElementById('pd-invoice-section');
+  const summary = document.getElementById('pd-invoice-summary');
+  const schedEl = document.getElementById('pd-schedule');
+  const paysEl = document.getElementById('pd-payments-list');
+  if (!wrap) return;
+  if (!p || !p.cloudId) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+
+  const { schedule, obligation, paid, credits, target, overpayment } = computeInstallments(p);
+  const balance = obligation - paid;
+  summary.innerHTML = `Target ${fmt$plain(target)} · Credits ${fmt$plain(credits)} · Obligation ${fmt$plain(obligation)} · Received ${fmt$plain(paid)} · <span style="color:${balance<=0?'var(--pos)':'var(--neg)'}">${balance<=0 ? (overpayment>0.005 ? 'credit ' + fmt$plain(overpayment) : 'paid up') : 'balance ' + fmt$plain(balance)}</span>`;
+
+  const statusPill = (s) => ({
+    paid:    '<span class="pill pill-pos">Paid</span>',
+    partial: '<span class="pill pill-warn">Partial</span>',
+    past:    '<span class="pill pill-neg">Past due</span>',
+    due:     '<span class="pill pill-info">Due</span>',
+    none:    '<span class="pill pill-muted">—</span>',
+  })[s] || '';
+
+  schedEl.innerHTML = `<table class="data">
+    <thead><tr><th>Installment</th><th style="width:100px">Due</th><th class="right" style="width:90px">Amount</th><th class="right" style="width:80px">Paid</th><th style="width:80px">Status</th></tr></thead>
+    <tbody>
+    ${schedule.map(row => `
+      <tr>
+        <td>${row.label}</td>
+        <td class="mono muted">${row.due_date ? fmtShortDate(row.due_date) : '—'}</td>
+        <td class="right mono">${row.amount > 0.005 ? fmt$plain(row.amount) : '—'}</td>
+        <td class="right mono ${row.paid > 0.005 ? 'amt-pos' : 'muted'}">${row.paid > 0.005 ? fmt$plain(row.paid) : ''}</td>
+        <td>${row.amount > 0.005 ? statusPill(row.status) : ''}</td>
+      </tr>
+    `).join('')}
+    </tbody>
+  </table>`;
+
+  const pays = playerPayments(p).sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  if (pays.length === 0) {
+    paysEl.innerHTML = '<div class="text-sm text-muted" style="padding:8px 0">No payments recorded yet.</div>';
+  } else {
+    paysEl.innerHTML = `<table class="data">
+      <thead><tr><th style="width:70px">Date</th><th style="width:80px">Method</th><th>Ref / notes</th><th class="right" style="width:90px">Amount</th><th style="width:30px"></th></tr></thead>
+      <tbody>
+      ${pays.map(x => `<tr>
+        <td class="mono muted">${fmtShortDate(x.date)}</td>
+        <td class="text-sm">${methodLabel(x.method)}</td>
+        <td class="text-sm muted">${[x.reference, x.notes].filter(Boolean).join(' · ') || ''}</td>
+        <td class="right mono amt-pos">${fmt$plain(Number(x.amount||0))}</td>
+        <td><button class="btn btn-icon btn-danger" onclick="openPaymentModal('${x.id}')" title="Edit"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button></td>
+      </tr>`).join('')}
+      </tbody>
+    </table>`;
+  }
+}
+
+function currentDrawerPlayer() {
+  const idxStr = document.getElementById('pd-idx').value;
+  if (idxStr === '' || idxStr == null) return null;
+  return PLAYERS[parseInt(idxStr)] || null;
+}
+
+// ---- Log payment modal ----
+function openPaymentModal(paymentId) {
+  const p = currentDrawerPlayer();
+  if (!p) { toast('Open a player first.'); return; }
+  if (!p.cloudId) { toast('Save the player first, then log payments.'); return; }
+  const existing = paymentId ? TM_STATE.payments.find(x => x.id === paymentId) : null;
+  document.getElementById('ppm-title').textContent = existing ? 'Edit payment' : 'Log payment';
+  document.getElementById('ppm-id').value = existing?.id || '';
+  document.getElementById('ppm-player-id').value = p.cloudId;
+  document.getElementById('ppm-player-label').textContent = `${p.name} · #${p.num}`;
+  document.getElementById('ppm-date').value = existing?.date || new Date().toISOString().slice(0,10);
+  document.getElementById('ppm-amount').value = existing?.amount ?? '';
+  document.getElementById('ppm-method').value = existing?.method || '';
+  document.getElementById('ppm-ref').value = existing?.reference || '';
+  document.getElementById('ppm-notes').value = existing?.notes || '';
+  document.getElementById('ppm-delete').style.display = existing ? 'inline-flex' : 'none';
+  document.getElementById('payment-modal').classList.add('open');
+  setTimeout(() => document.getElementById('ppm-amount').focus(), 100);
+}
+function closePaymentModal() { document.getElementById('payment-modal').classList.remove('open'); }
+
+async function savePayment() {
+  const id = document.getElementById('ppm-id').value;
+  const payload = {
+    player_id: document.getElementById('ppm-player-id').value,
+    date: document.getElementById('ppm-date').value || new Date().toISOString().slice(0,10),
+    amount: parseFloat(document.getElementById('ppm-amount').value) || 0,
+    method: document.getElementById('ppm-method').value || null,
+    reference: document.getElementById('ppm-ref').value.trim() || null,
+    notes: document.getElementById('ppm-notes').value.trim() || null,
+  };
+  if (payload.amount <= 0) { toast('Amount must be greater than 0'); return; }
+  if (id) {
+    await supa('team_player_payments', 'PATCH', payload, `?id=eq.${id}`);
+    const i = TM_STATE.payments.findIndex(x => x.id === id);
+    if (i >= 0) TM_STATE.payments[i] = { ...TM_STATE.payments[i], ...payload };
+  } else {
+    const saved = await supa('team_player_payments', 'POST', payload);
+    if (saved && saved[0]) TM_STATE.payments.unshift(saved[0]);
+    else TM_STATE.payments.unshift({ ...payload, id: 'local-' + Date.now() });
+  }
+  closePaymentModal();
+  saveCache();
+  const p = currentDrawerPlayer();
+  if (p) renderPlayerInvoice(p);
+  renderRoster();
+  renderFinances();
+  toast('Payment saved');
+}
+
+async function deletePayment() {
+  const id = document.getElementById('ppm-id').value;
+  if (!id) return;
+  if (!confirm('Delete this payment?')) return;
+  if (!String(id).startsWith('local-')) await supa('team_player_payments', 'DELETE', null, `?id=eq.${id}`);
+  TM_STATE.payments = TM_STATE.payments.filter(x => x.id !== id);
+  closePaymentModal();
+  saveCache();
+  const p = currentDrawerPlayer();
+  if (p) renderPlayerInvoice(p);
+  renderRoster();
+  renderFinances();
+  toast('Deleted');
+}
+
+// ---- Invoice generation ----
+function buildInvoiceText(p) {
+  const s = TEAM_SETTINGS;
+  const seasonLabel = [s.age_division, s.season_type, s.season].filter(Boolean).join(' · ');
+  const parent = (p.parents || []).find(x => x && x.primary) || (p.parents || [])[0] || {};
+  const parentName = (parent.name || '').split(' ')[0] || 'there';
+  const { schedule, obligation, paid, credits, target, overpayment } = computeInstallments(p);
+  const balance = obligation - paid;
+  const charges = playerAttachedExpenses(p).filter(e => Number(e.amount) < 0)
+    .sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  const personalCredits = playerAttachedExpenses(p).filter(e => Number(e.amount) > 0)
+    .concat((playerSponsor(p) || []).map(d => ({ date: d.received_date, description: 'Sponsor: ' + d.sponsor_name, amount: Number(d.amount||0) })))
+    .sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  const teamCredit = fundraisingCreditPerPlayer();
+  const pays = playerPayments(p).sort((a,b) => (a.date||'').localeCompare(b.date||''));
+
+  const lines = [];
+  lines.push(`Hi ${parentName},`);
+  lines.push('');
+  lines.push(`Here's ${p.name}'s dues statement for ${s.team_name || 'the team'}${seasonLabel ? ' — ' + seasonLabel : ''}.`);
+  lines.push('');
+  lines.push('SEASON FEES');
+  lines.push(`  Base per-player                    ${fmt$plain(costPerPlayer()).padStart(10)}`);
+  if (charges.length > 0) {
+    lines.push('  Individual charges:');
+    charges.forEach(e => {
+      const label = e.description || 'charge';
+      const date = e.date ? fmtShortDate(e.date) : '';
+      lines.push(`     ${date.padEnd(7)} ${label}`.padEnd(50) + fmt$plain(Math.abs(Number(e.amount))).padStart(10));
+    });
+  }
+  if (personalCredits.length > 0) {
+    lines.push('  Personal credits:');
+    personalCredits.forEach(x => {
+      const date = x.date ? fmtShortDate(x.date) : '';
+      lines.push(`     ${date.padEnd(7)} ${x.description || 'credit'}`.padEnd(50) + ('-' + fmt$plain(Number(x.amount||0))).padStart(10));
+    });
+  }
+  if (teamCredit > 0.005) {
+    lines.push(`  Team fundraising credit           ${('-' + fmt$plain(teamCredit)).padStart(10)}`);
+  }
+  lines.push('  ─────────────────────────────────────────────');
+  lines.push(`  TOTAL OWED                       ${fmt$plain(obligation).padStart(10)}`);
+  lines.push('');
+  lines.push('PAYMENT SCHEDULE');
+  schedule.forEach(row => {
+    if (row.amount <= 0.005) return;
+    const date = row.due_date ? fmtShortDate(row.due_date) : 'TBD';
+    const status = row.status === 'paid' ? '[paid]' : row.status === 'partial' ? '[partial]' : row.status === 'past' ? '[PAST DUE]' : '[due]';
+    lines.push(`  ${(row.label + ' (' + date + ')').padEnd(28)}${fmt$plain(row.amount).padStart(10)}  ${status}`);
+  });
+  lines.push('');
+  if (pays.length > 0) {
+    lines.push('PAYMENTS RECEIVED');
+    pays.forEach(x => {
+      lines.push(`  ${fmtShortDate(x.date).padEnd(8)}${methodLabel(x.method).padEnd(12)}${(x.reference || '').padEnd(14)}${fmt$plain(Number(x.amount||0)).padStart(10)}`);
+    });
+    lines.push('');
+  }
+  if (balance > 0.005) {
+    const next = nextDueInstallment(p);
+    lines.push(`CURRENT BALANCE: ${fmt$plain(balance)}`);
+    if (next) lines.push(`NEXT DUE: ${fmt$plain(next.outstanding)} on ${fmtShortDate(next.due_date) || 'TBD'}`);
+  } else if (overpayment > 0.005) {
+    lines.push(`CREDIT ON ACCOUNT: ${fmt$plain(overpayment)}`);
+  } else {
+    lines.push('PAID IN FULL — thank you!');
+  }
+  lines.push('');
+  const opts = [];
+  if (s.payment_handle_zelle) opts.push(`  Zelle:  ${s.payment_handle_zelle}`);
+  if (s.payment_handle_venmo) opts.push(`  Venmo:  ${s.payment_handle_venmo}`);
+  if (s.check_payable_to)     opts.push(`  Check:  payable to "${s.check_payable_to}"`);
+  if (opts.length > 0) {
+    lines.push('Payment options:');
+    lines.push(...opts);
+    lines.push('');
+  }
+  lines.push('Thanks,');
+  lines.push(s.manager || 'Coach');
+  return lines.join('\n');
+}
+
+function emailInvoice() {
+  const p = currentDrawerPlayer();
+  if (!p) return;
+  const parent = (p.parents || []).find(x => x && x.primary) || (p.parents || [])[0] || {};
+  const to = parent.email || '';
+  if (!to) { toast('No parent email on file'); return; }
+  const seasonLabel = [TEAM_SETTINGS.age_division, TEAM_SETTINGS.season].filter(Boolean).join(' ');
+  const subject = `${p.name} — dues statement${seasonLabel ? ' (' + seasonLabel + ')' : ''}`;
+  const body = buildInvoiceText(p);
+  const url = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+  window.location.href = url;
+}
+
+function printInvoice() {
+  const p = currentDrawerPlayer();
+  if (!p) return;
+  const s = TEAM_SETTINGS;
+  const seasonLabel = [s.age_division, s.season_type, s.season].filter(Boolean).join(' · ');
+  const parent = (p.parents || []).find(x => x && x.primary) || (p.parents || [])[0] || {};
+  const { schedule, obligation, paid, credits, target, overpayment } = computeInstallments(p);
+  const balance = obligation - paid;
+  const charges = playerAttachedExpenses(p).filter(e => Number(e.amount) < 0).sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  const pays = playerPayments(p).sort((a,b) => (a.date||'').localeCompare(b.date||''));
+
+  const chargeRows = charges.map(e => `<tr><td>${fmtShortDate(e.date)}</td><td>${(e.description||'').replace(/</g,'&lt;')}</td><td style="text-align:right">${fmt$plain(Math.abs(Number(e.amount)))}</td></tr>`).join('');
+  const schedRows = schedule.filter(r => r.amount > 0.005).map(r => `<tr><td>${r.label}</td><td>${r.due_date ? fmtShortDate(r.due_date) : 'TBD'}</td><td style="text-align:right">${fmt$plain(r.amount)}</td><td style="text-align:right">${r.paid > 0.005 ? fmt$plain(r.paid) : '—'}</td><td>${r.status}</td></tr>`).join('');
+  const payRows = pays.map(x => `<tr><td>${fmtShortDate(x.date)}</td><td>${methodLabel(x.method)}</td><td>${(x.reference||'').replace(/</g,'&lt;')}</td><td style="text-align:right">${fmt$plain(Number(x.amount||0))}</td></tr>`).join('');
+
+  const opts = [];
+  if (s.payment_handle_zelle) opts.push(`<div><strong>Zelle:</strong> ${s.payment_handle_zelle}</div>`);
+  if (s.payment_handle_venmo) opts.push(`<div><strong>Venmo:</strong> ${s.payment_handle_venmo}</div>`);
+  if (s.check_payable_to)     opts.push(`<div><strong>Check:</strong> made out to "${s.check_payable_to}"</div>`);
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${p.name} — invoice</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 720px; margin: 40px auto; color: #111; padding: 0 24px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .meta { color: #666; font-size: 13px; margin-bottom: 24px; }
+  .row { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+  .row > div { flex: 1; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: #666; margin: 24px 0 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; text-align: left; }
+  th { font-weight: 600; color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .totals { margin-top: 20px; padding: 16px; background: #f7f7f9; border-radius: 8px; }
+  .totals .line { display: flex; justify-content: space-between; padding: 4px 0; font-family: ui-monospace, monospace; }
+  .totals .big { font-size: 18px; font-weight: 600; border-top: 1px solid #ccc; padding-top: 10px; margin-top: 6px; }
+  .options { margin-top: 24px; padding: 16px; background: #fff8e6; border-radius: 8px; font-size: 13px; }
+  .options > div { padding: 2px 0; }
+  .btn { display: inline-block; padding: 8px 14px; background: #111; color: #fff; border-radius: 6px; text-decoration: none; font-size: 13px; margin-right: 6px; }
+  @media print { .noprint { display: none; } body { max-width: none; margin: 0; padding: 20px; } }
+</style></head><body>
+<div class="noprint" style="margin-bottom:24px"><a class="btn" href="javascript:window.print()">Print / Save PDF</a></div>
+<h1>${s.team_name || 'Team'} — Dues Statement</h1>
+<div class="meta">${seasonLabel}${s.manager ? ' · Manager: ' + s.manager : ''}</div>
+<div class="row">
+  <div><strong>Bill to:</strong><br>${parent.name || 'Parent'}${parent.email ? '<br>' + parent.email : ''}${parent.phone ? '<br>' + parent.phone : ''}</div>
+  <div style="text-align:right"><strong>Player:</strong> ${p.name}<br>Jersey #${p.num}<br>Date: ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+</div>
+<h2>Season fees</h2>
+<table><tr><td>Base per-player cost</td><td style="text-align:right">${fmt$plain(costPerPlayer())}</td></tr></table>
+${chargeRows ? '<h2>Individual charges</h2><table><thead><tr><th>Date</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>' + chargeRows + '</tbody></table>' : ''}
+<h2>Payment schedule</h2>
+<table><thead><tr><th>Installment</th><th>Due</th><th style="text-align:right">Amount</th><th style="text-align:right">Paid</th><th>Status</th></tr></thead><tbody>${schedRows}</tbody></table>
+${payRows ? '<h2>Payments received</h2><table><thead><tr><th>Date</th><th>Method</th><th>Reference</th><th style="text-align:right">Amount</th></tr></thead><tbody>' + payRows + '</tbody></table>' : ''}
+<div class="totals">
+  <div class="line"><span>Target</span><span>${fmt$plain(target)}</span></div>
+  <div class="line"><span>Credits applied</span><span>−${fmt$plain(credits)}</span></div>
+  <div class="line"><span>Payments received</span><span>−${fmt$plain(paid)}</span></div>
+  <div class="line big"><span>${balance <= 0.005 ? (overpayment > 0.005 ? 'Credit on account' : 'Balance') : 'Balance due'}</span><span>${fmt$plain(Math.abs(balance <= 0.005 ? overpayment : balance))}</span></div>
+</div>
+${opts.length ? '<div class="options"><strong>Payment options</strong>' + opts.join('') + '</div>' : ''}
+<div style="margin-top:32px;color:#666;font-size:12px">Questions? Reply to this email or contact ${s.manager || 'the manager'}.</div>
+</body></html>`;
+  const w = window.open('', '_blank');
+  if (!w) { toast('Popup blocked — allow popups to preview invoices.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
 }
 function closePlayerDrawer() {
   document.getElementById('player-drawer-backdrop').classList.remove('open');
@@ -2088,20 +2586,91 @@ function switchFinTab(tab) {
   document.getElementById('fin-panel-' + tab).style.display = 'block';
   document.querySelector(`[data-fin-tab="${tab}"]`)?.classList.add('active');
   if (tab === 'ledger') renderLedger();
+  if (tab === 'payments') renderPayments();
   if (tab === 'sponsors') renderSponsors();
   if (tab === 'budget') renderBudget();
 }
 
 function renderFinances() {
   const raised = totalRaised(), spent = totalSpent(), bal = currentBalance();
+  const paymentsReceived = TM_STATE.payments.reduce((s,x) => s + Number(x.amount||0), 0);
   document.getElementById('finances-kpis').innerHTML = `
     <div class="kpi"><div class="kpi-label">Raised</div><div class="kpi-value mono" style="color:var(--pos)">${fmt$plain(raised)}</div></div>
+    <div class="kpi"><div class="kpi-label">Payments received</div><div class="kpi-value mono" style="color:var(--pos)">${fmt$plain(paymentsReceived)}</div></div>
     <div class="kpi"><div class="kpi-label">Spent</div><div class="kpi-value mono" style="color:var(--neg)">${fmt$plain(spent)}</div></div>
     <div class="kpi"><div class="kpi-label">Balance</div><div class="kpi-value mono" style="color:${bal>=0?'var(--pos)':'var(--neg)'}">${fmt$(bal)}</div></div>
     <div class="kpi"><div class="kpi-label">Cost / player</div><div class="kpi-value mono">${fmt$plain(costPerPlayer())}</div></div>
     <div class="kpi"><div class="kpi-label">Season total</div><div class="kpi-value mono">${fmt$plain(computeSeasonTotal())}</div></div>
   `;
   switchFinTab(UI.finTab);
+}
+
+function onPaymentsPlayerFilter(v) { UI.paymentsFilterPlayer = v; renderPayments(); }
+
+function renderPayments() {
+  // Populate player dropdown
+  const sel = document.getElementById('payments-player-filter');
+  if (sel) {
+    const currentVal = UI.paymentsFilterPlayer || '';
+    sel.innerHTML = '<option value="">All players</option>' + PLAYERS.map(p => `<option value="${p.cloudId||''}">#${p.num} ${p.name}</option>`).join('');
+    sel.value = currentVal;
+  }
+
+  const q = (document.getElementById('payments-search')?.value || '').toLowerCase().trim();
+  const filterPlayer = UI.paymentsFilterPlayer || '';
+  const rows = TM_STATE.payments.filter(x => {
+    if (filterPlayer && x.player_id !== filterPlayer) return false;
+    if (q) {
+      const player = PLAYERS.find(p => p.cloudId === x.player_id);
+      const hay = ((player?.name || '') + ' ' + (x.reference || '') + ' ' + (x.notes || '') + ' ' + (x.method || '')).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const total = rows.reduce((s,x) => s + Number(x.amount||0), 0);
+
+  const tbody = document.getElementById('payments-body');
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="table-empty">No payments in this view.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(x => {
+    const player = PLAYERS.find(p => p.cloudId === x.player_id);
+    return `<tr class="clickable" onclick="openPaymentFromPayments('${x.id}')">
+      <td class="mono muted">${fmtShortDate(x.date)}</td>
+      <td>${player ? `<span class="mono muted">#${player.num}</span> ${player.name}` : '<span style="color:var(--text-subtle)">—</span>'}</td>
+      <td class="hide-mobile text-sm">${methodLabel(x.method)}</td>
+      <td class="hide-mobile text-sm muted">${[x.reference, x.notes].filter(Boolean).join(' · ') || ''}</td>
+      <td class="right mono amt-pos">${fmt$plain(Number(x.amount||0))}</td>
+      <td>
+        <div class="row-actions">
+          <button class="btn btn-icon btn-danger" onclick="event.stopPropagation();deletePaymentRow('${x.id}')" title="Delete">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('') + `<tr><td colspan="4" class="right muted" style="border-top:1px solid var(--border-strong);font-weight:500">Total shown</td><td class="right mono fw-600">${fmt$plain(total)}</td><td></td></tr>`;
+}
+
+function openPaymentFromPayments(id) {
+  // Route through the drawer: open the player drawer for the row's player, then open the payment modal for editing.
+  const x = TM_STATE.payments.find(pp => pp.id === id);
+  if (!x) return;
+  const idx = PLAYERS.findIndex(p => p.cloudId === x.player_id);
+  if (idx < 0) { toast('Player not found on roster.'); return; }
+  openPlayerDrawer(idx);
+  setTimeout(() => openPaymentModal(id), 220);
+}
+
+async function deletePaymentRow(id) {
+  if (!confirm('Delete this payment?')) return;
+  if (!String(id).startsWith('local-')) await supa('team_player_payments', 'DELETE', null, `?id=eq.${id}`);
+  TM_STATE.payments = TM_STATE.payments.filter(x => x.id !== id);
+  saveCache();
+  renderPayments();
+  renderRoster();
+  toast('Deleted');
 }
 
 function renderLedger() {
@@ -2587,7 +3156,50 @@ function renderSettings() {
   set('setting-season-type', TEAM_SETTINGS.season_type);
   set('setting-manager', TEAM_SETTINGS.manager);
   set('setting-next-practice', TEAM_SETTINGS.next_practice);
+
+  const plan = TM_STATE.payment_plan || DEFAULT_PAYMENT_PLAN;
+  set('pp-initial-amount', plan.initial_amount);
+  set('pp-initial-due', plan.initial_due);
+  const [sept, oct, nov] = plan.installments || [];
+  set('pp-sept-due', sept?.due_date);
+  set('pp-oct-due',  oct?.due_date);
+  set('pp-nov-due',  nov?.due_date);
+  set('pp-zelle',    TEAM_SETTINGS.payment_handle_zelle);
+  set('pp-venmo',    TEAM_SETTINGS.payment_handle_venmo);
+  set('pp-check-to', TEAM_SETTINGS.check_payable_to);
+
   renderCoachesInSettings();
+}
+
+async function savePaymentPlan() {
+  const g = id => (document.getElementById(id)?.value || '').trim();
+  const plan = {
+    initial_amount: parseFloat(g('pp-initial-amount')) || 0,
+    initial_due: g('pp-initial-due') || null,
+    installments: [
+      { key: 'sept', label: 'September', due_date: g('pp-sept-due') || null },
+      { key: 'oct',  label: 'October',  due_date: g('pp-oct-due')  || null },
+      { key: 'nov',  label: 'November', due_date: g('pp-nov-due')  || null },
+    ],
+  };
+  TM_STATE.payment_plan = plan;
+  TEAM_SETTINGS = {
+    ...TEAM_SETTINGS,
+    payment_handle_zelle: g('pp-zelle'),
+    payment_handle_venmo: g('pp-venmo'),
+    check_payable_to: g('pp-check-to'),
+  };
+  saveCache();
+  const btn = document.getElementById('save-payment-plan-btn');
+  if (btn) btn.textContent = 'Saving…';
+  await Promise.all([
+    supa('team_config', 'POST', [{ key: 'payment_plan',   value: plan }],         '?on_conflict=key', 'resolution=merge-duplicates'),
+    supa('team_config', 'POST', [{ key: 'team_settings',  value: TEAM_SETTINGS }], '?on_conflict=key', 'resolution=merge-duplicates'),
+  ]);
+  if (btn) { btn.textContent = 'Saved ✓'; setTimeout(() => btn.textContent = 'Save payment plan', 1500); }
+  try { renderRoster(); } catch(e) {}
+  try { renderFinances(); } catch(e) {}
+  toast('Payment plan saved');
 }
 function renderCoachesInSettings() {
   const el = document.getElementById('settings-coaches');
@@ -2680,6 +3292,7 @@ document.addEventListener('keydown', (e) => {
     closeTourneyModal();
     closeSponsorModal();
     closeCoachModal();
+    closePaymentModal();
   }
 });
 
