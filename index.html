@@ -1129,6 +1129,8 @@
               <div class="field"><label class="field-label">Venmo handle</label><input class="input" id="pp-venmo" placeholder="@joedesane"></div>
             </div>
             <div class="field"><label class="field-label">Checks payable to</label><input class="input" id="pp-check-to" placeholder="SFL Thunder Black"></div>
+            <div class="field"><label class="field-label">Initial deposit registration URL</label><input class="input" id="pp-registration-url" placeholder="https://login.stacksports.com/…"></div>
+            <div class="text-xs text-muted">Parents pay the initial $500 directly to Thunder via this link. Invoices will include it. Monthly installments use the Zelle/Venmo/check handles above.</div>
             <div><button class="btn btn-primary" id="save-payment-plan-btn" onclick="savePaymentPlan()">Save payment plan</button></div>
           </div>
         </div>
@@ -1783,8 +1785,8 @@ function computeInstallments(p) {
   const target = playerTarget(p);
   const credits = playerRaised(p) + fundraisingCreditPerPlayer();
   const obligation = Math.max(0, target - credits); // parent's total obligation after credits
-  const initial = Math.min(plan.initial_amount || 0, obligation);
-  const remaining = Math.max(0, obligation - initial);
+  const initial = plan.initial_amount || 0;                       // FLAT — Thunder charges everyone this via registration
+  const remaining = Math.max(0, obligation - initial);            // monthly only kicks in when balance exceeds the initial
   const monthly = (plan.installments || []).length > 0 ? remaining / plan.installments.length : 0;
 
   const schedule = [
@@ -2393,8 +2395,15 @@ function buildInvoiceText(p) {
     if (row.amount <= 0.005) return;
     const date = row.due_date ? fmtShortDate(row.due_date) : 'TBD';
     const status = row.status === 'paid' ? '[paid]' : row.status === 'partial' ? '[partial]' : row.status === 'past' ? '[PAST DUE]' : '[due]';
-    lines.push(`  ${(row.label + ' (' + date + ')').padEnd(28)}${fmt$plain(row.amount).padStart(10)}  ${status}`);
+    const label = row.key === 'initial' ? 'Initial deposit (pay to Thunder)' : row.label;
+    lines.push(`  ${(label + ' (' + date + ')').padEnd(38)}${fmt$plain(row.amount).padStart(10)}  ${status}`);
   });
+  if (s.registration_url) {
+    lines.push('');
+    lines.push('  Pay the initial deposit through Thunder registration:');
+    lines.push('    ' + s.registration_url);
+  }
+  const monthlyDue = schedule.filter(r => r.key !== 'initial' && r.amount > 0.005).length > 0;
   lines.push('');
   if (pays.length > 0) {
     lines.push('PAYMENTS RECEIVED');
@@ -2403,24 +2412,40 @@ function buildInvoiceText(p) {
     });
     lines.push('');
   }
-  if (balance > 0.005) {
+  const initialRow = schedule.find(r => r.key === 'initial');
+  const initialUnpaid = initialRow && (initialRow.outstanding > 0.005);
+  if (!monthlyDue && obligation > 0.005 && obligation <= (TM_STATE.payment_plan?.initial_amount || 0)) {
+    // Fundraising + $500 initial fully covers the season for this player
+    if (initialUnpaid) {
+      lines.push(`NEXT DUE: ${fmt$plain(initialRow.amount)} to Thunder on ${fmtShortDate(initialRow.due_date) || 'Aug 15'}`);
+      lines.push('Once the $500 registration is paid, you\'re fully covered — team fundraising handles the rest of the season.');
+    } else {
+      lines.push('PAID IN FULL — team fundraising covered the rest of the season.');
+      lines.push('Thank you for helping raise money for the team!');
+    }
+  } else if (balance > 0.005) {
     const next = nextDueInstallment(p);
     lines.push(`CURRENT BALANCE: ${fmt$plain(balance)}`);
     if (next) lines.push(`NEXT DUE: ${fmt$plain(next.outstanding)} on ${fmtShortDate(next.due_date) || 'TBD'}`);
   } else if (overpayment > 0.005) {
     lines.push(`CREDIT ON ACCOUNT: ${fmt$plain(overpayment)}`);
   } else {
-    lines.push('PAID IN FULL — thank you!');
+    lines.push('PAID IN FULL after the initial deposit — team fundraising covered the rest.');
+    lines.push('Thank you for helping raise money for the team!');
   }
   lines.push('');
-  const opts = [];
-  if (s.payment_handle_zelle) opts.push(`  Zelle:  ${s.payment_handle_zelle}`);
-  if (s.payment_handle_venmo) opts.push(`  Venmo:  ${s.payment_handle_venmo}`);
-  if (s.check_payable_to)     opts.push(`  Check:  payable to "${s.check_payable_to}"`);
-  if (opts.length > 0) {
-    lines.push('Payment options:');
-    lines.push(...opts);
-    lines.push('');
+  if (monthlyDue) {
+    const opts = [];
+    if (s.payment_handle_zelle) opts.push(`  Zelle:  ${s.payment_handle_zelle}`);
+    if (s.payment_handle_venmo) opts.push(`  Venmo:  ${s.payment_handle_venmo}`);
+    if (s.check_payable_to)     opts.push(`  Check:  payable to "${s.check_payable_to}"`);
+    if (opts.length > 0) {
+      lines.push('Monthly installments — payment options:');
+      lines.push(...opts);
+      lines.push('');
+      lines.push('If you need to break the balance into smaller monthly payments, let me know.');
+      lines.push('');
+    }
   }
   lines.push('Thanks,');
   lines.push(s.manager || 'Coach');
@@ -2452,8 +2477,19 @@ function printInvoice() {
   const pays = playerPayments(p).sort((a,b) => (a.date||'').localeCompare(b.date||''));
 
   const chargeRows = charges.map(e => `<tr><td>${fmtShortDate(e.date)}</td><td>${(e.description||'').replace(/</g,'&lt;')}</td><td style="text-align:right">${fmt$plain(Math.abs(Number(e.amount)))}</td></tr>`).join('');
-  const schedRows = schedule.filter(r => r.amount > 0.005).map(r => `<tr><td>${r.label}</td><td>${r.due_date ? fmtShortDate(r.due_date) : 'TBD'}</td><td style="text-align:right">${fmt$plain(r.amount)}</td><td style="text-align:right">${r.paid > 0.005 ? fmt$plain(r.paid) : '—'}</td><td>${r.status}</td></tr>`).join('');
+  const schedRows = schedule.filter(r => r.amount > 0.005).map(r => {
+    const isInitial = r.key === 'initial';
+    const label = isInitial ? `${r.label} <span style="color:#666;font-size:11px">(pay to Thunder)</span>` : r.label;
+    return `<tr><td>${label}</td><td>${r.due_date ? fmtShortDate(r.due_date) : 'TBD'}</td><td style="text-align:right">${fmt$plain(r.amount)}</td><td style="text-align:right">${r.paid > 0.005 ? fmt$plain(r.paid) : '—'}</td><td>${r.status}</td></tr>`;
+  }).join('');
   const payRows = pays.map(x => `<tr><td>${fmtShortDate(x.date)}</td><td>${methodLabel(x.method)}</td><td>${(x.reference||'').replace(/</g,'&lt;')}</td><td style="text-align:right">${fmt$plain(Number(x.amount||0))}</td></tr>`).join('');
+  const monthlyDue = schedule.filter(r => r.key !== 'initial' && r.amount > 0.005).length > 0;
+
+  const regBlock = s.registration_url
+    ? `<div style="margin-top:12px;padding:14px;background:#eef5ff;border:1px solid #d0e2ff;border-radius:8px;font-size:13px">
+         <strong>Initial deposit &mdash; pay through Thunder registration:</strong><br>
+         <a href="${s.registration_url}" style="color:#0846b7;word-break:break-all">${s.registration_url}</a>
+       </div>` : '';
 
   const opts = [];
   if (s.payment_handle_zelle) opts.push(`<div><strong>Zelle:</strong> ${s.payment_handle_zelle}</div>`);
@@ -2491,6 +2527,7 @@ function printInvoice() {
 ${chargeRows ? '<h2>Individual charges</h2><table><thead><tr><th>Date</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>' + chargeRows + '</tbody></table>' : ''}
 <h2>Payment schedule</h2>
 <table><thead><tr><th>Installment</th><th>Due</th><th style="text-align:right">Amount</th><th style="text-align:right">Paid</th><th>Status</th></tr></thead><tbody>${schedRows}</tbody></table>
+${regBlock}
 ${payRows ? '<h2>Payments received</h2><table><thead><tr><th>Date</th><th>Method</th><th>Reference</th><th style="text-align:right">Amount</th></tr></thead><tbody>' + payRows + '</tbody></table>' : ''}
 <div class="totals">
   <div class="line"><span>Target</span><span>${fmt$plain(target)}</span></div>
@@ -2498,7 +2535,8 @@ ${payRows ? '<h2>Payments received</h2><table><thead><tr><th>Date</th><th>Method
   <div class="line"><span>Payments received</span><span>−${fmt$plain(paid)}</span></div>
   <div class="line big"><span>${balance <= 0.005 ? (overpayment > 0.005 ? 'Credit on account' : 'Balance') : 'Balance due'}</span><span>${fmt$plain(Math.abs(balance <= 0.005 ? overpayment : balance))}</span></div>
 </div>
-${opts.length ? '<div class="options"><strong>Payment options</strong>' + opts.join('') + '</div>' : ''}
+${balance <= 0.005 && overpayment <= 0.005 ? '<div style="margin-top:16px;padding:14px;background:#e6f7ea;border:1px solid #b7e4c1;border-radius:8px;font-size:13px;color:#124a24"><strong>Paid in full after the initial deposit.</strong> Team fundraising covered the rest of the season for you. Thanks for helping raise money!</div>' : ''}
+${monthlyDue && opts.length ? '<div class="options"><strong>Monthly installments &mdash; payment options</strong>' + opts.join('') + '<div style="margin-top:8px;color:#666">If you need to break the balance into smaller monthly payments, let me know.</div></div>' : ''}
 <div style="margin-top:32px;color:#666;font-size:12px">Questions? Reply to this email or contact ${s.manager || 'the manager'}.</div>
 </body></html>`;
   const w = window.open('', '_blank');
@@ -3167,6 +3205,7 @@ function renderSettings() {
   set('pp-zelle',    TEAM_SETTINGS.payment_handle_zelle);
   set('pp-venmo',    TEAM_SETTINGS.payment_handle_venmo);
   set('pp-check-to', TEAM_SETTINGS.check_payable_to);
+  set('pp-registration-url', TEAM_SETTINGS.registration_url);
 
   renderCoachesInSettings();
 }
@@ -3185,6 +3224,7 @@ async function savePaymentPlan() {
   TM_STATE.payment_plan = plan;
   TEAM_SETTINGS = {
     ...TEAM_SETTINGS,
+    registration_url: g('pp-registration-url'),
     payment_handle_zelle: g('pp-zelle'),
     payment_handle_venmo: g('pp-venmo'),
     check_payable_to: g('pp-check-to'),
