@@ -1608,6 +1608,7 @@ async function loadFromCloud() {
     address: pl.address || '',
     song: pl.walk_up_song || '',
     songStart: pl.walk_up_start_seconds || 0,
+    invoiceSentAt: pl.invoice_sent_at || null,
     parents: (parentsByPlayer[pl.id] || [])
       .sort((a,b) => (b.is_primary?1:0) - (a.is_primary?1:0))
       .map(p => ({ id: p.id, name: p.name||'', phone: p.phone||'', email: p.email||'', primary: !!p.is_primary })),
@@ -1736,15 +1737,23 @@ function playerTarget(p) {
 function playerStatus(p) {
   const { schedule, obligation, paid } = computeInstallments(p);
   if (obligation <= 0.005) return { key: 'paid', label: 'Paid up', cls: 'pill-pos' };
+  const remainingBalance = obligation - paid;
   // Past-due first
   const past = schedule.find(r => r.status === 'past');
-  if (past) return { key: 'owes', label: 'Past due ' + fmt$plain(past.outstanding), cls: 'pill-neg' };
+  if (past) {
+    const showTotal = remainingBalance > past.outstanding + 0.005;
+    return { key: 'owes', label: `Past due ${fmt$plain(past.outstanding)}${showTotal ? ' · total ' + fmt$plain(remainingBalance) : ''}`, cls: 'pill-neg' };
+  }
   const next = schedule.find(r => r.amount > 0.005 && r.outstanding > 0.005);
   if (!next) return { key: 'paid', label: 'Paid up', cls: 'pill-pos' };
   const due = fmt$plain(next.outstanding);
+  const totalHint = remainingBalance > next.outstanding + 0.005 ? ` · total ${fmt$plain(remainingBalance)}` : '';
+  if (next.status === 'pending') {
+    return { key: 'partial', label: `Send invoice · ${due} monthly${totalHint}`, cls: 'pill-warn' };
+  }
   const when = next.due_date ? fmtShortDate(next.due_date) : '';
-  if (paid > 0.005) return { key: 'partial', label: `Partial · next ${due}${when ? ' ' + when : ''}`, cls: 'pill-warn' };
-  return { key: 'owes', label: `Next ${due}${when ? ' ' + when : ''}`, cls: 'pill-info' };
+  if (paid > 0.005) return { key: 'partial', label: `Partial · next ${due}${when ? ' ' + when : ''}${totalHint}`, cls: 'pill-warn' };
+  return { key: 'owes', label: `Next ${due}${when ? ' ' + when : ''}${totalHint}`, cls: 'pill-info' };
 }
 function playerSponsor(p) {
   return TM_STATE.donations.filter(d => d.player_id && p.cloudId && d.player_id === p.cloudId);
@@ -1780,6 +1789,15 @@ function playerBalance(p) {
 }
 
 // Payment plan schedule for a player. Returns array of installments with amounts + status.
+const SEND_TO_DUE_DAYS = 5;
+function addDays(dateStr, days) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d)) return null;
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 function computeInstallments(p) {
   const plan = TM_STATE.payment_plan || DEFAULT_PAYMENT_PLAN;
   const target = playerTarget(p);
@@ -1791,7 +1809,7 @@ function computeInstallments(p) {
 
   const schedule = [
     { key: 'initial', label: 'Initial deposit', due_date: plan.initial_due, amount: initial },
-    ...((plan.installments || []).map(inst => ({ key: inst.key, label: inst.label, due_date: inst.due_date, amount: monthly }))),
+    ...((plan.installments || []).map(inst => ({ key: inst.key, label: inst.label, planned_due: inst.due_date, due_date: inst.due_date, amount: monthly }))),
   ];
 
   // Apply payments in date order → oldest first goes to earliest installment
@@ -1806,11 +1824,22 @@ function computeInstallments(p) {
   // Any "overpayment" beyond total obligation: shown as credit
   const overpayment = remainingPaid;
 
+  // Effective due date for monthly installments: due = max(planned, invoice_sent_at + 5 days)
+  // If no invoice was ever sent, there's no "past due" state — status becomes "pending" instead.
+  const sentAt = p.invoiceSentAt || null;
+  const derivedDue = sentAt ? addDays(sentAt, SEND_TO_DUE_DAYS) : null;
+  schedule.forEach(row => {
+    if (row.key === 'initial') return; // initial goes to Thunder via Stack Sports, no send-based due
+    if (derivedDue && row.planned_due && derivedDue > row.planned_due) row.due_date = derivedDue;
+    else if (!sentAt) row.due_date = row.planned_due; // planned only, no past-due
+  });
+
   const today = new Date().toISOString().slice(0,10);
   schedule.forEach(row => {
     const outstanding = row.amount - (row.paid || 0);
     if (row.amount <= 0.005) row.status = 'none';
     else if (outstanding <= 0.005) row.status = 'paid';
+    else if (row.key !== 'initial' && !sentAt && row.planned_due && row.planned_due <= today) row.status = 'pending';
     else if (row.due_date && row.due_date < today) row.status = 'past';
     else if (row.paid > 0.005) row.status = 'partial';
     else row.status = 'due';
@@ -2231,7 +2260,13 @@ function renderPlayerInvoice(p) {
 
   const { schedule, obligation, paid, credits, target, overpayment } = computeInstallments(p);
   const balance = obligation - paid;
-  summary.innerHTML = `Target ${fmt$plain(target)} · Credits ${fmt$plain(credits)} · Obligation ${fmt$plain(obligation)} · Received ${fmt$plain(paid)} · <span style="color:${balance<=0?'var(--pos)':'var(--neg)'}">${balance<=0 ? (overpayment>0.005 ? 'credit ' + fmt$plain(overpayment) : 'paid up') : 'balance ' + fmt$plain(balance)}</span>`;
+  const nextRow = schedule.find(r => r.key !== 'initial' && r.amount > 0.005 && r.outstanding > 0.005);
+  const sentLine = p.invoiceSentAt ? `Invoice sent ${fmtShortDate(p.invoiceSentAt)} · due ${fmtShortDate(addDays(p.invoiceSentAt, SEND_TO_DUE_DAYS))}` : 'Invoice not sent yet';
+  summary.innerHTML = `
+    <div>Target ${fmt$plain(target)} · Credits ${fmt$plain(credits)} · Obligation ${fmt$plain(obligation)} · Received ${fmt$plain(paid)}</div>
+    <div style="margin-top:4px"><strong style="color:${balance<=0?'var(--pos)':'var(--neg)'}">${balance<=0 ? (overpayment>0.005 ? 'Credit ' + fmt$plain(overpayment) : 'Paid up') : 'Balance ' + fmt$plain(balance)}</strong>${nextRow ? ` · monthly ${fmt$plain(nextRow.outstanding)}` : ''}</div>
+    <div style="margin-top:2px;color:var(--text-subtle)">${sentLine}</div>
+  `;
 
   const statusPill = (s) => ({
     paid:    '<span class="pill pill-pos">Paid</span>',
@@ -2425,8 +2460,14 @@ function buildInvoiceText(p) {
     }
   } else if (balance > 0.005) {
     const next = nextDueInstallment(p);
-    lines.push(`CURRENT BALANCE: ${fmt$plain(balance)}`);
-    if (next) lines.push(`NEXT DUE: ${fmt$plain(next.outstanding)} on ${fmtShortDate(next.due_date) || 'TBD'}`);
+    lines.push(`OUTSTANDING BALANCE: ${fmt$plain(balance)}`);
+    if (next) {
+      const dueWhen = next.due_date ? fmtShortDate(next.due_date) : 'TBD';
+      lines.push(`NEXT MONTHLY: ${fmt$plain(next.outstanding)} on ${dueWhen}`);
+      if (balance > next.outstanding + 0.005) {
+        lines.push(`OR PAY IN FULL: ${fmt$plain(balance)} to clear your balance in one payment.`);
+      }
+    }
   } else if (overpayment > 0.005) {
     lines.push(`CREDIT ON ACCOUNT: ${fmt$plain(overpayment)}`);
   } else {
@@ -2452,17 +2493,30 @@ function buildInvoiceText(p) {
   return lines.join('\n');
 }
 
+async function markInvoiceSent(p) {
+  if (!p || !p.cloudId) return;
+  const today = new Date().toISOString().slice(0,10);
+  p.invoiceSentAt = today;
+  saveCache();
+  await supa('team_players', 'PATCH', { invoice_sent_at: today }, `?id=eq.${p.cloudId}`);
+  try { renderRoster(); } catch(e) {}
+  try { renderPlayerInvoice(p); } catch(e) {}
+}
+
 function emailInvoice() {
   const p = currentDrawerPlayer();
   if (!p) return;
   const parent = (p.parents || []).find(x => x && x.primary) || (p.parents || [])[0] || {};
   const to = parent.email || '';
   if (!to) { toast('No parent email on file'); return; }
+  // Mark as sent BEFORE building the body so due date reads today+5 in the invoice itself
+  markInvoiceSent(p);
   const seasonLabel = [TEAM_SETTINGS.age_division, TEAM_SETTINGS.season].filter(Boolean).join(' ');
   const subject = `${p.name} — dues statement${seasonLabel ? ' (' + seasonLabel + ')' : ''}`;
   const body = buildInvoiceText(p);
   const url = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
   window.location.href = url;
+  toast('Marked as sent · due in 5 days');
 }
 
 function printInvoice() {
@@ -2533,10 +2587,19 @@ ${payRows ? '<h2>Payments received</h2><table><thead><tr><th>Date</th><th>Method
   <div class="line"><span>Target</span><span>${fmt$plain(target)}</span></div>
   <div class="line"><span>Credits applied</span><span>−${fmt$plain(credits)}</span></div>
   <div class="line"><span>Payments received</span><span>−${fmt$plain(paid)}</span></div>
-  <div class="line big"><span>${balance <= 0.005 ? (overpayment > 0.005 ? 'Credit on account' : 'Balance') : 'Balance due'}</span><span>${fmt$plain(Math.abs(balance <= 0.005 ? overpayment : balance))}</span></div>
+  <div class="line big"><span>${balance <= 0.005 ? (overpayment > 0.005 ? 'Credit on account' : 'Balance') : 'Outstanding balance'}</span><span>${fmt$plain(Math.abs(balance <= 0.005 ? overpayment : balance))}</span></div>
+  ${monthlyDue && balance > 0.005 ? (() => {
+    const nx = schedule.find(r => r.key !== 'initial' && r.amount > 0.005 && r.outstanding > 0.005);
+    if (!nx) return '';
+    const dueWhen = nx.due_date ? fmtShortDate(nx.due_date) : 'TBD';
+    return `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #ccc;font-family:ui-monospace,monospace;font-size:13px">
+      <div style="display:flex;justify-content:space-between;padding:2px 0"><span>Next monthly · due ${dueWhen}</span><span>${fmt$plain(nx.outstanding)}</span></div>
+      ${balance > nx.outstanding + 0.005 ? `<div style="display:flex;justify-content:space-between;padding:2px 0;color:#0846b7"><span><strong>Or pay in full to clear balance</strong></span><span><strong>${fmt$plain(balance)}</strong></span></div>` : ''}
+    </div>`;
+  })() : ''}
 </div>
 ${balance <= 0.005 && overpayment <= 0.005 ? '<div style="margin-top:16px;padding:14px;background:#e6f7ea;border:1px solid #b7e4c1;border-radius:8px;font-size:13px;color:#124a24"><strong>Paid in full after the initial deposit.</strong> Team fundraising covered the rest of the season for you. Thanks for helping raise money!</div>' : ''}
-${monthlyDue && opts.length ? '<div class="options"><strong>Monthly installments &mdash; payment options</strong>' + opts.join('') + '<div style="margin-top:8px;color:#666">If you need to break the balance into smaller monthly payments, let me know.</div></div>' : ''}
+${monthlyDue && opts.length ? '<div class="options"><strong>Monthly installments &mdash; payment options</strong>' + opts.join('') + '<div style="margin-top:8px;color:#666">Pay the monthly amount above, or pay the full outstanding balance to clear your account in one payment.</div></div>' : ''}
 <div style="margin-top:32px;color:#666;font-size:12px">Questions? Reply to this email or contact ${s.manager || 'the manager'}.</div>
 </body></html>`;
   const w = window.open('', '_blank');
