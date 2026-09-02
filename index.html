@@ -1800,12 +1800,16 @@ function addDays(dateStr, days) {
 
 function computeInstallments(p) {
   const plan = TM_STATE.payment_plan || DEFAULT_PAYMENT_PLAN;
-  const target = playerTarget(p);
-  const credits = playerRaised(p) + fundraisingCreditPerPlayer();
-  const obligation = Math.max(0, target - credits); // parent's total obligation after credits
   const initial = plan.initial_amount || 0;                       // FLAT — Thunder charges everyone this via registration
-  const remaining = Math.max(0, obligation - initial);            // monthly only kicks in when balance exceeds the initial
-  const monthly = (plan.installments || []).length > 0 ? remaining / plan.installments.length : 0;
+  const charges = playerCharges(p);                                // individual orders billed 100% to family
+  const personalCredits = playerRaised(p);                         // sponsors + positive attributed expenses (NOT team fundraising)
+  // Family obligation = $500 initial + their individual charges, offset by personal sponsors
+  const obligation = Math.max(0, initial + charges - personalCredits);
+  const remainingAfterInitial = Math.max(0, obligation - initial);
+  const monthly = (plan.installments || []).length > 0 ? remainingAfterInitial / plan.installments.length : 0;
+  // Kept for backwards compat with other renderers that reference `target` / `credits`
+  const target = playerTarget(p);
+  const credits = personalCredits;
 
   const schedule = [
     { key: 'initial', label: 'Initial deposit', due_date: plan.initial_due, amount: initial },
@@ -2263,7 +2267,7 @@ function renderPlayerInvoice(p) {
   const nextRow = schedule.find(r => r.key !== 'initial' && r.amount > 0.005 && r.outstanding > 0.005);
   const sentLine = p.invoiceSentAt ? `Invoice sent ${fmtShortDate(p.invoiceSentAt)} · due ${fmtShortDate(addDays(p.invoiceSentAt, SEND_TO_DUE_DAYS))}` : 'Invoice not sent yet';
   summary.innerHTML = `
-    <div>Target ${fmt$plain(target)} · Credits ${fmt$plain(credits)} · Obligation ${fmt$plain(obligation)} · Received ${fmt$plain(paid)}</div>
+    <div>Initial ${fmt$plain((TM_STATE.payment_plan||DEFAULT_PAYMENT_PLAN).initial_amount || 0)} · Charges ${fmt$plain(playerCharges(p))}${credits > 0.005 ? ' · Personal credits ' + fmt$plain(credits) : ''} · Obligation ${fmt$plain(obligation)} · Received ${fmt$plain(paid)}</div>
     <div style="margin-top:4px"><strong style="color:${balance<=0?'var(--pos)':'var(--neg)'}">${balance<=0 ? (overpayment>0.005 ? 'Credit ' + fmt$plain(overpayment) : 'Paid up') : 'Balance ' + fmt$plain(balance)}</strong>${nextRow ? ` · monthly ${fmt$plain(nextRow.outstanding)}` : ''}</div>
     <div style="margin-top:2px;color:var(--text-subtle)">${sentLine}</div>
   `;
@@ -2402,10 +2406,11 @@ function buildInvoiceText(p) {
   lines.push('');
   lines.push(`Here's ${p.name}'s dues statement for ${s.team_name || 'the team'}${seasonLabel ? ' — ' + seasonLabel : ''}.`);
   lines.push('');
-  lines.push('SEASON FEES');
-  lines.push(`  Base per-player                    ${fmt$plain(costPerPlayer()).padStart(10)}`);
+  const plan = TM_STATE.payment_plan || DEFAULT_PAYMENT_PLAN;
+  lines.push('YOUR SEASON DUES');
+  lines.push(`  Initial deposit (Thunder registration) ${fmt$plain(plan.initial_amount || 0).padStart(10)}`);
   if (charges.length > 0) {
-    lines.push('  Individual charges:');
+    lines.push('  Individual orders (billed to you):');
     charges.forEach(e => {
       const label = e.description || 'charge';
       const date = e.date ? fmtShortDate(e.date) : '';
@@ -2413,17 +2418,14 @@ function buildInvoiceText(p) {
     });
   }
   if (personalCredits.length > 0) {
-    lines.push('  Personal credits:');
+    lines.push('  Personal sponsors / credits:');
     personalCredits.forEach(x => {
       const date = x.date ? fmtShortDate(x.date) : '';
       lines.push(`     ${date.padEnd(7)} ${x.description || 'credit'}`.padEnd(50) + ('-' + fmt$plain(Number(x.amount||0))).padStart(10));
     });
   }
-  if (teamCredit > 0.005) {
-    lines.push(`  Team fundraising credit           ${('-' + fmt$plain(teamCredit)).padStart(10)}`);
-  }
   lines.push('  ─────────────────────────────────────────────');
-  lines.push(`  TOTAL OWED                       ${fmt$plain(obligation).padStart(10)}`);
+  lines.push(`  TOTAL DUE FROM YOU                 ${fmt$plain(obligation).padStart(10)}`);
   lines.push('');
   lines.push('PAYMENT SCHEDULE');
   schedule.forEach(row => {
@@ -2450,13 +2452,12 @@ function buildInvoiceText(p) {
   const initialRow = schedule.find(r => r.key === 'initial');
   const initialUnpaid = initialRow && (initialRow.outstanding > 0.005);
   if (!monthlyDue && obligation > 0.005 && obligation <= (TM_STATE.payment_plan?.initial_amount || 0)) {
-    // Fundraising + $500 initial fully covers the season for this player
+    // No individual charges — the $500 initial is all that's owed
     if (initialUnpaid) {
       lines.push(`NEXT DUE: ${fmt$plain(initialRow.amount)} to Thunder on ${fmtShortDate(initialRow.due_date) || 'Aug 15'}`);
-      lines.push('Once the $500 registration is paid, you\'re fully covered — team fundraising handles the rest of the season.');
+      lines.push('Once the $500 registration is paid, you\'re fully covered for the season.');
     } else {
-      lines.push('PAID IN FULL — team fundraising covered the rest of the season.');
-      lines.push('Thank you for helping raise money for the team!');
+      lines.push('PAID IN FULL — nothing more due for the season.');
     }
   } else if (balance > 0.005) {
     const next = nextDueInstallment(p);
@@ -2471,8 +2472,7 @@ function buildInvoiceText(p) {
   } else if (overpayment > 0.005) {
     lines.push(`CREDIT ON ACCOUNT: ${fmt$plain(overpayment)}`);
   } else {
-    lines.push('PAID IN FULL after the initial deposit — team fundraising covered the rest.');
-    lines.push('Thank you for helping raise money for the team!');
+    lines.push('PAID IN FULL — thank you!');
   }
   lines.push('');
   if (monthlyDue) {
@@ -2584,8 +2584,9 @@ ${chargeRows ? '<h2>Individual charges</h2><table><thead><tr><th>Date</th><th>De
 ${regBlock}
 ${payRows ? '<h2>Payments received</h2><table><thead><tr><th>Date</th><th>Method</th><th>Reference</th><th style="text-align:right">Amount</th></tr></thead><tbody>' + payRows + '</tbody></table>' : ''}
 <div class="totals">
-  <div class="line"><span>Target</span><span>${fmt$plain(target)}</span></div>
-  <div class="line"><span>Credits applied</span><span>−${fmt$plain(credits)}</span></div>
+  <div class="line"><span>Initial deposit (Thunder)</span><span>${fmt$plain((TM_STATE.payment_plan||DEFAULT_PAYMENT_PLAN).initial_amount || 0)}</span></div>
+  <div class="line"><span>Individual charges</span><span>${fmt$plain(playerCharges(p))}</span></div>
+  ${credits > 0.005 ? `<div class="line"><span>Personal sponsors / credits</span><span>−${fmt$plain(credits)}</span></div>` : ''}
   <div class="line"><span>Payments received</span><span>−${fmt$plain(paid)}</span></div>
   <div class="line big"><span>${balance <= 0.005 ? (overpayment > 0.005 ? 'Credit on account' : 'Balance') : 'Outstanding balance'}</span><span>${fmt$plain(Math.abs(balance <= 0.005 ? overpayment : balance))}</span></div>
   ${monthlyDue && balance > 0.005 ? (() => {
@@ -2598,7 +2599,7 @@ ${payRows ? '<h2>Payments received</h2><table><thead><tr><th>Date</th><th>Method
     </div>`;
   })() : ''}
 </div>
-${balance <= 0.005 && overpayment <= 0.005 ? '<div style="margin-top:16px;padding:14px;background:#e6f7ea;border:1px solid #b7e4c1;border-radius:8px;font-size:13px;color:#124a24"><strong>Paid in full after the initial deposit.</strong> Team fundraising covered the rest of the season for you. Thanks for helping raise money!</div>' : ''}
+${balance <= 0.005 && overpayment <= 0.005 ? '<div style="margin-top:16px;padding:14px;background:#e6f7ea;border:1px solid #b7e4c1;border-radius:8px;font-size:13px;color:#124a24"><strong>Paid in full.</strong> Nothing more due for the season — thank you!</div>' : ''}
 ${monthlyDue && opts.length ? '<div class="options"><strong>Monthly installments &mdash; payment options</strong>' + opts.join('') + '<div style="margin-top:8px;color:#666">Pay the monthly amount above, or pay the full outstanding balance to clear your account in one payment.</div></div>' : ''}
 <div style="margin-top:32px;color:#666;font-size:12px">Questions? Reply to this email or contact ${s.manager || 'the manager'}.</div>
 </body></html>`;
