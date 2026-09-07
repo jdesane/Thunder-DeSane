@@ -2389,7 +2389,13 @@ function buildInvoiceText(p) {
   const s = TEAM_SETTINGS;
   const seasonLabel = [s.age_division, s.season_type, s.season].filter(Boolean).join(' · ');
   const parent = (p.parents || []).find(x => x && x.primary) || (p.parents || [])[0] || {};
-  const parentName = (parent.name || '').split(' ')[0] || 'there';
+  // Salutation — use "Lastname family" so it reads naturally whether one or both parents are on the email.
+  // Strip suffixes like Jr/Sr/II/III/IV to land on the actual surname.
+  const _tokens = (p.name || '').split(/\s+/).filter(Boolean);
+  const _suffixes = /^(jr|sr|ii|iii|iv|v)\.?$/i;
+  while (_tokens.length > 1 && _suffixes.test(_tokens[_tokens.length - 1])) _tokens.pop();
+  const lastName = (_tokens.slice(-1)[0] || '').replace(/[^A-Za-z-']/g, '') || 'there';
+  const parentName = lastName + ' family';
   const { schedule, obligation, paid, credits, target, overpayment } = computeInstallments(p);
   const balance = obligation - paid;
   const charges = playerAttachedExpenses(p).filter(e => Number(e.amount) < 0)
@@ -2502,17 +2508,21 @@ async function markInvoiceSent(p) {
 function emailInvoice() {
   const p = currentDrawerPlayer();
   if (!p) return;
-  const parent = (p.parents || []).find(x => x && x.primary) || (p.parents || [])[0] || {};
-  const to = parent.email || '';
-  if (!to) { toast('No parent email on file'); return; }
+  const emails = [...new Set((p.parents || []).map(x => (x && x.email || '').trim()).filter(Boolean))];
+  if (emails.length === 0) { toast('No parent email on file'); return; }
+  const primary = (p.parents || []).find(x => x && x.primary && x.email) || (p.parents || []).find(x => x && x.email) || {};
+  const to = (primary.email || emails[0] || '').trim();
+  const ccList = emails.filter(e => e && e !== to);
   // Mark as sent BEFORE building the body so due date reads today+5 in the invoice itself
   markInvoiceSent(p);
   const seasonLabel = [TEAM_SETTINGS.age_division, TEAM_SETTINGS.season].filter(Boolean).join(' ');
   const subject = `${p.name} — dues statement${seasonLabel ? ' (' + seasonLabel + ')' : ''}`;
   const body = buildInvoiceText(p);
-  const url = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+  const parts = ['subject=' + encodeURIComponent(subject), 'body=' + encodeURIComponent(body)];
+  if (ccList.length) parts.unshift('cc=' + encodeURIComponent(ccList.join(',')));
+  const url = 'mailto:' + encodeURIComponent(to) + '?' + parts.join('&');
   window.location.href = url;
-  toast('Marked as sent · due in 5 days');
+  toast(ccList.length ? `Sent to ${to} · cc ${ccList.join(', ')}` : 'Marked as sent · due in 5 days');
 }
 
 function printInvoice() {
