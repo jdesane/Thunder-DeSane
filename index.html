@@ -447,6 +447,228 @@
   .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
   .grid-4-tight { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
 
+  /* ===== DASHBOARD ===== */
+  .dash-row {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .dash-row.cols-3 { grid-template-columns: 1.4fr 1fr 1fr; }
+  .dash-row.cols-2 { grid-template-columns: 1fr 1fr; }
+  .dash-row.cols-2-wide { grid-template-columns: 1.6fr 1fr; }
+
+  /* Next-tournament hero */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(120% 140% at 100% 0%, rgba(245,158,11,0.14) 0%, rgba(245,158,11,0) 55%),
+      var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    min-height: 168px;
+  }
+  .hero-eyebrow {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--warn);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .hero-name {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: var(--text);
+  }
+  .hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .hero-note {
+    font-size: 12px;
+    color: var(--text-subtle);
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+  .hero-foot {
+    margin-top: auto;
+    padding-top: 14px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .hero-count {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .hero-count-num {
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--warn);
+  }
+  .hero-count-lbl {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+
+  /* Readiness checklist */
+  .check-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .check-row:last-child { border-bottom: none; }
+  .check-mark {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 9px;
+    font-weight: 700;
+  }
+  .check-mark.done    { background: rgba(34,197,94,0.14);  color: var(--pos); }
+  .check-mark.partial { background: rgba(245,158,11,0.14); color: var(--warn); }
+  .check-mark.todo    { background: rgba(255,255,255,0.05); color: var(--text-subtle); }
+  .check-label { flex: 1; color: var(--text); }
+  .check-value { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+
+  /* Progress meter */
+  .meter {
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.06);
+    overflow: hidden;
+    margin: 10px 0 6px;
+  }
+  .meter-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+  .meter-fill.pos  { background: var(--pos); }
+  .meter-fill.warn { background: var(--warn); }
+  .meter-fill.neg  { background: var(--neg); }
+  .meter-legend {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* Alert / watch list */
+  .alert-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: opacity 0.1s;
+  }
+  .alert-row:last-child { border-bottom: none; }
+  .alert-row:hover { opacity: 0.72; }
+  .alert-dot {
+    width: 7px;
+    height: 7px;
+    flex: 0 0 7px;
+    border-radius: 50%;
+  }
+  .alert-dot.neg  { background: var(--neg); }
+  .alert-dot.warn { background: var(--warn); }
+  .alert-dot.info { background: var(--info); }
+  .alert-body { flex: 1; min-width: 0; }
+  .alert-title {
+    font-size: 13px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .alert-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+  .alert-amt { font-size: 13px; font-weight: 500; white-space: nowrap; }
+
+  /* Card link in title */
+  .card-link {
+    font-size: 11px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .card-link:hover { color: var(--text); }
+
+  .card-empty {
+    padding: 18px 0;
+    text-align: center;
+    color: var(--text-subtle);
+    font-size: 12px;
+  }
+
+  /* Snapshot stat tiles */
+  .snap {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    gap: 12px;
+  }
+  .snap-item { display: flex; flex-direction: column; gap: 3px; }
+  .snap-val {
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .snap-lbl {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+
+  /* Sidebar "coming soon" items */
+  .nav-item.soon {
+    opacity: 0.42;
+    cursor: default;
+  }
+  .nav-item.soon:hover { background: transparent; color: var(--text-muted); }
+  .nav-soon-tag {
+    margin-left: auto;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-subtle);
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+    padding: 1px 4px;
+  }
+
+  @media (max-width: 1100px) {
+    .dash-row.cols-3 { grid-template-columns: 1fr 1fr; }
+    .dash-row.cols-3 > :first-child { grid-column: 1 / -1; }
+  }
+  @media (max-width: 760px) {
+    .dash-row.cols-3, .dash-row.cols-2, .dash-row.cols-2-wide { grid-template-columns: 1fr; }
+    .dash-row.cols-3 > :first-child { grid-column: auto; }
+    .hero-name { font-size: 19px; }
+  }
+
   /* Budget table specifics */
   #budget-table tbody tr.cat-row td {
     padding: 12px 12px 6px;
@@ -689,6 +911,8 @@
     }
     .sidebar-brand, .nav-group-label, .sidebar-bottom { display: none; }
     .sidebar > div:not(.nav-item) { display: none; }
+    /* Roadmap items aren't tappable — keep the bottom bar to real destinations */
+    .nav-item.soon { display: none; }
     .nav-item {
       flex-direction: column;
       gap: 3px;
@@ -739,8 +963,34 @@
       <div class="sidebar-brand-sub" data-team-field="topbar_sub">8U · Spring 2026</div>
     </div>
 
-    <div class="nav-group-label">Workspace</div>
-    <div class="nav-item active" data-section="roster" onclick="navigate('roster')">
+    <div class="nav-group-label">Coaching</div>
+    <div class="nav-item active" data-section="dashboard" onclick="navigate('dashboard')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item soon" data-section="planner" title="Coming next">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M9 11H3v10h6zM15 3H9v18h6zM21 7h-6v14h6z"/></svg>
+      Game Planner
+      <span class="nav-soon-tag">Soon</span>
+    </div>
+    <div class="nav-item soon" data-section="playingtime" title="Coming next">
+      <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      Playing Time
+      <span class="nav-soon-tag">Soon</span>
+    </div>
+    <div class="nav-item soon" data-section="pitching" title="Coming next">
+      <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5 6c3 3 3 9 0 12M19 6c-3 3-3 9 0 12"/></svg>
+      Pitching
+      <span class="nav-soon-tag">Soon</span>
+    </div>
+    <div class="nav-item soon" data-section="livegame" title="Coming next">
+      <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.5"/><path d="M5.5 5.5a9 9 0 0 0 0 13M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+      Live Game
+      <span class="nav-soon-tag">Soon</span>
+    </div>
+
+    <div class="nav-group-label">Operations</div>
+    <div class="nav-item" data-section="roster" onclick="navigate('roster')">
       <svg class="nav-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Roster
     </div>
@@ -771,7 +1021,7 @@
   <main class="main">
     <div class="topbar">
       <div class="topbar-left">
-        <span data-crumb="section">Roster</span>
+        <span data-crumb="section">Dashboard</span>
       </div>
       <div class="topbar-right">
         <button class="btn btn-secondary btn-sm" onclick="openExpenseModal()">
@@ -782,8 +1032,78 @@
       </div>
     </div>
 
+    <!-- ============ DASHBOARD ============ -->
+    <section class="section active" id="section-dashboard">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Dashboard</div>
+          <div class="section-sub" data-team-field="topbar_sub_full">SFL Thunder Black</div>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-secondary btn-sm hide-mobile" onclick="exportAll()">Export data</button>
+          <button class="btn btn-secondary btn-sm" onclick="refreshDashboard()">Refresh</button>
+        </div>
+      </div>
+
+      <div class="dash-row cols-3">
+        <div id="dash-hero"></div>
+
+        <div class="card">
+          <div class="card-title">
+            Season Readiness
+            <span class="card-link" id="dash-ready-pct"></span>
+          </div>
+          <div id="dash-readiness"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            Roster
+            <span class="card-link" onclick="navigate('roster')">View →</span>
+          </div>
+          <div id="dash-roster"></div>
+        </div>
+      </div>
+
+      <div class="dash-row cols-2-wide">
+        <div class="card">
+          <div class="card-title">
+            Team Funding
+            <span class="card-link" onclick="navigate('finances')">Finances →</span>
+          </div>
+          <div id="dash-money"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            Payment Watch
+            <span class="card-link" id="dash-watch-count"></span>
+          </div>
+          <div id="dash-watch"></div>
+        </div>
+      </div>
+
+      <div class="dash-row cols-2">
+        <div class="card">
+          <div class="card-title">
+            Upcoming Tournaments
+            <span class="card-link" onclick="navigate('tournaments')">All →</span>
+          </div>
+          <div id="dash-tourneys"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            Recent Activity
+            <span class="card-link" onclick="navigate('finances')">Ledger →</span>
+          </div>
+          <div id="dash-activity"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ============ ROSTER ============ -->
-    <section class="section active" id="section-roster">
+    <section class="section" id="section-roster">
       <div class="section-header">
         <div>
           <div class="section-title">Roster</div>
@@ -1519,7 +1839,7 @@ const DEFAULT_PAYMENT_PLAN = {
 let TM_STATE = { expenses: [], donations: [], tournaments: [], payments: [], budget: { ...DEFAULT_BUDGET }, payment_plan: JSON.parse(JSON.stringify(DEFAULT_PAYMENT_PLAN)) };
 let TEAM_SETTINGS = { ...DEFAULT_SETTINGS };
 let UI = {
-  section: 'roster',
+  section: 'dashboard',
   finTab: 'ledger',
   statusFilter: 'all',
   tournFilter: 'all',
@@ -1875,6 +2195,7 @@ function navigate(section) {
   const crumb = document.querySelector('[data-crumb="section"]');
   if (crumb) crumb.textContent = section.charAt(0).toUpperCase() + section.slice(1);
   window.scrollTo(0, 0);
+  if (section === 'dashboard') { renderDashboard(); loadUniformOrders(); }
   if (section === 'roster') renderRoster();
   if (section === 'finances') renderFinances();
   if (section === 'tournaments') renderTournaments();
@@ -1896,6 +2217,340 @@ function applyTeamSettings() {
     document.querySelectorAll(`[data-team-field="${k}"]`).forEach(el => { el.textContent = derived[k]; });
   });
   document.title = `${s.team_name || 'Team'} — Team Manager`;
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d)) return null;
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  return Math.round((d - t) / 86400000);
+}
+
+function ageFromDob(dob) {
+  if (!dob) return null;
+  const b = new Date(dob + 'T00:00:00');
+  if (isNaN(b)) return null;
+  const now = new Date();
+  let a = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) a--;
+  return a;
+}
+
+function upcomingTournaments() {
+  const today = todayISO();
+  return TM_STATE.tournaments
+    .filter(t => t.status !== 'completed' && t.start_date && (t.end_date || t.start_date) >= today)
+    .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
+}
+
+function renderDashboard() {
+  renderDashHero();
+  renderDashReadiness();
+  renderDashRoster();
+  renderDashMoney();
+  renderDashWatch();
+  renderDashTourneys();
+  renderDashActivity();
+}
+
+async function refreshDashboard() {
+  await Promise.all([loadFromCloud(), loadUniformOrders(true)]);
+  applyTeamSettings();
+  renderDashboard();
+  toast('Refreshed');
+}
+
+// ---- Next tournament hero ----
+function renderDashHero() {
+  const el = document.getElementById('dash-hero');
+  if (!el) return;
+  const next = upcomingTournaments()[0];
+
+  if (!next) {
+    el.innerHTML = `
+      <div class="hero">
+        <div class="hero-eyebrow">Next Tournament</div>
+        <div class="hero-name" style="font-size:17px;color:var(--text-muted)">Nothing on the schedule</div>
+        <div class="hero-note">Add a tournament to start planning pitching rotations and playing time around it.</div>
+        <div class="hero-foot">
+          <button class="btn btn-primary btn-sm" onclick="navigate('tournaments')">Add tournament</button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const d = daysUntil(next.start_date);
+  const multiDay = next.end_date && next.end_date !== next.start_date;
+  const range = multiDay
+    ? `${fmtShortDate(next.start_date)} – ${fmtShortDate(next.end_date)}`
+    : fmtShortDate(next.start_date);
+  const year = (next.start_date || '').slice(0, 4);
+  const pill = next.status === 'registered'
+    ? '<span class="pill pill-info">Registered</span>'
+    : '<span class="pill pill-muted">Potential</span>';
+
+  let countNum, countLbl;
+  if (d === null || d < 0) { countNum = 'Now'; countLbl = 'In progress'; }
+  else if (d === 0)        { countNum = 'Today'; countLbl = 'First pitch'; }
+  else                     { countNum = String(d); countLbl = d === 1 ? 'Day away' : 'Days away'; }
+
+  const fee = Number(next.entry_fee) > 0 ? `<span>Entry ${fmt$plain(next.entry_fee)}</span>` : '';
+
+  el.innerHTML = `
+    <div class="hero">
+      <div class="hero-eyebrow">Next Tournament</div>
+      <div class="hero-name">${esc(next.name || 'Untitled tournament')}</div>
+      <div class="hero-meta">
+        ${pill}
+        <span class="mono">${range}${year ? ', ' + year : ''}</span>
+        ${fee}
+      </div>
+      ${next.notes ? `<div class="hero-note">${esc(next.notes)}</div>` : ''}
+      <div class="hero-foot">
+        <div class="hero-count">
+          <div class="hero-count-num" ${countNum.length > 3 ? 'style="font-size:22px"' : ''}>${countNum}</div>
+          <div class="hero-count-lbl">${countLbl}</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="navigate('tournaments')">Details</button>
+      </div>
+    </div>`;
+}
+
+// ---- Season readiness ----
+function dashReadinessChecks() {
+  const n = PLAYERS.length;
+  const orderNames = new Set(
+    UNIFORM_ORDERS.map(o => (o.player_name || '').trim().toLowerCase()).filter(Boolean)
+  );
+  const ordered    = PLAYERS.filter(p => orderNames.has((p.name || '').trim().toLowerCase())).length;
+  const invoiced   = PLAYERS.filter(p => p.invoiceSentAt).length;
+  const contacted  = PLAYERS.filter(p => (p.parents || []).some(x => x.email || x.phone)).length;
+  const budgetSet  = (TM_STATE.budget?.items || []).some(i => Number(i.cost) > 0 || Number(i.pct) > 0);
+  const tGoal      = Number(TM_STATE.budget?.params?.tournaments) || 0;
+  const tBooked    = upcomingTournaments().length;
+
+  const all = (k) => n > 0 && k === n;
+  return [
+    { label: 'Roster locked',      done: n >= 9,                    partial: n > 0,          value: `${n} players` },
+    { label: 'Parent contacts',    done: all(contacted),            partial: contacted > 0,  value: `${contacted}/${n}` },
+    { label: 'Budget model',       done: budgetSet,                 partial: false,          value: budgetSet ? fmt$plain(computeSeasonTotal()) : 'Not set' },
+    { label: 'Invoices sent',      done: all(invoiced),             partial: invoiced > 0,   value: `${invoiced}/${n}` },
+    { label: 'Uniform orders',     done: all(ordered),              partial: ordered > 0,    value: `${ordered}/${n}` },
+    { label: 'Tournaments booked', done: tGoal > 0 && tBooked >= tGoal, partial: tBooked > 0, value: tGoal > 0 ? `${tBooked}/${tGoal}` : `${tBooked}` },
+  ];
+}
+
+function renderDashReadiness() {
+  const el = document.getElementById('dash-readiness');
+  if (!el) return;
+  const checks = dashReadinessChecks();
+  const done = checks.filter(c => c.done).length;
+  const pctEl = document.getElementById('dash-ready-pct');
+  if (pctEl) pctEl.textContent = `${done}/${checks.length} complete`;
+
+  el.innerHTML = checks.map(c => {
+    const state = c.done ? 'done' : c.partial ? 'partial' : 'todo';
+    const glyph = c.done ? '✓' : c.partial ? '•' : '';
+    return `
+      <div class="check-row">
+        <div class="check-mark ${state}">${glyph}</div>
+        <div class="check-label">${c.label}</div>
+        <div class="check-value mono">${c.value}</div>
+      </div>`;
+  }).join('');
+}
+
+// ---- Roster snapshot ----
+function renderDashRoster() {
+  const el = document.getElementById('dash-roster');
+  if (!el) return;
+  const n = PLAYERS.length;
+  const ages = PLAYERS.map(p => ageFromDob(p.dob)).filter(a => a !== null);
+  const avgAge = ages.length ? (ages.reduce((s, a) => s + a, 0) / ages.length) : null;
+  const parents = PLAYERS.reduce((s, p) => s + (p.parents || []).filter(x => x.email || x.phone).length, 0);
+  const orderNames = new Set(
+    UNIFORM_ORDERS.map(o => (o.player_name || '').trim().toLowerCase()).filter(Boolean)
+  );
+  const ordered = PLAYERS.filter(p => orderNames.has((p.name || '').trim().toLowerCase())).length;
+
+  el.innerHTML = `
+    <div class="snap">
+      <div class="snap-item"><div class="snap-val">${n}</div><div class="snap-lbl">Players</div></div>
+      <div class="snap-item"><div class="snap-val">${avgAge !== null ? avgAge.toFixed(1) : '—'}</div><div class="snap-lbl">Avg age</div></div>
+      <div class="snap-item"><div class="snap-val">${parents}</div><div class="snap-lbl">Contacts</div></div>
+      <div class="snap-item"><div class="snap-val">${ordered}</div><div class="snap-lbl">Uniforms</div></div>
+    </div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn btn-secondary btn-xs" onclick="bulkContact('sms')">Text parents</button>
+      <button class="btn btn-secondary btn-xs" onclick="bulkContact('email')">Email parents</button>
+    </div>`;
+}
+
+// ---- Team funding ----
+function renderDashMoney() {
+  const el = document.getElementById('dash-money');
+  if (!el) return;
+  const raised   = totalRaised();
+  const payments = TM_STATE.payments.reduce((s, x) => s + Number(x.amount || 0), 0);
+  const spent    = totalSpent();
+  const bal      = currentBalance();
+  const target   = computeSeasonTotal();
+  const funded   = raised + payments;
+  const pct      = target > 0 ? (funded / target) * 100 : 0;
+  const tone     = pct >= 90 ? 'pos' : pct >= 50 ? 'warn' : 'neg';
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+      <div>
+        <span style="font-size:24px;font-weight:600;letter-spacing:-0.02em">${fmt$plain(funded)}</span>
+        <span style="font-size:12px;color:var(--text-muted)"> of ${fmt$plain(target)} season budget</span>
+      </div>
+      <span class="pill pill-${tone === 'pos' ? 'pos' : tone === 'warn' ? 'warn' : 'neg'}">${pct.toFixed(0)}% funded</span>
+    </div>
+    <div class="meter"><div class="meter-fill ${tone}" style="width:${Math.max(0, Math.min(100, pct))}%"></div></div>
+    <div class="meter-legend">
+      <span>${fmt$plain(Math.max(0, target - funded))} still to raise</span>
+      <span>${PLAYERS.length} players</span>
+    </div>
+    <div class="snap" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+      <div class="snap-item"><div class="snap-val mono" style="color:var(--pos)">${fmt$plain(raised)}</div><div class="snap-lbl">Fundraised</div></div>
+      <div class="snap-item"><div class="snap-val mono" style="color:var(--pos)">${fmt$plain(payments)}</div><div class="snap-lbl">Payments</div></div>
+      <div class="snap-item"><div class="snap-val mono" style="color:var(--neg)">${fmt$plain(spent)}</div><div class="snap-lbl">Spent</div></div>
+      <div class="snap-item"><div class="snap-val mono" style="color:${bal >= 0 ? 'var(--text)' : 'var(--neg)'}">${fmt$(bal)}</div><div class="snap-lbl">On hand</div></div>
+      <div class="snap-item"><div class="snap-val mono">${fmt$plain(costPerPlayer())}</div><div class="snap-lbl">Per player</div></div>
+    </div>`;
+}
+
+// ---- Payment watch ----
+function renderDashWatch() {
+  const el = document.getElementById('dash-watch');
+  const countEl = document.getElementById('dash-watch-count');
+  if (!el) return;
+
+  const rows = PLAYERS.map((p, idx) => {
+    const { schedule } = computeInstallments(p);
+    const outstanding = schedule.reduce((s, r) => s + (Number(r.outstanding) || 0), 0);
+    const past = schedule.filter(r => r.status === 'past').length;
+    const next = schedule.find(r => r.amount > 0.005 && r.outstanding > 0.005);
+    return { p, idx, outstanding, past, next };
+  })
+    .filter(r => r.outstanding > 0.005)
+    .sort((a, b) => (b.past - a.past) || (b.outstanding - a.outstanding));
+
+  const pastDue = rows.filter(r => r.past > 0).length;
+  if (countEl) {
+    countEl.textContent = rows.length === 0 ? 'All clear' : `${rows.length} owing`;
+    countEl.style.color = pastDue > 0 ? 'var(--neg)' : '';
+  }
+
+  if (rows.length === 0) {
+    el.innerHTML = `<div class="card-empty" style="color:var(--pos)">Every family is paid up.</div>`;
+    return;
+  }
+
+  const shown = rows.slice(0, 6);
+  el.innerHTML = shown.map(r => {
+    const dot = r.past > 0 ? 'neg' : r.next && r.next.due_date ? 'warn' : 'info';
+    const sub = r.past > 0
+      ? `${r.past} past due`
+      : r.next && r.next.due_date
+        ? `${r.next.label} due ${fmtShortDate(r.next.due_date)}`
+        : 'Awaiting next invoice';
+    return `
+      <div class="alert-row" onclick="openPlayerDrawer(${r.idx})">
+        <div class="alert-dot ${dot}"></div>
+        <div class="alert-body">
+          <div class="alert-title">#${esc(r.p.num || '')} ${esc(r.p.name || '')}</div>
+          <div class="alert-sub">${esc(sub)}</div>
+        </div>
+        <div class="alert-amt mono" style="color:${r.past > 0 ? 'var(--neg)' : 'var(--text-muted)'}">${fmt$plain(r.outstanding)}</div>
+      </div>`;
+  }).join('')
+    + (rows.length > shown.length
+      ? `<div class="card-empty"><span class="card-link" onclick="navigate('finances')">+ ${rows.length - shown.length} more →</span></div>`
+      : '');
+}
+
+// ---- Upcoming tournaments ----
+function renderDashTourneys() {
+  const el = document.getElementById('dash-tourneys');
+  if (!el) return;
+  const list = upcomingTournaments().slice(0, 5);
+  if (list.length === 0) {
+    el.innerHTML = `<div class="card-empty">No upcoming tournaments.</div>`;
+    return;
+  }
+  el.innerHTML = list.map(t => {
+    const d = daysUntil(t.start_date);
+    const multiDay = t.end_date && t.end_date !== t.start_date;
+    const range = multiDay ? `${fmtShortDate(t.start_date)} – ${fmtShortDate(t.end_date)}` : fmtShortDate(t.start_date);
+    const pill = t.status === 'registered'
+      ? '<span class="pill pill-info">Registered</span>'
+      : '<span class="pill pill-muted">Potential</span>';
+    const away = d === null || d < 0 ? 'now' : d === 0 ? 'today' : `${d}d`;
+    return `
+      <div class="alert-row" onclick="navigate('tournaments')">
+        <div class="alert-body">
+          <div class="alert-title">${esc(t.name || 'Untitled')}</div>
+          <div class="alert-sub mono">${range}</div>
+        </div>
+        ${pill}
+        <div class="alert-amt mono" style="color:var(--text-muted);min-width:38px;text-align:right">${away}</div>
+      </div>`;
+  }).join('');
+}
+
+// ---- Recent activity ----
+function renderDashActivity() {
+  const el = document.getElementById('dash-activity');
+  if (!el) return;
+  const byId = {};
+  PLAYERS.forEach(p => { if (p.cloudId) byId[p.cloudId] = p; });
+
+  const items = [
+    ...TM_STATE.expenses.map(e => ({
+      date: e.date,
+      title: e.description || 'Expense',
+      sub: e.category || (Number(e.amount) > 0 ? 'Income' : 'Expense'),
+      amount: Number(e.amount) || 0,
+    })),
+    ...TM_STATE.donations.map(d => ({
+      date: d.received_date,
+      title: d.sponsor_name || 'Sponsor donation',
+      sub: d.player_id && byId[d.player_id] ? `Sponsor · ${byId[d.player_id].name}` : 'Sponsor',
+      amount: Number(d.amount) || 0,
+    })),
+    ...TM_STATE.payments.map(pm => ({
+      date: pm.date,
+      title: byId[pm.player_id] ? `${byId[pm.player_id].name} payment` : 'Player payment',
+      sub: methodLabel(pm.method) || 'Payment',
+      amount: Number(pm.amount) || 0,
+    })),
+  ]
+    .filter(x => x.date)
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+    .slice(0, 7);
+
+  if (items.length === 0) {
+    el.innerHTML = `<div class="card-empty">No activity logged yet.</div>`;
+    return;
+  }
+
+  el.innerHTML = items.map(i => `
+    <div class="alert-row" style="cursor:default" onclick="navigate('finances')">
+      <div class="alert-body">
+        <div class="alert-title">${esc(i.title)}</div>
+        <div class="alert-sub">${esc(i.sub)} · <span class="mono">${fmtShortDate(i.date)}</span></div>
+      </div>
+      <div class="alert-amt mono ${i.amount >= 0 ? 'amt-pos' : 'amt-neg'}">${i.amount >= 0 ? '+' : '−'}${fmt$plain(Math.abs(i.amount))}</div>
+    </div>`).join('');
 }
 
 // ============================================================
@@ -2031,6 +2686,7 @@ async function loadUniformOrders(force) {
     UNIFORM_ORDERS = rows;
     UNIFORMS_LOADED_AT = Date.now();
     renderUniforms();
+    if (UI.section === 'dashboard') { renderDashReadiness(); renderDashRoster(); }
   }
 }
 
@@ -3416,11 +4072,12 @@ document.addEventListener('keydown', (e) => {
 (async function boot() {
   loadCache();
   applyTeamSettings();
-  renderRoster();
+  renderDashboard();
 
   const ok = await loadFromCloud();
   if (ok) {
     applyTeamSettings();
+    if (UI.section === 'dashboard') { renderDashboard(); loadUniformOrders(); }
     if (UI.section === 'roster') renderRoster();
     if (UI.section === 'finances') renderFinances();
     if (UI.section === 'tournaments') renderTournaments();
