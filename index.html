@@ -2973,6 +2973,32 @@ function planningInnings() {
   return Math.max(1, Math.ceil(Number(TEAM_SETTINGS.max_innings) || p.max));
 }
 
+// ---- Recorded stats vs planned grids ----
+// A game either has a planned defense grid (built here) or recorded fielding
+// imported from a scorekeeper. Recorded data is stored in OUTS; three outs to
+// an inning, and any fraction of an inning counts as a full one against
+// pitching limits.
+function outsToInnings(o) { return (Number(o) || 0) / 3; }
+function outsToChargedInnings(o) { return Math.ceil((Number(o) || 0) / 3); }
+function fmtOuts(o) {
+  const n = Number(o) || 0;
+  const whole = Math.floor(n / 3), rem = n % 3;
+  return rem ? `${whole}.${rem}` : `${whole}`;
+}
+function hasRecordedFielding(g) {
+  return !!g && !!g.fielding && Object.keys(g.fielding).length > 0;
+}
+function hasRecordedPitching(g) {
+  return !!g && !!g.pitching_stats && Object.keys(g.pitching_stats).length > 0;
+}
+// True when a game carries no fielding information at all — neither a planned
+// grid nor recorded stats. Such a game must not charge anyone bench innings.
+function hasAnyFielding(g) {
+  if (hasRecordedFielding(g)) return true;
+  const def = g?.defense || {};
+  return Object.keys(def).some(i => POSITIONS.some(pos => def[i]?.[pos]));
+}
+
 function posRating(p, pos) {
   const v = (p?.positions || {})[pos];
   if (v === undefined || v === null || v === '') return DEFAULT_RATING;
@@ -3004,22 +3030,33 @@ function seasonInnings(excludeGameId) {
   const out = {};
   const touch = (pid) => (out[pid] = out[pid] || { total: 0, byPos: {}, infield: 0, outfield: 0, mid: 0, pitch: 0, games: 0 });
   GAMES.filter(g => g.id !== excludeGameId && isPlayedGame(g)).forEach(g => {
-    const def = g.defense || {};
     const seen = new Set();
-    Object.keys(def).forEach(inn => {
-      POSITIONS.forEach(pos => {
-        const pid = def[inn]?.[pos];
-        if (!pid) return;
-        const r = touch(pid);
-        r.total++;
-        r.byPos[pos] = (r.byPos[pos] || 0) + 1;
-        if (INFIELD.includes(pos)) r.infield++;
-        if (OUTFIELD.includes(pos)) r.outfield++;
-        if (MID_INFIELD.includes(pos)) r.mid++;
-        if (pos === 'P') r.pitch++;
-        seen.add(pid);
+    const add = (pid, pos, inn) => {
+      if (!pid || !inn) return;
+      const r = touch(pid);
+      r.total += inn;
+      r.byPos[pos] = (r.byPos[pos] || 0) + inn;
+      if (INFIELD.includes(pos)) r.infield += inn;
+      if (OUTFIELD.includes(pos)) r.outfield += inn;
+      if (MID_INFIELD.includes(pos)) r.mid += inn;
+      if (pos === 'P') r.pitch += inn;
+      seen.add(pid);
+    };
+
+    if (hasRecordedFielding(g)) {
+      // Imported innings, in outs, rounded to whole innings for fairness maths
+      Object.keys(g.fielding).forEach(pid => {
+        POSITIONS.forEach(pos => {
+          const o = g.fielding[pid]?.[pos];
+          if (o) add(pid, pos, Math.round(outsToInnings(o)) || (o > 0 ? 1 : 0));
+        });
       });
-    });
+    } else {
+      const def = g.defense || {};
+      Object.keys(def).forEach(inn => {
+        POSITIONS.forEach(pos => add(def[inn]?.[pos], pos, 1));
+      });
+    }
     seen.forEach(pid => { touch(pid).games++; });
   });
   return out;
@@ -3035,6 +3072,16 @@ function pitchedByDate(overlay) {
     const src = (GAME && g.id === GAME.id) ? GAME : g;   // prefer unsaved edits
     const date = src.game_date;
     if (!date) return;
+    if (hasRecordedPitching(src)) {
+      // Recorded outs; a partial inning still charges a full one.
+      Object.keys(src.pitching_stats).forEach(pid => {
+        const charged = outsToChargedInnings(src.pitching_stats[pid]?.outs);
+        if (!charged) return;
+        out[pid] = out[pid] || {};
+        out[pid][date] = (out[pid][date] || 0) + charged;
+      });
+      return;
+    }
     const def = src.defense || {};
     Object.keys(def).forEach(inn => {
       const pid = def[inn]?.P;
@@ -4197,33 +4244,60 @@ function playingTimeData() {
   PLAYERS.filter(p => p.cloudId).forEach(p => touch(p.cloudId));
 
   games.forEach(g => {
-    const innings = g.innings || 6;
+    // A game with no fielding recorded at all tells us nothing about who
+    // played — charging everyone a full game of bench time would be a lie.
+    if (!hasAnyFielding(g)) return;
+
+    const innings = g.innings || planningInnings();
     const def = g.defense || {};
     const avail = g.availability || {};
+    const recorded = hasRecordedFielding(g);
+
     PLAYERS.filter(p => p.cloudId).forEach(p => {
       const pid = p.cloudId;
       if (avail[pid] === false) return;
+      // In a recorded game, a player with no fielding line simply wasn't there.
+      if (recorded && !g.fielding[pid]) return;
+
       const r = touch(pid);
       r.games++;
       let gameInn = 0;
       const gamePos = {};
-      for (let i = 1; i <= innings; i++) {
-        let played = false;
+
+      if (recorded) {
         POSITIONS.forEach(pos => {
-          if (def[i]?.[pos] !== pid) return;
-          played = true;
-          r.byPos[pos] = (r.byPos[pos] || 0) + 1;
+          const o = g.fielding[pid]?.[pos];
+          if (!o) return;
+          const inn = Math.round(outsToInnings(o)) || 1;
+          r.byPos[pos] = (r.byPos[pos] || 0) + inn;
           r.positions.add(pos);
-          r.total++; gameInn++;
-          gamePos[pos] = (gamePos[pos] || 0) + 1;
-          if (INFIELD.includes(pos)) r.infield++;
-          if (OUTFIELD.includes(pos)) r.outfield++;
-          if (MID_INFIELD.includes(pos)) r.mid++;
-          if (pos === 'P') r.pitch++;
+          r.total += inn; gameInn += inn;
+          gamePos[pos] = (gamePos[pos] || 0) + inn;
+          if (INFIELD.includes(pos)) r.infield += inn;
+          if (OUTFIELD.includes(pos)) r.outfield += inn;
+          if (MID_INFIELD.includes(pos)) r.mid += inn;
+          if (pos === 'P') r.pitch += inn;
         });
-        if (!played) r.bench++;
+        r.bench += Math.max(0, innings - gameInn);
+      } else {
+        for (let i = 1; i <= innings; i++) {
+          let played = false;
+          POSITIONS.forEach(pos => {
+            if (def[i]?.[pos] !== pid) return;
+            played = true;
+            r.byPos[pos] = (r.byPos[pos] || 0) + 1;
+            r.positions.add(pos);
+            r.total++; gameInn++;
+            gamePos[pos] = (gamePos[pos] || 0) + 1;
+            if (INFIELD.includes(pos)) r.infield++;
+            if (OUTFIELD.includes(pos)) r.outfield++;
+            if (MID_INFIELD.includes(pos)) r.mid++;
+            if (pos === 'P') r.pitch++;
+          });
+          if (!played) r.bench++;
+        }
       }
-      r.log.push({ game: g, innings: gameInn, of: innings, byPos: gamePos });
+      r.log.push({ game: g, innings: gameInn, of: innings, byPos: gamePos, recorded });
     });
   });
   return { games, rows };
