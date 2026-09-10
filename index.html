@@ -659,6 +659,222 @@
     padding: 1px 4px;
   }
 
+  /* ===== GAME PLANNER ===== */
+  .gp-bar {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 0.8fr 1fr auto;
+    gap: 10px;
+    align-items: end;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  .gp-bar.gp-bar-modes { grid-template-columns: auto auto 1fr; gap: 16px; }
+  .seg {
+    display: inline-flex;
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 2px;
+    gap: 2px;
+  }
+  .seg-btn {
+    padding: 5px 10px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.1s, color 0.1s;
+  }
+  .seg-btn:hover { color: var(--text); }
+  .seg-btn.active { background: var(--bg-elev-2); color: var(--text); }
+  .seg-btn.active[data-mode="have_to_win"] { color: var(--warn); }
+  .seg-btn.active[data-mode="balanced"]    { color: var(--info); }
+  .seg-btn.active[data-mode="play_time"]   { color: var(--pos); }
+
+  .gp-cols {
+    display: grid;
+    grid-template-columns: 260px 1fr 300px;
+    gap: 12px;
+    margin-bottom: 12px;
+    align-items: start;
+  }
+
+  /* Batting order */
+  .lineup-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: grab;
+    border: 1px solid transparent;
+  }
+  .lineup-row:hover { background: var(--bg-hover); }
+  .lineup-row.dragging { opacity: 0.4; }
+  .lineup-row.drop-target { border-color: var(--info); }
+  .lineup-row.out { opacity: 0.35; }
+  .lineup-slot {
+    width: 18px;
+    font-size: 11px;
+    color: var(--text-subtle);
+    text-align: right;
+    flex: 0 0 18px;
+  }
+  .lineup-num {
+    font-size: 11px;
+    color: var(--text-muted);
+    min-width: 20px;
+    text-align: right;
+  }
+  .lineup-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lineup-ip { font-size: 11px; color: var(--text-subtle); }
+  .lineup-grip { color: var(--text-subtle); font-size: 12px; cursor: grab; }
+
+  /* Defense grid */
+  .def-wrap { overflow-x: auto; }
+  table.def {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  table.def th {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: 500;
+    padding: 4px 6px;
+    text-align: center;
+    white-space: nowrap;
+  }
+  table.def th.pos-h { text-align: left; width: 42px; }
+  table.def td {
+    padding: 2px;
+    border-top: 1px solid var(--border);
+  }
+  table.def td.pos-c {
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 11px;
+    padding-left: 6px;
+    white-space: nowrap;
+  }
+  table.def tr.bench-row td { border-top: 1px solid var(--border-strong); }
+  table.def tr.bench-row td.pos-c { color: var(--text-subtle); }
+  .bench-cell {
+    font-size: 11px;
+    color: var(--text-subtle);
+    text-align: center;
+    line-height: 1.5;
+    padding: 4px 2px;
+  }
+  .cell-select {
+    width: 100%;
+    min-width: 78px;
+    background: var(--bg);
+    border: 1px solid transparent;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 11px;
+    padding: 4px 4px;
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+  }
+  .cell-select:hover { border-color: var(--border-strong); }
+  .cell-select.empty { color: var(--text-subtle); }
+  .cell-select.dup { border-color: var(--neg); color: var(--neg); }
+  .cell-select.pitch { background: rgba(245,158,11,0.10); }
+
+  /* Rule check */
+  .rule-row {
+    display: flex;
+    gap: 9px;
+    align-items: flex-start;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .rule-row:last-child { border-bottom: none; }
+  .rule-icon {
+    width: 15px; height: 15px; flex: 0 0 15px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 9px; font-weight: 700;
+    margin-top: 1px;
+  }
+  .rule-icon.pass { background: rgba(34,197,94,0.14);  color: var(--pos); }
+  .rule-icon.warn { background: rgba(245,158,11,0.14); color: var(--warn); }
+  .rule-icon.fail { background: rgba(239,68,68,0.14);  color: var(--neg); }
+  .rule-body { flex: 1; min-width: 0; }
+  .rule-label { color: var(--text); }
+  .rule-detail { color: var(--text-muted); font-size: 11px; margin-top: 2px; line-height: 1.45; }
+
+  /* Pitching plan rows */
+  .pitch-row {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .pitch-row:last-child { border-bottom: none; }
+  .pitch-head {
+    display: flex; align-items: center; gap: 8px;
+    justify-content: space-between;
+  }
+  .pitch-name { font-size: 13px; }
+  .pitch-inn { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  /* Playing-time mini bars */
+  .pt-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 0; font-size: 12px;
+  }
+  .pt-name { width: 116px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+  .pt-track { flex: 1; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.06); overflow: hidden; }
+  .pt-fill { height: 100%; border-radius: 3px; }
+  .pt-num { width: 72px; text-align: right; font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+  /* Position chart modal */
+  table.poschart { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.poschart th {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-muted); font-weight: 500; padding: 5px 3px; text-align: center;
+  }
+  table.poschart th.name-h { text-align: left; }
+  table.poschart td { padding: 3px; border-top: 1px solid var(--border); text-align: center; }
+  table.poschart td.name-c { text-align: left; white-space: nowrap; font-size: 12px; }
+  .rate-select {
+    width: 42px; background: var(--bg); border: 1px solid transparent;
+    color: var(--text); font-family: inherit; font-size: 11px;
+    padding: 3px; border-radius: 4px; outline: none; cursor: pointer; text-align: center;
+  }
+  .rate-select:hover { border-color: var(--border-strong); }
+  .rate-select[data-v="0"] { color: var(--text-subtle); }
+  .rate-select[data-v="5"], .rate-select[data-v="4"] { color: var(--pos); }
+
+  @media (max-width: 1240px) {
+    .gp-cols { grid-template-columns: 240px 1fr; }
+    .gp-cols > :last-child { grid-column: 1 / -1; }
+  }
+  @media (max-width: 1000px) {
+    .gp-bar, .gp-bar.gp-bar-modes { grid-template-columns: 1fr 1fr; }
+    .gp-cols { grid-template-columns: 1fr; }
+    .gp-cols > :last-child { grid-column: auto; }
+  }
+  @media (max-width: 620px) {
+    .gp-bar, .gp-bar.gp-bar-modes { grid-template-columns: 1fr; }
+    .seg { width: 100%; }
+    .seg-btn { flex: 1; }
+  }
+
   @media (max-width: 1100px) {
     .dash-row.cols-3 { grid-template-columns: 1fr 1fr; }
     .dash-row.cols-3 > :first-child { grid-column: 1 / -1; }
@@ -968,10 +1184,9 @@
       <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
       Dashboard
     </div>
-    <div class="nav-item soon" data-section="planner" title="Coming next">
+    <div class="nav-item" data-section="planner" onclick="navigate('planner')">
       <svg class="nav-icon" viewBox="0 0 24 24"><path d="M9 11H3v10h6zM15 3H9v18h6zM21 7h-6v14h6z"/></svg>
       Game Planner
-      <span class="nav-soon-tag">Soon</span>
     </div>
     <div class="nav-item soon" data-section="playingtime" title="Coming next">
       <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
@@ -1100,6 +1315,26 @@
           <div id="dash-activity"></div>
         </div>
       </div>
+    </section>
+
+    <!-- ============ GAME PLANNER ============ -->
+    <section class="section" id="section-planner">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Game Planner</div>
+          <div class="section-sub">Batting order, defense by inning, and pitching — checked against USSSA 9U rules.</div>
+        </div>
+        <div class="section-actions">
+          <select class="input" id="gp-game-select" style="width:auto;min-width:180px" onchange="selectGame(this.value)"></select>
+          <button class="btn btn-secondary btn-sm hide-mobile" onclick="openPositionChart()">Position chart</button>
+          <button class="btn btn-secondary btn-sm hide-mobile" onclick="printLineup()">Print lineup</button>
+          <button class="btn btn-primary btn-sm" onclick="newGame()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            New game
+          </button>
+        </div>
+      </div>
+      <div id="gp-body"></div>
     </section>
 
     <!-- ============ ROSTER ============ -->
@@ -1610,6 +1845,28 @@
 </div>
 
 <!-- ================================ MODAL: Tournament ================================ -->
+<div class="modal-backdrop" id="poschart-modal">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-head">
+      <div class="modal-title">Position chart</div>
+      <button class="btn btn-icon" onclick="closePositionChart()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:12px">
+        Rate each player 0–5 at every position. <strong style="color:var(--text)">0 means never put them there</strong> — auto-fill will skip it.
+        Everything defaults to 3 (neutral), so auto-fill works before you rate anyone.
+      </div>
+      <div style="overflow-x:auto">
+        <table class="poschart" id="poschart-table"></table>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closePositionChart()">Cancel</button>
+      <button class="btn btn-primary" onclick="savePositionChart()">Save chart</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="tourney-modal">
   <div class="modal">
     <div class="modal-head">
@@ -1837,6 +2094,8 @@ const DEFAULT_PAYMENT_PLAN = {
 };
 
 let TM_STATE = { expenses: [], donations: [], tournaments: [], payments: [], budget: { ...DEFAULT_BUDGET }, payment_plan: JSON.parse(JSON.stringify(DEFAULT_PAYMENT_PLAN)) };
+let GAMES = [];     // all planned/played games
+let GAME = null;    // the game currently open in the planner
 let TEAM_SETTINGS = { ...DEFAULT_SETTINGS };
 let UI = {
   section: 'dashboard',
@@ -1901,7 +2160,7 @@ function loadCache() {
 // LOAD FROM CLOUD
 // ============================================================
 async function loadFromCloud() {
-  const [players, parents, expenses, donations, tournaments, payments, config] = await Promise.all([
+  const [players, parents, expenses, donations, tournaments, payments, config, games] = await Promise.all([
     supa('team_players', 'GET', null, '?select=*&order=sort_order.asc'),
     supa('team_parents', 'GET', null, '?select=*'),
     supa('team_expenses', 'GET', null, '?select=*&order=date.desc'),
@@ -1909,6 +2168,7 @@ async function loadFromCloud() {
     supa('team_tournaments', 'GET', null, '?select=*&order=start_date.asc.nullslast'),
     supa('team_player_payments', 'GET', null, '?select=*&order=date.desc'),
     supa('team_config', 'GET', null, '?select=*'),
+    supa('team_games', 'GET', null, '?select=*&order=game_date.asc.nullslast'),
   ]);
   if (players === null) return false;
   if (players.length === 0) {
@@ -1929,6 +2189,7 @@ async function loadFromCloud() {
     song: pl.walk_up_song || '',
     songStart: pl.walk_up_start_seconds || 0,
     invoiceSentAt: pl.invoice_sent_at || null,
+    positions: pl.positions || {},
     parents: (parentsByPlayer[pl.id] || [])
       .sort((a,b) => (b.is_primary?1:0) - (a.is_primary?1:0))
       .map(p => ({ id: p.id, name: p.name||'', phone: p.phone||'', email: p.email||'', primary: !!p.is_primary })),
@@ -1937,6 +2198,8 @@ async function loadFromCloud() {
   TM_STATE.donations = donations || [];
   TM_STATE.tournaments = tournaments || [];
   TM_STATE.payments = payments || [];
+  GAMES = games || [];
+  if (GAME) GAME = GAMES.find(g => g.id === GAME.id) || GAME;
   (config || []).forEach(c => {
     if (c.key === 'budget_model' && c.value) TM_STATE.budget = migrateBudget(c.value);
     if (c.key === 'team_settings' && c.value) TEAM_SETTINGS = { ...DEFAULT_SETTINGS, ...c.value };
@@ -2193,9 +2456,11 @@ function navigate(section) {
   document.getElementById('section-' + section)?.classList.add('active');
   document.querySelector(`[data-section="${section}"]`)?.classList.add('active');
   const crumb = document.querySelector('[data-crumb="section"]');
-  if (crumb) crumb.textContent = section.charAt(0).toUpperCase() + section.slice(1);
+  const SECTION_LABEL = { planner: 'Game Planner' };
+  if (crumb) crumb.textContent = SECTION_LABEL[section] || (section.charAt(0).toUpperCase() + section.slice(1));
   window.scrollTo(0, 0);
   if (section === 'dashboard') { renderDashboard(); loadUniformOrders(); }
+  if (section === 'planner') { ensureGameLoaded(); renderPlanner(); }
   if (section === 'roster') renderRoster();
   if (section === 'finances') renderFinances();
   if (section === 'tournaments') renderTournaments();
@@ -2217,6 +2482,1048 @@ function applyTeamSettings() {
     document.querySelectorAll(`[data-team-field="${k}"]`).forEach(el => { el.textContent = derived[k]; });
   });
   document.title = `${s.team_name || 'Team'} — Team Manager`;
+}
+
+// ============================================================
+// GAME PLANNER — model
+// ============================================================
+const POSITIONS   = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
+// Order auto-fill assigns in: scarcest / most demanding first.
+const FILL_ORDER  = ['P', 'C', 'SS', '2B', '3B', '1B', 'CF', 'LF', 'RF'];
+const INFIELD     = ['P', 'C', '1B', '2B', '3B', 'SS'];
+const MID_INFIELD = ['2B', 'SS'];
+const OUTFIELD    = ['LF', 'CF', 'RF'];
+const DEFAULT_RATING = 3;
+
+// USSSA 9U kid-pitch limits. Always confirm with the tournament director —
+// events publish their own modifications.
+const RULE_SETS = {
+  usssa_9u: {
+    label: 'USSSA 9U Kid Pitch',
+    maxIPPerDay: 6,        // may not throw more than 6 innings in one day
+    restThreshold: 3,      // more than 3 IP in a day => must rest the next day
+    maxIPPer3Days: 8,      // no more than 8 IP in any 3 consecutive days
+  },
+};
+function ruleSet() { return RULE_SETS[GAME?.rule_set] || RULE_SETS.usssa_9u; }
+
+const MODE_LABEL = { have_to_win: 'Have to Win', balanced: 'Balanced', play_time: 'Play Time' };
+
+function posRating(p, pos) {
+  const v = (p?.positions || {})[pos];
+  if (v === undefined || v === null || v === '') return DEFAULT_RATING;
+  return Number(v) || 0;
+}
+function canPlay(p, pos) { return posRating(p, pos) > 0; }
+function playerById(id) { return PLAYERS.find(p => p.cloudId === id) || null; }
+function playerLabel(p) { return p ? `#${p.num} ${p.name}` : '—'; }
+function playerShort(p) {
+  if (!p) return '—';
+  const parts = (p.name || '').trim().split(/\s+/);
+  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : (p.name || '');
+}
+
+// ---- Availability ----
+function availablePlayers() {
+  const a = GAME?.availability || {};
+  return PLAYERS.filter(p => p.cloudId && a[p.cloudId] !== false);
+}
+function isAvailable(p) { return (GAME?.availability || {})[p.cloudId] !== false; }
+
+// ---- Season history (drives fairness) ----
+// A game counts toward history once it's marked final or its date has passed.
+function isPlayedGame(g) {
+  return g.status === 'final' || (g.game_date && g.game_date < todayISO());
+}
+
+function seasonInnings(excludeGameId) {
+  const out = {};
+  const touch = (pid) => (out[pid] = out[pid] || { total: 0, byPos: {}, infield: 0, outfield: 0, mid: 0, pitch: 0, games: 0 });
+  GAMES.filter(g => g.id !== excludeGameId && isPlayedGame(g)).forEach(g => {
+    const def = g.defense || {};
+    const seen = new Set();
+    Object.keys(def).forEach(inn => {
+      POSITIONS.forEach(pos => {
+        const pid = def[inn]?.[pos];
+        if (!pid) return;
+        const r = touch(pid);
+        r.total++;
+        r.byPos[pos] = (r.byPos[pos] || 0) + 1;
+        if (INFIELD.includes(pos)) r.infield++;
+        if (OUTFIELD.includes(pos)) r.outfield++;
+        if (MID_INFIELD.includes(pos)) r.mid++;
+        if (pos === 'P') r.pitch++;
+        seen.add(pid);
+      });
+    });
+    seen.forEach(pid => { touch(pid).games++; });
+  });
+  return out;
+}
+
+// ---- Innings pitched per calendar date (for rest rules) ----
+// Includes the game being planned, since same-weekend usage is the whole point.
+function pitchedByDate() {
+  const out = {};   // pid -> { 'YYYY-MM-DD': innings }
+  const all = [...GAMES];
+  if (GAME && !GAMES.some(g => g.id === GAME.id)) all.push(GAME);
+  all.forEach(g => {
+    const src = (GAME && g.id === GAME.id) ? GAME : g;   // prefer unsaved edits
+    const date = src.game_date;
+    if (!date) return;
+    const def = src.defense || {};
+    Object.keys(def).forEach(inn => {
+      const pid = def[inn]?.P;
+      if (!pid) return;
+      out[pid] = out[pid] || {};
+      out[pid][date] = (out[pid][date] || 0) + 1;
+    });
+  });
+  return out;
+}
+
+function shiftDate(dateStr, days) { return addDays(dateStr, days); }
+
+// Rest/limit findings for one pitcher on the current game's date.
+function pitcherFindings(pid, byDate) {
+  const rules = ruleSet();
+  const date = GAME?.game_date;
+  const days = byDate[pid] || {};
+  const findings = [];
+  if (!date) return findings;
+
+  const dayTotal = days[date] || 0;
+
+  if (dayTotal > rules.maxIPPerDay) {
+    findings.push({ level: 'fail', text: `${dayTotal} IP on this date — over the ${rules.maxIPPerDay}-inning daily max.` });
+  }
+
+  const prev = shiftDate(date, -1);
+  const prevTotal = days[prev] || 0;
+  if (prevTotal > rules.restThreshold) {
+    findings.push({ level: 'fail', text: `Threw ${prevTotal} IP on ${fmtShortDate(prev)} — over ${rules.restThreshold} means a required rest day.` });
+  }
+
+  // Any 3-consecutive-day window containing this date
+  for (let off = -2; off <= 0; off++) {
+    const d0 = shiftDate(date, off), d1 = shiftDate(date, off + 1), d2 = shiftDate(date, off + 2);
+    const sum = (days[d0] || 0) + (days[d1] || 0) + (days[d2] || 0);
+    if (sum > rules.maxIPPer3Days) {
+      findings.push({ level: 'fail', text: `${sum} IP across ${fmtShortDate(d0)}–${fmtShortDate(d2)} — over the ${rules.maxIPPer3Days}-inning 3-day max.` });
+      break;
+    }
+  }
+
+  if (!findings.length && dayTotal > rules.restThreshold) {
+    findings.push({ level: 'warn', text: `${dayTotal} IP today — legal, but over ${rules.restThreshold} means no pitching tomorrow.` });
+  }
+  return findings;
+}
+
+// True if giving this player `extra` more innings today would break a hard limit.
+function wouldExceed(pid, byDate, extra) {
+  const rules = ruleSet();
+  const date = GAME?.game_date;
+  if (!date) return false;
+  const days = byDate[pid] || {};
+  const dayTotal = (days[date] || 0) + extra;
+  if (dayTotal > rules.maxIPPerDay) return true;
+  if ((days[shiftDate(date, -1)] || 0) > rules.restThreshold) return true;
+  for (let off = -2; off <= 0; off++) {
+    const d = [shiftDate(date, off), shiftDate(date, off + 1), shiftDate(date, off + 2)];
+    const sum = d.reduce((s, x) => s + (x === date ? dayTotal : (days[x] || 0)), 0);
+    if (sum > rules.maxIPPer3Days) return true;
+  }
+  return false;
+}
+
+// ---- This game's tallies ----
+function gameTallies(game) {
+  const g = game || GAME;
+  const def = g?.defense || {};
+  const innings = g?.innings || 6;
+  const out = {};
+  availablePlayers().forEach(p => { out[p.cloudId] = { total: 0, byPos: {}, infield: 0, outfield: 0, bench: 0, innings: [] }; });
+  for (let i = 1; i <= innings; i++) {
+    const seen = new Set();
+    POSITIONS.forEach(pos => {
+      const pid = def[i]?.[pos];
+      if (!pid || !out[pid]) return;
+      out[pid].total++;
+      out[pid].byPos[pos] = (out[pid].byPos[pos] || 0) + 1;
+      if (INFIELD.includes(pos)) out[pid].infield++;
+      if (OUTFIELD.includes(pos)) out[pid].outfield++;
+      out[pid].innings.push(i);
+      seen.add(pid);
+    });
+    Object.keys(out).forEach(pid => { if (!seen.has(pid)) out[pid].bench++; });
+  }
+  return out;
+}
+
+// ============================================================
+// GAME PLANNER — auto-fill
+// ============================================================
+function blocksFor(innings, size) {
+  const blocks = [];
+  for (let i = 1; i <= innings; i += size) {
+    blocks.push(Array.from({ length: Math.min(size, innings - i + 1) }, (_, k) => i + k));
+  }
+  return blocks;
+}
+
+function autoOrder() {
+  if (!GAME) return;
+  const avail = availablePlayers();
+  const mode = GAME.planning_mode;
+  const played = GAMES.filter(g => g.id !== GAME.id && isPlayedGame(g));
+
+  // Average batting slot across played games — lower is better for the hitter.
+  const slotAvg = {};
+  avail.forEach(p => {
+    const slots = played
+      .map(g => (g.batting_order || []).indexOf(p.cloudId))
+      .filter(i => i >= 0)
+      .map(i => i + 1);
+    slotAvg[p.cloudId] = slots.length ? slots.reduce((s, x) => s + x, 0) / slots.length : null;
+  });
+
+  const overall = p => POSITIONS.reduce((s, pos) => s + posRating(p, pos), 0) / POSITIONS.length;
+
+  let sorted;
+  if (mode === 'have_to_win') {
+    sorted = [...avail].sort((a, b) => overall(b) - overall(a));
+  } else {
+    // Whoever has been batting lowest gets the top of the order this time.
+    const mid = (avail.length + 1) / 2;
+    sorted = [...avail].sort((a, b) => {
+      const av = slotAvg[a.cloudId] === null ? mid : slotAvg[a.cloudId];
+      const bv = slotAvg[b.cloudId] === null ? mid : slotAvg[b.cloudId];
+      if (bv !== av) return bv - av;
+      return overall(b) - overall(a);
+    });
+  }
+  GAME.batting_order = sorted.map(p => p.cloudId);
+  markDirty();
+  renderPlanner();
+  toast(`Batting order set — ${MODE_LABEL[mode]}`);
+}
+
+function autoFillDefense() {
+  if (!GAME) return;
+  const avail = availablePlayers();
+  if (avail.length < 9) { toast(`Need 9 available players — ${avail.length} marked in`); return; }
+
+  const innings = GAME.innings || 6;
+  const mode = GAME.planning_mode;
+  const season = seasonInnings(GAME.id);
+  const rules = ruleSet();
+
+  const seasonTotal = pid => season[pid]?.total || 0;
+  const seasonPos = (pid, pos) => season[pid]?.byPos?.[pos] || 0;
+
+  const gameCount = {};   // innings assigned so far this game
+  const posCount = {};    // innings at each position so far this game
+  avail.forEach(p => { gameCount[p.cloudId] = 0; posCount[p.cloudId] = {}; });
+
+  // --- Pitchers: assign in blocks, respecting rest rules ---
+  const pitchBlocks = blocksFor(innings, 2);
+  const byDate = pitchedByDate();
+  // Clear this game's pitching from the tally before choosing, so re-running is idempotent.
+  const dateKey = GAME.game_date;
+  if (dateKey) {
+    Object.keys(GAME.defense || {}).forEach(inn => {
+      const pid = GAME.defense[inn]?.P;
+      if (pid && byDate[pid]?.[dateKey]) byDate[pid][dateKey]--;
+    });
+  }
+
+  const pitcherPool = avail.filter(p => canPlay(p, 'P'));
+  const chosenPitchers = [];
+  pitchBlocks.forEach(block => {
+    const cand = pitcherPool
+      .filter(p => !chosenPitchers.some(c => c && c.cloudId === p.cloudId))
+      .filter(p => !wouldExceed(p.cloudId, byDate, block.length));
+    if (!cand.length) { chosenPitchers.push(null); return; }
+    cand.sort((a, b) => {
+      if (mode === 'have_to_win') return posRating(b, 'P') - posRating(a, 'P');
+      const d = seasonPos(a.cloudId, 'P') - seasonPos(b.cloudId, 'P');   // fewest season IP first
+      return d !== 0 ? d : posRating(b, 'P') - posRating(a, 'P');
+    });
+    const pick = cand[0];
+    chosenPitchers.push(pick);
+    byDate[pick.cloudId] = byDate[pick.cloudId] || {};
+    if (dateKey) byDate[pick.cloudId][dateKey] = (byDate[pick.cloudId][dateKey] || 0) + block.length;
+  });
+
+  // --- Catchers: also in blocks (gear changes) ---
+  const catchBlocks = blocksFor(innings, 2);
+  const catcherPool = avail.filter(p => canPlay(p, 'C'));
+  const chosenCatchers = [];
+  catchBlocks.forEach((block, bi) => {
+    const pitchingNow = chosenPitchers[Math.floor((block[0] - 1) / 2)];
+    const cand = catcherPool.filter(p =>
+      p.cloudId !== pitchingNow?.cloudId &&
+      !chosenCatchers.some(c => c && c.cloudId === p.cloudId)
+    );
+    if (!cand.length) { chosenCatchers.push(null); return; }
+    cand.sort((a, b) => {
+      if (mode === 'have_to_win') return posRating(b, 'C') - posRating(a, 'C');
+      const d = seasonPos(a.cloudId, 'C') - seasonPos(b.cloudId, 'C');
+      return d !== 0 ? d : posRating(b, 'C') - posRating(a, 'C');
+    });
+    chosenCatchers.push(cand[0]);
+  });
+
+  const blockIndex = (inn, size) => Math.floor((inn - 1) / size);
+
+  const score = (p, pos) => {
+    const pid = p.cloudId;
+    const r = posRating(p, pos);
+    const g = gameCount[pid] || 0;
+    const sTot = seasonTotal(pid);
+    const repeatHere = (posCount[pid]?.[pos] || 0);
+    if (mode === 'have_to_win') return r * 10 - g * 0.5 - repeatHere * 0.2;
+    if (mode === 'play_time')   return -(g * 12) - sTot * 0.6 - repeatHere * 3 - seasonPos(pid, pos) * 0.4 + r * 0.5;
+    return r * 3 - g * 5 - sTot * 0.35 - repeatHere * 1.5;   // balanced
+  };
+
+  const def = {};
+  for (let i = 1; i <= innings; i++) {
+    def[i] = {};
+    const used = new Set();
+
+    const pit = chosenPitchers[blockIndex(i, 2)];
+    if (pit) { def[i].P = pit.cloudId; used.add(pit.cloudId); }
+    const cat = chosenCatchers[blockIndex(i, 2)];
+    if (cat && !used.has(cat.cloudId)) { def[i].C = cat.cloudId; used.add(cat.cloudId); }
+
+    FILL_ORDER.forEach(pos => {
+      if (def[i][pos]) return;
+      const cand = avail.filter(p => !used.has(p.cloudId) && canPlay(p, pos));
+      if (!cand.length) return;
+      cand.sort((a, b) => score(b, pos) - score(a, pos));
+      const pick = cand[0];
+      def[i][pos] = pick.cloudId;
+      used.add(pick.cloudId);
+    });
+
+    used.forEach(pid => {
+      gameCount[pid] = (gameCount[pid] || 0) + 1;
+      POSITIONS.forEach(pos => {
+        if (def[i][pos] === pid) posCount[pid][pos] = (posCount[pid][pos] || 0) + 1;
+      });
+    });
+  }
+
+  GAME.defense = def;
+  markDirty();
+  renderPlanner();
+  toast(`Defense filled — ${MODE_LABEL[mode]}`);
+}
+
+// ============================================================
+// GAME PLANNER — rule check
+// ============================================================
+function ruleCheck() {
+  const checks = [];
+  if (!GAME) return checks;
+  const avail = availablePlayers();
+  const innings = GAME.innings || 6;
+  const def = GAME.defense || {};
+  const rules = ruleSet();
+
+  // 1. Enough players
+  checks.push(avail.length >= 9
+    ? { level: 'pass', label: `${avail.length} players available`, detail: '' }
+    : { level: 'fail', label: `Only ${avail.length} players available`, detail: 'Nine are needed to field a defense.' });
+
+  // 2. Batting order covers everyone available
+  const order = GAME.batting_order || [];
+  const missing = avail.filter(p => !order.includes(p.cloudId));
+  checks.push(missing.length === 0 && order.length > 0
+    ? { level: 'pass', label: `Batting order set (${order.length})`, detail: '' }
+    : { level: order.length === 0 ? 'fail' : 'warn', label: 'Batting order incomplete', detail: order.length === 0 ? 'No order built yet.' : `Not batting: ${missing.map(playerShort).join(', ')}` });
+
+  // 3. Every position filled every inning
+  const holes = [];
+  for (let i = 1; i <= innings; i++) POSITIONS.forEach(pos => { if (!def[i]?.[pos]) holes.push(`${pos} inn ${i}`); });
+  checks.push(holes.length === 0
+    ? { level: 'pass', label: 'All positions assigned', detail: `${innings} innings × 9 positions` }
+    : { level: 'fail', label: `${holes.length} open spot${holes.length === 1 ? '' : 's'}`, detail: holes.slice(0, 6).join(', ') + (holes.length > 6 ? '…' : '') });
+
+  // 4. Nobody double-assigned in an inning
+  const dupes = [];
+  for (let i = 1; i <= innings; i++) {
+    const seen = {};
+    POSITIONS.forEach(pos => {
+      const pid = def[i]?.[pos];
+      if (!pid) return;
+      if (seen[pid]) dupes.push(`${playerShort(playerById(pid))} at ${seen[pid]} + ${pos} (inn ${i})`);
+      else seen[pid] = pos;
+    });
+  }
+  checks.push(dupes.length === 0
+    ? { level: 'pass', label: 'No double-assignments', detail: '' }
+    : { level: 'fail', label: 'Player in two spots at once', detail: dupes.slice(0, 4).join(' · ') });
+
+  // 5. Pitching limits
+  const byDate = pitchedByDate();
+  const pitcherIds = [...new Set(Array.from({ length: innings }, (_, k) => def[k + 1]?.P).filter(Boolean))];
+  const pFindings = [];
+  pitcherIds.forEach(pid => {
+    pitcherFindings(pid, byDate).forEach(f => pFindings.push({ ...f, pid }));
+  });
+  const hardFails = pFindings.filter(f => f.level === 'fail');
+  if (hardFails.length) {
+    checks.push({ level: 'fail', label: `Pitching limits (${rules.label})`, detail: hardFails.map(f => `${playerShort(playerById(f.pid))}: ${f.text}`).join(' · ') });
+  } else if (pFindings.length) {
+    checks.push({ level: 'warn', label: `Pitching limits (${rules.label})`, detail: pFindings.map(f => `${playerShort(playerById(f.pid))}: ${f.text}`).join(' · ') });
+  } else {
+    checks.push({ level: 'pass', label: `Pitching within ${rules.label} limits`, detail: `${rules.maxIPPerDay} IP/day max · over ${rules.restThreshold} IP requires next-day rest · ${rules.maxIPPer3Days} IP per 3 days` });
+  }
+
+  // 6. Everybody plays
+  const tallies = gameTallies();
+  const zero = avail.filter(p => (tallies[p.cloudId]?.total || 0) === 0);
+  checks.push(zero.length === 0
+    ? { level: 'pass', label: 'Every available player takes the field', detail: '' }
+    : { level: 'warn', label: `${zero.length} player${zero.length === 1 ? '' : 's'} never on defense`, detail: zero.map(playerShort).join(', ') });
+
+  // 7. Nobody sits too long in a row
+  const longSits = [];
+  avail.forEach(p => {
+    let run = 0, worst = 0;
+    for (let i = 1; i <= innings; i++) {
+      const on = POSITIONS.some(pos => def[i]?.[pos] === p.cloudId);
+      run = on ? 0 : run + 1;
+      worst = Math.max(worst, run);
+    }
+    if (worst >= 3) longSits.push(`${playerShort(p)} (${worst})`);
+  });
+  checks.push(longSits.length === 0
+    ? { level: 'pass', label: 'No long benchings', detail: 'Nobody sits 3+ innings in a row' }
+    : { level: 'warn', label: 'Long consecutive bench time', detail: longSits.join(', ') });
+
+  return checks;
+}
+
+// ============================================================
+// GAME PLANNER — CRUD
+// ============================================================
+let GP_DIRTY = false;
+function markDirty() { GP_DIRTY = true; updateSaveButton(); }
+function updateSaveButton() {
+  const b = document.getElementById('gp-save');
+  if (!b) return;
+  b.textContent = GP_DIRTY ? 'Save game' : 'Saved';
+  b.className = GP_DIRTY ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  b.disabled = !GP_DIRTY;
+}
+
+function blankGame() {
+  const availability = {};
+  PLAYERS.forEach(p => { if (p.cloudId) availability[p.cloudId] = true; });
+  const next = upcomingTournaments()[0];
+  return {
+    id: null,
+    opponent: '',
+    game_date: next?.start_date || todayISO(),
+    game_time: '',
+    location: 'home',
+    venue: '',
+    tournament_id: next?.id || null,
+    rule_set: 'usssa_9u',
+    planning_mode: 'balanced',
+    status: 'planned',
+    innings: 6,
+    batting_order: [],
+    defense: {},
+    pitching_notes: {},
+    availability,
+    notes: '',
+  };
+}
+
+// Open the most relevant game: the next one coming up, else the most recent.
+function ensureGameLoaded() {
+  if (GAME) return;
+  if (!GAMES.length) return;
+  const today = todayISO();
+  const next = GAMES.find(g => g.game_date && g.game_date >= today) || GAMES[GAMES.length - 1];
+  selectGame(next.id);
+}
+
+function newGame() {
+  GAME = blankGame();
+  GP_DIRTY = true;
+  navigate('planner');
+  renderPlanner();
+}
+
+function selectGame(id) {
+  if (id === '__new__') { newGame(); return; }
+  const g = GAMES.find(x => x.id === id);
+  if (!g) return;
+  GAME = JSON.parse(JSON.stringify(g));
+  // Backfill availability for players added since the game was saved
+  GAME.availability = GAME.availability || {};
+  PLAYERS.forEach(p => { if (p.cloudId && GAME.availability[p.cloudId] === undefined) GAME.availability[p.cloudId] = true; });
+  GP_DIRTY = false;
+  renderPlanner();
+}
+
+async function saveGame() {
+  if (!GAME) return;
+  const payload = {
+    opponent: GAME.opponent || null,
+    game_date: GAME.game_date || null,
+    game_time: GAME.game_time || null,
+    location: GAME.location || 'home',
+    venue: GAME.venue || null,
+    tournament_id: GAME.tournament_id || null,
+    rule_set: GAME.rule_set || 'usssa_9u',
+    planning_mode: GAME.planning_mode || 'balanced',
+    status: GAME.status || 'planned',
+    innings: GAME.innings || 6,
+    batting_order: GAME.batting_order || [],
+    defense: GAME.defense || {},
+    pitching_notes: GAME.pitching_notes || {},
+    availability: GAME.availability || {},
+    notes: GAME.notes || null,
+    updated_at: new Date().toISOString(),
+  };
+  if (GAME.id) {
+    const row = await supa('team_games', 'PATCH', payload, `?id=eq.${GAME.id}`);
+    if (row === null) { toast('Save failed — offline?'); return; }
+    const i = GAMES.findIndex(g => g.id === GAME.id);
+    if (i >= 0) GAMES[i] = { ...GAMES[i], ...payload };
+  } else {
+    const row = await supa('team_games', 'POST', payload);
+    if (!row || !row[0]) { toast('Save failed — offline?'); return; }
+    GAME.id = row[0].id;
+    GAMES.push(row[0]);
+  }
+  GAMES.sort((a, b) => (a.game_date || '').localeCompare(b.game_date || ''));
+  GP_DIRTY = false;
+  renderPlanner();
+  toast('Game saved');
+}
+
+async function deleteGame() {
+  if (!GAME?.id) { GAME = GAMES[0] ? JSON.parse(JSON.stringify(GAMES[0])) : null; renderPlanner(); return; }
+  if (!confirm(`Delete the ${GAME.opponent || 'untitled'} game? This removes it from playing-time history too.`)) return;
+  await supa('team_games', 'DELETE', null, `?id=eq.${GAME.id}`);
+  GAMES = GAMES.filter(g => g.id !== GAME.id);
+  GAME = GAMES.length ? JSON.parse(JSON.stringify(GAMES[GAMES.length - 1])) : null;
+  GP_DIRTY = false;
+  renderPlanner();
+  toast('Game deleted');
+}
+
+function setGameField(field, value) {
+  if (!GAME) return;
+  GAME[field] = field === 'innings' ? (parseInt(value) || 6) : value;
+  markDirty();
+  if (field === 'innings' || field === 'game_date') renderPlanner();
+  else renderRuleCheck();
+}
+
+function setMode(mode) {
+  if (!GAME) return;
+  GAME.planning_mode = mode;
+  markDirty();
+  renderPlanner();
+}
+
+function toggleAvailable(pid) {
+  if (!GAME) return;
+  GAME.availability = GAME.availability || {};
+  GAME.availability[pid] = GAME.availability[pid] === false;
+  if (GAME.availability[pid] === false) {
+    // Pull them out of the order and off the field
+    GAME.batting_order = (GAME.batting_order || []).filter(x => x !== pid);
+    Object.keys(GAME.defense || {}).forEach(inn => {
+      POSITIONS.forEach(pos => { if (GAME.defense[inn][pos] === pid) delete GAME.defense[inn][pos]; });
+    });
+  }
+  markDirty();
+  renderPlanner();
+}
+
+function setDefense(inning, pos, pid) {
+  if (!GAME) return;
+  GAME.defense = GAME.defense || {};
+  GAME.defense[inning] = GAME.defense[inning] || {};
+  if (pid) GAME.defense[inning][pos] = pid;
+  else delete GAME.defense[inning][pos];
+  markDirty();
+  renderDefense();
+  renderPitching();
+  renderRuleCheck();
+  renderPlayingTime();
+}
+
+function setPitchNote(pid, note) {
+  if (!GAME) return;
+  GAME.pitching_notes = GAME.pitching_notes || {};
+  GAME.pitching_notes[pid] = note;
+  markDirty();
+}
+
+// ============================================================
+// GAME PLANNER — render
+// ============================================================
+function renderGameSelect() {
+  const sel = document.getElementById('gp-game-select');
+  if (!sel) return;
+  const opts = GAMES.map(g => {
+    const label = `${g.game_date ? fmtShortDate(g.game_date) : 'TBD'} · ${g.opponent || 'Untitled'}`;
+    return `<option value="${g.id}" ${GAME?.id === g.id ? 'selected' : ''}>${esc(label)}</option>`;
+  });
+  if (GAME && !GAME.id) opts.unshift(`<option value="" selected>● Unsaved new game</option>`);
+  sel.innerHTML = opts.join('') || `<option value="">No games yet</option>`;
+}
+
+function renderPlanner() {
+  renderGameSelect();
+  const body = document.getElementById('gp-body');
+  if (!body) return;
+
+  if (!GAME) {
+    body.innerHTML = `
+      <div class="card">
+        <div class="card-empty" style="padding:40px 20px">
+          <div style="font-size:14px;color:var(--text);margin-bottom:6px">No games planned yet</div>
+          <div style="margin-bottom:16px">Create a game to build a batting order, defense grid, and pitching plan.</div>
+          <button class="btn btn-primary btn-sm" onclick="newGame()">New game</button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const tOpts = TM_STATE.tournaments.map(t =>
+    `<option value="${t.id}" ${GAME.tournament_id === t.id ? 'selected' : ''}>${esc(t.name || 'Untitled')}</option>`).join('');
+
+  body.innerHTML = `
+    <div class="gp-bar">
+      <div class="field">
+        <label class="field-label">Opponent</label>
+        <input class="input" id="gp-opponent" value="${esc(GAME.opponent || '')}" placeholder="Team name"
+               oninput="setGameField('opponent', this.value)">
+      </div>
+      <div class="field">
+        <label class="field-label">Date</label>
+        <input class="input" type="date" value="${GAME.game_date || ''}" onchange="setGameField('game_date', this.value)">
+      </div>
+      <div class="field">
+        <label class="field-label">Innings</label>
+        <input class="input" type="number" min="1" max="9" value="${GAME.innings || 6}" onchange="setGameField('innings', this.value)">
+      </div>
+      <div class="field">
+        <label class="field-label">Tournament</label>
+        <select class="input" onchange="setGameField('tournament_id', this.value || null)">
+          <option value="">— none —</option>${tOpts}
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">&nbsp;</label>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" onclick="deleteGame()">Delete</button>
+          <button id="gp-save" class="btn btn-primary btn-sm" onclick="saveGame()">Save game</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="gp-bar gp-bar-modes">
+      <div class="field">
+        <label class="field-label">Home / Away</label>
+        <div class="seg">
+          ${['home', 'away'].map(l => `<button class="seg-btn ${GAME.location === l ? 'active' : ''}" onclick="setGameField('location','${l}');renderPlanner()">${l[0].toUpperCase() + l.slice(1)}</button>`).join('')}
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Planning mode</label>
+        <div class="seg">
+          ${Object.keys(MODE_LABEL).map(m => `<button class="seg-btn ${GAME.planning_mode === m ? 'active' : ''}" data-mode="${m}" onclick="setMode('${m}')">${MODE_LABEL[m]}</button>`).join('')}
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Available (tap to toggle)</label>
+        <div id="gp-availability" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+      </div>
+    </div>
+
+    <div class="gp-cols">
+      <div class="card">
+        <div class="card-title">
+          Batting Order
+          <span class="card-link" onclick="autoOrder()">Auto ↻</span>
+        </div>
+        <div id="gp-lineup"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          Defense by Inning
+          <span class="card-link" onclick="autoFillDefense()">Auto-fill ↻</span>
+        </div>
+        <div class="def-wrap"><table class="def" id="gp-defense"></table></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          Pitching Plan
+          <span class="card-link">${esc(ruleSet().label)}</span>
+        </div>
+        <div id="gp-pitching"></div>
+      </div>
+    </div>
+
+    <div class="dash-row cols-2">
+      <div class="card">
+        <div class="card-title">Rule Check <span class="card-link" id="gp-rule-count"></span></div>
+        <div id="gp-rules"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          Playing Time — This Game
+          <span class="card-link">${MODE_LABEL[GAME.planning_mode]}</span>
+        </div>
+        <div id="gp-playingtime"></div>
+      </div>
+    </div>`;
+
+  renderAvailability();
+  renderLineup();
+  renderDefense();
+  renderPitching();
+  renderRuleCheck();
+  renderPlayingTime();
+  updateSaveButton();
+}
+
+function renderAvailability() {
+  const el = document.getElementById('gp-availability');
+  if (!el) return;
+  el.innerHTML = PLAYERS.filter(p => p.cloudId).map(p => {
+    const on = isAvailable(p);
+    return `<button class="chip ${on ? 'active' : ''}" style="${on ? '' : 'opacity:0.4;text-decoration:line-through'}"
+             onclick="toggleAvailable('${p.cloudId}')" title="${esc(p.name)}">#${esc(p.num || '')}</button>`;
+  }).join('');
+}
+
+function renderLineup() {
+  const el = document.getElementById('gp-lineup');
+  if (!el) return;
+  const avail = availablePlayers();
+  const order = (GAME.batting_order || []).filter(id => avail.some(p => p.cloudId === id));
+  const unlisted = avail.filter(p => !order.includes(p.cloudId));
+
+  if (!order.length && !unlisted.length) {
+    el.innerHTML = `<div class="card-empty">Nobody marked available.</div>`;
+    return;
+  }
+
+  const season = seasonInnings(GAME.id);
+  const rows = order.map((id, i) => {
+    const p = playerById(id);
+    if (!p) return '';
+    return `
+      <div class="lineup-row" draggable="true" data-pid="${id}" data-idx="${i}"
+           ondragstart="lineupDragStart(event)" ondragover="lineupDragOver(event)"
+           ondrop="lineupDrop(event)" ondragend="lineupDragEnd(event)">
+        <div class="lineup-slot">${i + 1}</div>
+        <div class="lineup-num mono">#${esc(p.num || '')}</div>
+        <div class="lineup-name">${esc(p.name || '')}</div>
+        <div class="lineup-ip mono">${season[id]?.total || 0}</div>
+        <div class="lineup-grip">⋮⋮</div>
+      </div>`;
+  }).join('');
+
+  const extra = unlisted.length
+    ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+         <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-subtle);margin-bottom:4px">Not batting</div>
+         ${unlisted.map(p => `<div class="lineup-row out" onclick="addToOrder('${p.cloudId}')">
+            <div class="lineup-slot">+</div>
+            <div class="lineup-num mono">#${esc(p.num || '')}</div>
+            <div class="lineup-name">${esc(p.name || '')}</div>
+         </div>`).join('')}
+       </div>`
+    : '';
+
+  el.innerHTML = rows + extra +
+    `<div style="margin-top:10px;font-size:10px;color:var(--text-subtle);line-height:1.5">
+       Drag to reorder · trailing number is season defensive innings
+     </div>`;
+}
+
+function addToOrder(pid) {
+  if (!GAME) return;
+  GAME.batting_order = [...(GAME.batting_order || []), pid];
+  markDirty();
+  renderLineup();
+}
+
+let GP_DRAG_FROM = null;
+function lineupDragStart(e) {
+  GP_DRAG_FROM = parseInt(e.currentTarget.dataset.idx);
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function lineupDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.lineup-row.drop-target').forEach(x => x.classList.remove('drop-target'));
+  e.currentTarget.classList.add('drop-target');
+}
+function lineupDrop(e) {
+  e.preventDefault();
+  const to = parseInt(e.currentTarget.dataset.idx);
+  if (GP_DRAG_FROM === null || isNaN(to) || GP_DRAG_FROM === to) return;
+  const order = [...(GAME.batting_order || [])];
+  const [moved] = order.splice(GP_DRAG_FROM, 1);
+  order.splice(to, 0, moved);
+  GAME.batting_order = order;
+  GP_DRAG_FROM = null;
+  markDirty();
+  renderLineup();
+}
+function lineupDragEnd() {
+  GP_DRAG_FROM = null;
+  document.querySelectorAll('.lineup-row').forEach(x => x.classList.remove('dragging', 'drop-target'));
+}
+
+function renderDefense() {
+  const el = document.getElementById('gp-defense');
+  if (!el) return;
+  const innings = GAME.innings || 6;
+  const avail = availablePlayers();
+  const def = GAME.defense || {};
+
+  const head = `<thead><tr><th class="pos-h">Pos</th>${
+    Array.from({ length: innings }, (_, k) => `<th>${k + 1}</th>`).join('')
+  }</tr></thead>`;
+
+  const rows = POSITIONS.map(pos => {
+    const cells = Array.from({ length: innings }, (_, k) => {
+      const inn = k + 1;
+      const cur = def[inn]?.[pos] || '';
+      // flag a player assigned twice in the same inning
+      const dup = cur && POSITIONS.filter(o => def[inn]?.[o] === cur).length > 1;
+      const opts = [`<option value="">—</option>`].concat(
+        avail.map(p => {
+          const rating = posRating(p, pos);
+          const flag = rating === 0 ? ' ⚠' : '';
+          return `<option value="${p.cloudId}" ${cur === p.cloudId ? 'selected' : ''}>${esc(playerShort(p))}${flag}</option>`;
+        })
+      ).join('');
+      const cls = ['cell-select', cur ? '' : 'empty', dup ? 'dup' : '', pos === 'P' ? 'pitch' : ''].filter(Boolean).join(' ');
+      return `<td><select class="${cls}" onchange="setDefense(${inn}, '${pos}', this.value)">${opts}</select></td>`;
+    }).join('');
+    return `<tr><td class="pos-c">${pos}</td>${cells}</tr>`;
+  }).join('');
+
+  const benchCells = Array.from({ length: innings }, (_, k) => {
+    const inn = k + 1;
+    const onField = new Set(POSITIONS.map(pos => def[inn]?.[pos]).filter(Boolean));
+    const sitting = avail.filter(p => !onField.has(p.cloudId));
+    return `<td class="bench-cell">${sitting.length ? sitting.map(p => esc('#' + (p.num || ''))).join('<br>') : '—'}</td>`;
+  }).join('');
+
+  el.innerHTML = head + `<tbody>${rows}<tr class="bench-row"><td class="pos-c">Bench</td>${benchCells}</tr></tbody>`;
+}
+
+function renderPitching() {
+  const el = document.getElementById('gp-pitching');
+  if (!el) return;
+  const innings = GAME.innings || 6;
+  const def = GAME.defense || {};
+  const byDate = pitchedByDate();
+  const season = seasonInnings(GAME.id);
+
+  // Group consecutive innings by pitcher, in order
+  const seq = Array.from({ length: innings }, (_, k) => def[k + 1]?.P || null);
+  const blocks = [];
+  seq.forEach((pid, i) => {
+    const last = blocks[blocks.length - 1];
+    if (last && last.pid === pid) last.innings.push(i + 1);
+    else blocks.push({ pid, innings: [i + 1] });
+  });
+  const real = blocks.filter(b => b.pid);
+
+  if (!real.length) {
+    el.innerHTML = `<div class="card-empty">No pitchers assigned yet.<br>Set the <strong style="color:var(--text)">P</strong> row in the defense grid, or run Auto-fill.</div>`;
+    return;
+  }
+
+  // Merge non-consecutive appearances by the same pitcher for the totals line
+  const totals = {};
+  real.forEach(b => { totals[b.pid] = (totals[b.pid] || 0) + b.innings.length; });
+
+  el.innerHTML = Object.keys(totals).map(pid => {
+    const p = playerById(pid);
+    const inns = real.filter(b => b.pid === pid).flatMap(b => b.innings).sort((a, b) => a - b);
+    const findings = pitcherFindings(pid, byDate);
+    const worst = findings.some(f => f.level === 'fail') ? 'fail' : findings.length ? 'warn' : 'pass';
+    const pill = worst === 'fail'
+      ? `<span class="pill pill-neg">Over limit</span>`
+      : worst === 'warn' ? `<span class="pill pill-warn">Rest tomorrow</span>`
+      : `<span class="pill pill-pos">Legal</span>`;
+    return `
+      <div class="pitch-row">
+        <div class="pitch-head">
+          <div class="pitch-name">${esc(playerLabel(p))}</div>
+          ${pill}
+        </div>
+        <div class="pitch-inn mono">Inn ${inns.join(', ')} · ${totals[pid]} IP today · ${season[pid]?.pitch || 0} IP season</div>
+        ${findings.map(f => `<div class="rule-detail" style="color:${f.level === 'fail' ? 'var(--neg)' : 'var(--warn)'}">${esc(f.text)}</div>`).join('')}
+        <input class="input" style="margin-top:6px;font-size:12px;padding:4px 8px" placeholder="Note (e.g. start strong, 2 innings)"
+               value="${esc((GAME.pitching_notes || {})[pid] || '')}"
+               oninput="setPitchNote('${pid}', this.value)">
+      </div>`;
+  }).join('');
+}
+
+function renderRuleCheck() {
+  const el = document.getElementById('gp-rules');
+  if (!el) return;
+  const checks = ruleCheck();
+  const passed = checks.filter(c => c.level === 'pass').length;
+  const countEl = document.getElementById('gp-rule-count');
+  const fails = checks.filter(c => c.level === 'fail').length;
+  if (countEl) {
+    countEl.textContent = `${passed} of ${checks.length} passed`;
+    countEl.style.color = fails ? 'var(--neg)' : '';
+  }
+  el.innerHTML = checks.map(c => `
+    <div class="rule-row">
+      <div class="rule-icon ${c.level}">${c.level === 'pass' ? '✓' : c.level === 'warn' ? '!' : '✕'}</div>
+      <div class="rule-body">
+        <div class="rule-label">${esc(c.label)}</div>
+        ${c.detail ? `<div class="rule-detail">${esc(c.detail)}</div>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function renderPlayingTime() {
+  const el = document.getElementById('gp-playingtime');
+  if (!el) return;
+  const innings = GAME.innings || 6;
+  const tallies = gameTallies();
+  const avail = availablePlayers();
+  if (!avail.length) { el.innerHTML = `<div class="card-empty">Nobody marked available.</div>`; return; }
+
+  const rows = avail
+    .map(p => ({ p, t: tallies[p.cloudId] || { total: 0, infield: 0, outfield: 0 } }))
+    .sort((a, b) => b.t.total - a.t.total);
+
+  const max = Math.max(1, ...rows.map(r => r.t.total));
+  const avg = rows.reduce((s, r) => s + r.t.total, 0) / rows.length;
+
+  el.innerHTML = rows.map(({ p, t }) => {
+    const pct = (t.total / innings) * 100;
+    const tone = t.total === 0 ? 'var(--neg)' : t.total < avg - 1 ? 'var(--warn)' : 'var(--pos)';
+    return `
+      <div class="pt-row">
+        <div class="pt-name">${esc(playerShort(p))}</div>
+        <div class="pt-track"><div class="pt-fill" style="width:${Math.min(100, pct)}%;background:${tone}"></div></div>
+        <div class="pt-num mono">${t.total}/${innings} · ${t.infield}IF</div>
+      </div>`;
+  }).join('') +
+    `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-subtle)">
+       Average ${avg.toFixed(1)} of ${innings} innings · IF = infield innings
+     </div>`;
+}
+
+// ============================================================
+// GAME PLANNER — position chart
+// ============================================================
+function openPositionChart() {
+  const t = document.getElementById('poschart-table');
+  t.innerHTML = `
+    <thead><tr><th class="name-h">Player</th>${POSITIONS.map(p => `<th>${p}</th>`).join('')}</tr></thead>
+    <tbody>${PLAYERS.filter(p => p.cloudId).map(p => `
+      <tr>
+        <td class="name-c">#${esc(p.num || '')} ${esc(p.name || '')}</td>
+        ${POSITIONS.map(pos => {
+          const v = posRating(p, pos);
+          return `<td><select class="rate-select" data-v="${v}" data-pid="${p.cloudId}" data-pos="${pos}"
+                    onchange="this.dataset.v=this.value">
+            ${[0, 1, 2, 3, 4, 5].map(n => `<option value="${n}" ${n === v ? 'selected' : ''}>${n}</option>`).join('')}
+          </select></td>`;
+        }).join('')}
+      </tr>`).join('')}
+    </tbody>`;
+  document.getElementById('poschart-modal').classList.add('open');
+}
+function closePositionChart() { document.getElementById('poschart-modal').classList.remove('open'); }
+
+async function savePositionChart() {
+  const updates = {};
+  document.querySelectorAll('#poschart-table .rate-select').forEach(sel => {
+    const { pid, pos } = sel.dataset;
+    updates[pid] = updates[pid] || {};
+    updates[pid][pos] = Number(sel.value);
+  });
+  closePositionChart();
+  Object.keys(updates).forEach(pid => {
+    const p = playerById(pid);
+    if (p) p.positions = updates[pid];
+  });
+  saveCache();
+  renderPlanner();
+  toast('Position chart saved');
+  await Promise.all(Object.keys(updates).map(pid =>
+    supa('team_players', 'PATCH', { positions: updates[pid] }, `?id=eq.${pid}`)));
+}
+
+// ============================================================
+// GAME PLANNER — print
+// ============================================================
+function printLineup() {
+  if (!GAME) return;
+  const innings = GAME.innings || 6;
+  const def = GAME.defense || {};
+  const order = (GAME.batting_order || []).map(id => playerById(id)).filter(Boolean);
+  const title = `${TEAM_SETTINGS.team_name || 'Team'} vs ${GAME.opponent || 'TBD'}`;
+  const sub = [
+    GAME.game_date ? fmtShortDate(GAME.game_date) : '',
+    GAME.location === 'away' ? 'Away' : 'Home',
+    MODE_LABEL[GAME.planning_mode],
+  ].filter(Boolean).join(' · ');
+
+  const defRows = POSITIONS.map(pos => `
+    <tr><th>${pos}</th>${Array.from({ length: innings }, (_, k) =>
+      `<td>${esc(playerShort(playerById(def[k + 1]?.[pos])) || '')}</td>`).join('')}</tr>`).join('');
+
+  const orderRows = order.map((p, i) =>
+    `<tr><td class="slot">${i + 1}</td><td>#${esc(p.num || '')}</td><td>${esc(p.name || '')}</td></tr>`).join('');
+
+  const w = window.open('', '_blank');
+  if (!w) { toast('Popup blocked'); return; }
+  w.document.write(`<html><head><title>${esc(title)}</title><style>
+    body { font-family: -apple-system, system-ui, sans-serif; margin: 24px; color: #111; }
+    h1 { font-size: 18px; margin: 0 0 2px; }
+    .sub { font-size: 12px; color: #666; margin-bottom: 18px; }
+    h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: #666; margin: 20px 0 6px; }
+    table { border-collapse: collapse; font-size: 12px; }
+    td, th { border: 1px solid #ccc; padding: 5px 8px; text-align: left; }
+    th { background: #f4f4f4; font-weight: 600; }
+    .slot { color: #888; width: 24px; }
+    .def td, .def th { text-align: center; padding: 5px 6px; }
+    @media print { body { margin: 12px; } }
+  </style></head><body>
+    <h1>${esc(title)}</h1>
+    <div class="sub">${esc(sub)}</div>
+    <h2>Batting Order</h2>
+    <table>${orderRows || '<tr><td>No order set</td></tr>'}</table>
+    <h2>Defense by Inning</h2>
+    <table class="def"><tr><th>Pos</th>${Array.from({ length: innings }, (_, k) => `<th>${k + 1}</th>`).join('')}</tr>${defRows}</table>
+  </body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 250);
 }
 
 // ============================================================
@@ -4063,6 +5370,7 @@ document.addEventListener('keydown', (e) => {
     closeSponsorModal();
     closeCoachModal();
     closePaymentModal();
+    closePositionChart();
   }
 });
 
@@ -4078,6 +5386,7 @@ document.addEventListener('keydown', (e) => {
   if (ok) {
     applyTeamSettings();
     if (UI.section === 'dashboard') { renderDashboard(); loadUniformOrders(); }
+    if (UI.section === 'planner') { ensureGameLoaded(); renderPlanner(); }
     if (UI.section === 'roster') renderRoster();
     if (UI.section === 'finances') renderFinances();
     if (UI.section === 'tournaments') renderTournaments();
