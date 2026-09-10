@@ -3406,6 +3406,7 @@ function autoFillDefense() {
   const blockIndex = (inn, size) => Math.floor((inn - 1) / size);
 
   const tierW = TIER_WEIGHT[mode] ?? TIER_WEIGHT.balanced;
+  let satLast = new Set();   // players who sat the previous inning
   const score = (p, pos) => {
     const pid = p.cloudId;
     const r = posRating(p, pos);
@@ -3414,8 +3415,10 @@ function autoFillDefense() {
     const repeatHere = (posCount[pid]?.[pos] || 0);
     // Team rule: top sits least, bottom sits most — applied in every mode.
     const tierBonus = (2 - tierRank(p)) * tierW;
+    // Team rule: nobody sits two innings in a row. Outranks everything else.
+    const backOn = satLast.has(pid) ? 200 : 0;
     // Nobody sits the whole game: anyone still at zero outranks everyone else.
-    const unplayed = g === 0 ? 40 : 0;
+    const unplayed = (g === 0 ? 40 : 0) + backOn;
     if (mode === 'have_to_win') return unplayed + tierBonus + r * 10 - g * 0.5 - repeatHere * 0.2;
     if (mode === 'play_time')   return unplayed + tierBonus - (g * 12) - sTot * 0.6 - repeatHere * 3 - seasonPos(pid, pos) * 0.4 + r * 0.5;
     return unplayed + tierBonus + r * 3 - g * 5 - sTot * 0.35 - repeatHere * 1.5;   // balanced
@@ -3447,6 +3450,7 @@ function autoFillDefense() {
         if (def[i][pos] === pid) posCount[pid][pos] = (posCount[pid][pos] || 0) + 1;
       });
     });
+    satLast = new Set(avail.filter(p => !used.has(p.cloudId)).map(p => p.cloudId));
   }
 
   // --- Hard guarantee: nobody sits the entire game ---
@@ -3471,6 +3475,33 @@ function autoFillDefense() {
     gameCount[p.cloudId] = 1;
     if (best.holder) gameCount[best.holder] = Math.max(0, inningsOf(best.holder) - 1);
   });
+
+  // --- Team rule: nobody sits two innings in a row ---
+  // Scoring makes this overwhelmingly likely, but a player rated 0 at whatever
+  // was open can still slip through. Repair by swapping, refusing any swap that
+  // would create a fresh violation for the player displaced.
+  const sits = (pid, i) => i >= 1 && i <= innings && !POSITIONS.some(pos => def[i][pos] === pid);
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = 2; i <= innings; i++) {
+      avail.forEach(p => {
+        const pid = p.cloudId;
+        if (!(sits(pid, i - 1) && sits(pid, i))) return;
+        let best = null;
+        POSITIONS.forEach(pos => {
+          if (!canPlay(p, pos)) return;
+          const holder = def[i][pos];
+          if (!holder) { best = { pos, holder: null }; return; }
+          // Displacing them must not leave them sitting back-to-back either.
+          if (sits(holder, i - 1) || sits(holder, i + 1)) return;
+          if (!best || best.holder) best = { pos, holder };
+        });
+        if (!best) return;
+        if (best.holder) gameCount[best.holder] = Math.max(0, (gameCount[best.holder] || 0) - 1);
+        def[i][best.pos] = pid;
+        gameCount[pid] = (gameCount[pid] || 0) + 1;
+      });
+    }
+  }
 
   GAME.defense = def;
   markDirty();
@@ -3567,19 +3598,20 @@ function ruleCheck() {
   }
 
   // 8. Nobody sits too long in a row
+  // Team rule: nobody sits two innings in a row.
   const longSits = [];
   avail.forEach(p => {
-    let run = 0, worst = 0;
+    let run = 0, worst = 0, at = 0;
     for (let i = 1; i <= innings; i++) {
       const on = POSITIONS.some(pos => def[i]?.[pos] === p.cloudId);
       run = on ? 0 : run + 1;
-      worst = Math.max(worst, run);
+      if (run > worst) { worst = run; at = i - run + 1; }
     }
-    if (worst >= 3) longSits.push(`${playerShort(p)} (${worst})`);
+    if (worst >= 2) longSits.push(`${playerShort(p)} — ${worst} in a row from inn ${at}`);
   });
   checks.push(longSits.length === 0
-    ? { level: 'pass', label: 'No long benchings', detail: 'Nobody sits 3+ innings in a row' }
-    : { level: 'warn', label: 'Long consecutive bench time', detail: longSits.join(', ') });
+    ? { level: 'pass', label: 'No back-to-back bench innings', detail: 'Nobody sits two innings in a row' }
+    : { level: 'fail', label: `${longSits.length} player${longSits.length === 1 ? '' : 's'} sitting back-to-back`, detail: longSits.join(' · ') });
 
   return checks;
 }
