@@ -4520,7 +4520,7 @@ function exportPlayingTime() {
 // ============================================================
 // PITCHING
 // ============================================================
-let PITCH_UI = { asOf: '', tournament: '', scenario: {} };
+let PITCH_UI = { asOf: '', tournament: '', scenario: {}, gamesPerDay: {} };
 
 function pitcherPool() {
   return PLAYERS.filter(p => p.cloudId && canPlay(p, 'P'));
@@ -4643,6 +4643,14 @@ function renderPitching() {
 
     <div class="card" style="margin-bottom:12px">
       <div class="card-title">
+        Weekend Workload${tourney ? ' — ' + esc(tourney.name || '') : ''}
+        <span class="card-link">how many arms this takes</span>
+      </div>
+      <div id="pitch-weekend"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">
         Weekend Forecast${tourney ? ' — ' + esc(tourney.name || '') : ''}
         <span class="card-link">${scnOn ? 'includes what-if' : 'from saved game plans'}</span>
       </div>
@@ -4665,6 +4673,7 @@ function renderPitching() {
 
   renderPitchBoard(avail, rules, asOf);
   renderPitchRules(rules);
+  renderWeekendPlan(tourney);
   renderPitchForecast(tourney, byDate, rules, pool);
   renderPitchScenario(tourney, pool);
   renderPitchLog(real, pool);
@@ -4755,6 +4764,119 @@ function renderPitchForecast(tourney, byDate, rules, pool) {
       <span class="legend-swatch" style="background:rgba(239,68,68,0.2);margin-left:8px"></span><span>Rest required</span>
       <span style="margin-left:10px">Cells show innings still <em>available</em> that day; Weekend IP is what's already planned. Hover for the reason.</span>
     </div>`;
+}
+
+// How many innings the weekend demands, and whether the arms cover it.
+// The binding constraint on a two-day event isn't the daily max — it's that
+// anyone over the rest threshold on day one is ineligible on day two.
+function weekendPlan(tourney) {
+  const rules = defaultRules();
+  const days = tournamentDays(tourney);
+  if (!days.length) return null;
+  const pool = pitcherPool();
+  const byDate = pitchedByDate();
+
+  const rows = days.map((d, i) => {
+    const planned = GAMES.filter(g => g.game_date === d && g.tournament_id === tourney.id);
+    const override = PITCH_UI.gamesPerDay[d];
+    const games = override !== undefined ? override : planned.length;
+    const innPerGame = planned[0]?.innings || 6;
+    const demand = games * innPerGame;
+    const isLast = i === days.length - 1;
+    // On any day but the last, holding arms at or under the rest threshold
+    // is what keeps them available tomorrow.
+    const cap = isLast ? rules.maxIPPerDay : rules.restThreshold;
+    const minArms = demand ? Math.ceil(demand / cap) : 0;
+    const supply = pool.reduce((s, p) =>
+      s + Math.min(cap, remainingCapacity(p.cloudId, byDate, d, rules)), 0);
+    return { date: d, games, innPerGame, demand, cap, minArms, supply, isLast, ok: supply >= demand };
+  });
+
+  const total = rows.reduce((s, r) => s + r.demand, 0);
+  const minArmsWeekend = total ? Math.ceil(total / rules.maxIPPer3Days) : 0;
+  const peakArms = Math.max(0, ...rows.map(r => r.minArms));
+  return { rows, total, minArmsWeekend, peakArms, pool: pool.length, rules };
+}
+
+function setGamesPerDay(date, delta) {
+  const cur = PITCH_UI.gamesPerDay[date];
+  const base = cur !== undefined ? cur : GAMES.filter(g => g.game_date === date).length;
+  PITCH_UI.gamesPerDay[date] = Math.max(0, Math.min(6, base + delta));
+  renderPitching();
+}
+function clearGamesPerDay() { PITCH_UI.gamesPerDay = {}; renderPitching(); }
+
+function renderWeekendPlan(tourney) {
+  const el = document.getElementById('pitch-weekend');
+  if (!el) return;
+  if (!tourney) { el.innerHTML = `<div class="card-empty">Pick a tournament to size the weekend.</div>`; return; }
+  const plan = weekendPlan(tourney);
+  if (!plan || !plan.rows.length) { el.innerHTML = `<div class="card-empty">No dates on this tournament yet.</div>`; return; }
+
+  const { rules } = plan;
+  const needed = Math.max(plan.minArmsWeekend, plan.peakArms);
+  const short = needed > plan.pool;
+
+  const head = `<thead><tr><th class="who">&nbsp;</th>${
+    plan.rows.map(r => `<th>${fmtShortDate(r.date)}${r.isLast ? '' : ''}</th>`).join('')
+  }<th>Weekend</th></tr></thead>`;
+
+  const gamesRow = `<tr><td class="who">Games</td>${plan.rows.map(r => `
+    <td><div class="stepper" style="justify-content:center">
+      <button class="step-btn" onclick="setGamesPerDay('${r.date}',-1)" ${r.games === 0 ? 'disabled' : ''}>−</button>
+      <div class="step-val ${PITCH_UI.gamesPerDay[r.date] !== undefined ? 'hot' : ''} mono">${r.games}</div>
+      <button class="step-btn" onclick="setGamesPerDay('${r.date}',1)">+</button>
+    </div></td>`).join('')}<td class="mono">${plan.rows.reduce((s, r) => s + r.games, 0)}</td></tr>`;
+
+  const demandRow = `<tr><td class="who">Innings needed</td>${
+    plan.rows.map(r => `<td class="mono">${r.demand}</td>`).join('')
+  }<td class="mono">${plan.total}</td></tr>`;
+
+  const capRow = `<tr><td class="who">Per-arm cap</td>${
+    plan.rows.map(r => `<td class="mono" title="${r.isLast ? 'Last day — the daily max applies' : 'Staying at or under this keeps an arm eligible the next day'}">${r.cap} IP</td>`).join('')
+  }<td class="mono">${rules.maxIPPer3Days} IP</td></tr>`;
+
+  const armsRow = `<tr><td class="who">Arms needed</td>${
+    plan.rows.map(r => `<td class="mono" style="color:${r.minArms > plan.pool ? 'var(--neg)' : 'var(--text)'}">${r.minArms || '—'}</td>`).join('')
+  }<td class="mono" style="color:${short ? 'var(--neg)' : 'var(--pos)'}">${needed}</td></tr>`;
+
+  const supplyRow = `<tr><td class="who">Legal supply</td>${
+    plan.rows.map(r => `<td class="mono ${r.ok ? 'st-pos' : 'st-neg'}">${r.supply}</td>`).join('')
+  }<td class="mono">${plan.pool} arms</td></tr>`;
+
+  const nonLast = plan.rows.filter(r => !r.isLast && r.demand);
+  const constraint = nonLast.length
+    ? `<div class="rule-note">
+         <strong style="color:var(--text)">The binding constraint:</strong> anyone who throws more than
+         ${rules.restThreshold} innings on ${fmtShortDate(nonLast[0].date)} cannot pitch on
+         ${fmtShortDate(plan.rows[plan.rows.length - 1].date)} at all. Covering
+         ${nonLast[0].demand} innings while keeping everyone eligible takes at least
+         <strong style="color:var(--text)">${nonLast[0].minArms} arms</strong> that day, capped at
+         ${rules.restThreshold} innings each.
+       </div>`
+    : '';
+
+  el.innerHTML = `
+    <div class="matrix-wrap"><table class="forecast">${head}<tbody>
+      ${gamesRow}${demandRow}${capRow}${armsRow}${supplyRow}
+    </tbody></table></div>
+    ${short
+      ? `<div class="rule-note" style="color:var(--neg)">
+           This weekend needs <strong>${needed}</strong> arms and only <strong>${plan.pool}</strong> are marked eligible.
+           Widen the pool in the position chart, or plan on shorter outings.
+         </div>`
+      : ''}
+    ${plan.rows.some(r => r.games === 0)
+      ? `<div class="rule-note">
+           ${plan.rows.filter(r => r.games === 0).map(r => fmtShortDate(r.date)).join(', ')}
+           has no games planned yet. Step the count up to size a bracket day before you know the seeding —
+           nothing is saved, it just re-sizes the table.
+         </div>`
+      : ''}
+    ${constraint}
+    ${Object.keys(PITCH_UI.gamesPerDay).length
+      ? `<div style="margin-top:10px"><button class="btn btn-secondary btn-xs" onclick="clearGamesPerDay()">Reset to planned games</button></div>`
+      : ''}`;
 }
 
 function renderPitchScenario(tourney, pool) {
