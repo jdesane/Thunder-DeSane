@@ -1029,6 +1029,37 @@
     border-top: 1px solid var(--border);
   }
 
+  /* ===== TOURNAMENT PLANNER ===== */
+  .tp-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+  }
+  .tp-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: var(--bg);
+    position: relative;
+  }
+  .tp-card.is-set { cursor: pointer; border-color: var(--border-strong); }
+  .tp-card.is-set:hover { background: var(--bg-hover); }
+  .tp-card-n {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-muted);
+    font-size: 11px; font-weight: 600;
+    display: grid; place-items: center;
+    margin-bottom: 8px;
+  }
+  .tp-card.is-set .tp-card-n { background: rgba(245,158,11,0.16); color: var(--warn); }
+  .tp-card-name {
+    font-size: 13px; font-weight: 500; color: var(--text);
+    line-height: 1.3; margin-bottom: 3px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .tp-card-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+
   /* ===== LIVE GAME ===== */
   .live-bar {
     display: flex;
@@ -1509,6 +1540,10 @@
       <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
       Playing Time
     </div>
+    <div class="nav-item" data-section="tourplanner" onclick="navigate('tourplanner')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M6 3h12l-1 7a5 5 0 0 1-10 0z"/><path d="M6 5H3v2a4 4 0 0 0 4 4M18 5h3v2a4 4 0 0 1-4 4"/><path d="M9 21h6M12 17v4"/></svg>
+      Tournament Planner
+    </div>
     <div class="nav-item" data-section="pitching" onclick="navigate('pitching')">
       <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5 6c3 3 3 9 0 12M19 6c-3 3-3 9 0 12"/></svg>
       Pitching
@@ -1688,6 +1723,22 @@
         </div>
       </div>
       <div id="pt-body"></div>
+    </section>
+
+    <!-- ============ TOURNAMENT PLANNER ============ -->
+    <section class="section" id="section-tourplanner">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Tournament Planner</div>
+          <div class="section-sub">Forecast the weekend, size the staff, and plan every game before the first pitch.</div>
+        </div>
+        <div class="section-actions">
+          <select class="input" id="tp-tourney-select" style="width:auto;min-width:190px"
+                  onchange="PITCH_UI.tournament=this.value; PITCH_UI.gamesPerDay={}; renderTourPlanner()"></select>
+          <button class="btn btn-secondary btn-sm" onclick="navigate('planner')">Game Planner →</button>
+        </div>
+      </div>
+      <div id="tp-body"></div>
     </section>
 
     <!-- ============ PITCHING ============ -->
@@ -2280,6 +2331,9 @@
       </div>
 
       <div style="font-size:11px;color:var(--text-subtle);line-height:1.5;margin-bottom:8px">
+        <strong style="color:var(--text-muted)">Tier</strong> drives bench time: everyone gets on the field, but top players
+        sit less than middle, and middle less than bottom. It applies in every planning mode — Play Time just applies it
+        more gently.<br>
         The <strong style="color:var(--text-muted)">8U</strong> column is where each player was recorded last season —
         shown in amber where your two records disagree. It's a memory aid only; nothing from it has been written into a rating.
       </div>
@@ -2623,6 +2677,7 @@ async function loadFromCloud() {
     songStart: pl.walk_up_start_seconds || 0,
     invoiceSentAt: pl.invoice_sent_at || null,
     positions: pl.positions || {},
+    tier: pl.tier || 'middle',
     parents: (parentsByPlayer[pl.id] || [])
       .sort((a,b) => (b.is_primary?1:0) - (a.is_primary?1:0))
       .map(p => ({ id: p.id, name: p.name||'', phone: p.phone||'', email: p.email||'', primary: !!p.is_primary })),
@@ -2892,12 +2947,13 @@ function navigate(section) {
   // On the phone the bar scrolls, so keep the active tab in view
   if (window.innerWidth <= 768) navEl?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
   const crumb = document.querySelector('[data-crumb="section"]');
-  const SECTION_LABEL = { planner: 'Game Planner', playingtime: 'Playing Time', livegame: 'Live Game' };
+  const SECTION_LABEL = { planner: 'Game Planner', playingtime: 'Playing Time', livegame: 'Live Game', tourplanner: 'Tournament Planner' };
   if (crumb) crumb.textContent = SECTION_LABEL[section] || (section.charAt(0).toUpperCase() + section.slice(1));
   window.scrollTo(0, 0);
   if (section === 'dashboard') { renderDashboard(); loadUniformOrders(); }
   if (section === 'planner') { ensureGameLoaded(); renderPlanner(); }
   if (section === 'playingtime') renderPlayingTimeSection();
+  if (section === 'tourplanner') renderTourPlanner();
   if (section === 'pitching') renderPitching();
   if (section === 'livegame') renderLive();
   if (section === 'roster') renderRoster();
@@ -2933,6 +2989,16 @@ const INFIELD     = ['P', 'C', '1B', '2B', '3B', 'SS'];
 const MID_INFIELD = ['2B', 'SS'];
 const OUTFIELD    = ['LF', 'CF', 'RF'];
 const DEFAULT_RATING = 3;
+
+// Team rule: everyone gets on the field, but bench time is not shared equally —
+// top players sit less than middle, who sit less than bottom.
+const TIERS = ['top', 'middle', 'bottom'];
+const TIER_LABEL = { top: 'Top', middle: 'Middle', bottom: 'Bottom' };
+function playerTier(p) { return TIERS.includes(p?.tier) ? p.tier : 'middle'; }
+function tierRank(p) { return TIERS.indexOf(playerTier(p)); }   // 0 = sits least
+// How hard the tier ordering pushes, per planning mode. Play Time still honours
+// the rule, just with a lighter hand.
+const TIER_WEIGHT = { have_to_win: 9, balanced: 5, play_time: 2 };
 
 // USSSA 9U kid-pitch limits. Always confirm with the tournament director —
 // events publish their own modifications.
@@ -3339,15 +3405,20 @@ function autoFillDefense() {
 
   const blockIndex = (inn, size) => Math.floor((inn - 1) / size);
 
+  const tierW = TIER_WEIGHT[mode] ?? TIER_WEIGHT.balanced;
   const score = (p, pos) => {
     const pid = p.cloudId;
     const r = posRating(p, pos);
     const g = gameCount[pid] || 0;
     const sTot = seasonTotal(pid);
     const repeatHere = (posCount[pid]?.[pos] || 0);
-    if (mode === 'have_to_win') return r * 10 - g * 0.5 - repeatHere * 0.2;
-    if (mode === 'play_time')   return -(g * 12) - sTot * 0.6 - repeatHere * 3 - seasonPos(pid, pos) * 0.4 + r * 0.5;
-    return r * 3 - g * 5 - sTot * 0.35 - repeatHere * 1.5;   // balanced
+    // Team rule: top sits least, bottom sits most — applied in every mode.
+    const tierBonus = (2 - tierRank(p)) * tierW;
+    // Nobody sits the whole game: anyone still at zero outranks everyone else.
+    const unplayed = g === 0 ? 40 : 0;
+    if (mode === 'have_to_win') return unplayed + tierBonus + r * 10 - g * 0.5 - repeatHere * 0.2;
+    if (mode === 'play_time')   return unplayed + tierBonus - (g * 12) - sTot * 0.6 - repeatHere * 3 - seasonPos(pid, pos) * 0.4 + r * 0.5;
+    return unplayed + tierBonus + r * 3 - g * 5 - sTot * 0.35 - repeatHere * 1.5;   // balanced
   };
 
   const def = {};
@@ -3377,6 +3448,29 @@ function autoFillDefense() {
       });
     });
   }
+
+  // --- Hard guarantee: nobody sits the entire game ---
+  // Scoring strongly favours unplayed players, but a player rated 0 at whatever
+  // was still open can slip through. Swap them in over whoever has the most innings.
+  const inningsOf = pid => gameCount[pid] || 0;
+  avail.filter(p => inningsOf(p.cloudId) === 0).forEach(p => {
+    let best = null;
+    for (let i = 1; i <= innings; i++) {
+      if (POSITIONS.some(pos => def[i][pos] === p.cloudId)) continue;
+      POSITIONS.forEach(pos => {
+        if (!canPlay(p, pos)) return;
+        const holder = def[i][pos];
+        if (!holder) { best = best || { i, pos, holder: null, held: Infinity }; return; }
+        const held = inningsOf(holder);
+        if (held <= 1) return;                       // don't strand the person we displace
+        if (!best || held > best.held) best = { i, pos, holder, held };
+      });
+    }
+    if (!best) return;
+    def[best.i][best.pos] = p.cloudId;
+    gameCount[p.cloudId] = 1;
+    if (best.holder) gameCount[best.holder] = Math.max(0, inningsOf(best.holder) - 1);
+  });
 
   GAME.defense = def;
   markDirty();
@@ -3452,7 +3546,27 @@ function ruleCheck() {
     ? { level: 'pass', label: 'Every available player takes the field', detail: '' }
     : { level: 'warn', label: `${zero.length} player${zero.length === 1 ? '' : 's'} never on defense`, detail: zero.map(playerShort).join(', ') });
 
-  // 7. Nobody sits too long in a row
+  // 7. Team rule: top players sit less than middle, middle less than bottom
+  const benchByTier = { top: [], middle: [], bottom: [] };
+  avail.forEach(p => benchByTier[playerTier(p)].push(tallies[p.cloudId]?.bench ?? innings));
+  const avgBench = t => benchByTier[t].length ? benchByTier[t].reduce((s, x) => s + x, 0) / benchByTier[t].length : null;
+  const bT = avgBench('top'), bM = avgBench('middle'), bB = avgBench('bottom');
+  const tiersSet = [bT, bM, bB].filter(v => v !== null).length;
+  if (tiersSet < 2) {
+    checks.push({ level: 'warn', label: 'Player tiers not set', detail: 'Set top / middle / bottom in the position chart so bench time can follow the team rule.' });
+  } else {
+    const parts = [];
+    if (bT !== null) parts.push(`top ${bT.toFixed(1)}`);
+    if (bM !== null) parts.push(`middle ${bM.toFixed(1)}`);
+    if (bB !== null) parts.push(`bottom ${bB.toFixed(1)}`);
+    const ordered = (bT === null || bM === null || bT <= bM + 0.01) && (bM === null || bB === null || bM <= bB + 0.01)
+                 && (bT === null || bB === null || bT <= bB + 0.01);
+    checks.push(ordered
+      ? { level: 'pass', label: 'Bench time follows player tiers', detail: `Average innings on the bench — ${parts.join(', ')}` }
+      : { level: 'warn', label: 'Tier order broken on the bench', detail: `Top players should sit least. Average bench innings — ${parts.join(', ')}` });
+  }
+
+  // 8. Nobody sits too long in a row
   const longSits = [];
   avail.forEach(p => {
     let run = 0, worst = 0;
@@ -4120,6 +4234,7 @@ function openPositionChart() {
   t.innerHTML = `
     <thead><tr>
       <th class="name-h">Player</th>
+      <th class="name-h" style="font-weight:400">Tier</th>
       <th class="name-h" style="font-weight:400">8U</th>
       ${POSITIONS.map(p => `<th>${p}</th>`).join('')}
       <th></th>
@@ -4127,6 +4242,11 @@ function openPositionChart() {
     <tbody>${PLAYERS.filter(p => p.cloudId).map(p => `
       <tr>
         <td class="name-c">#${esc(p.num || '')} ${esc(p.name || '')}</td>
+        <td class="name-c">
+          <select class="preset-select tier-select" data-pid="${p.cloudId}" style="width:74px">
+            ${TIERS.map(t => `<option value="${t}" ${playerTier(p) === t ? 'selected' : ''}>${TIER_LABEL[t]}</option>`).join('')}
+          </select>
+        </td>
         <td class="name-c" style="font-size:11px">${priorLabel(p.name)}</td>
         ${POSITIONS.map(pos => {
           const v = posRating(p, pos);
@@ -4152,16 +4272,22 @@ async function savePositionChart() {
     updates[pid] = updates[pid] || {};
     updates[pid][pos] = Number(sel.value);
   });
+  const tiers = {};
+  document.querySelectorAll('#poschart-table .tier-select').forEach(sel => {
+    if (sel.dataset.pid) tiers[sel.dataset.pid] = sel.value;
+  });
   closePositionChart();
   Object.keys(updates).forEach(pid => {
     const p = playerById(pid);
-    if (p) p.positions = updates[pid];
+    if (!p) return;
+    p.positions = updates[pid];
+    if (tiers[pid]) p.tier = tiers[pid];
   });
   saveCache();
   renderPlanner();
   toast('Position chart saved');
   await Promise.all(Object.keys(updates).map(pid =>
-    supa('team_players', 'PATCH', { positions: updates[pid] }, `?id=eq.${pid}`)));
+    supa('team_players', 'PATCH', { positions: updates[pid], tier: tiers[pid] || 'middle' }, `?id=eq.${pid}`)));
 }
 
 // ============================================================
@@ -4701,6 +4827,12 @@ function exportPlayingTime() {
 // PITCHING
 // ============================================================
 let PITCH_UI = { asOf: '', tournament: '', scenario: {}, gamesPerDay: {} };
+// Scenario controls live in Tournament Planner but the state is shared with
+// Pitching; re-render whichever section is on screen.
+function refreshPitchViews() {
+  if (UI.section === 'tourplanner') renderTourPlanner();
+  else if (UI.section === 'pitching') renderPitching();
+}
 
 function pitcherPool() {
   return PLAYERS.filter(p => p.cloudId && canPlay(p, 'P'));
@@ -4729,9 +4861,9 @@ function setScenario(pid, date, delta) {
   if (next === 0) delete PITCH_UI.scenario[pid][date];
   else PITCH_UI.scenario[pid][date] = next;
   if (!Object.keys(PITCH_UI.scenario[pid]).length) delete PITCH_UI.scenario[pid];
-  renderPitching();
+  refreshPitchViews();
 }
-function clearScenario() { PITCH_UI.scenario = {}; renderPitching(); }
+function clearScenario() { PITCH_UI.scenario = {}; refreshPitchViews(); }
 
 function renderPitching() {
   const body = document.getElementById('pitch-body');
@@ -4821,9 +4953,78 @@ function renderPitching() {
       </div>
     </div>
 
+    <div class="card">
+      <div class="card-title">
+        Workload Log <span class="card-link">${totalIP} IP recorded</span>
+      </div>
+      <div id="pitch-log"></div>
+    </div>`;
+
+  renderPitchBoard(avail, rules, asOf);
+  renderPitchRules(rules, 'pitch-rules');
+  renderPitchLog(real, pool);
+}
+
+// ============================================================
+// TOURNAMENT PLANNER
+// ============================================================
+function renderTourPlanner() {
+  const body = document.getElementById('tp-body');
+  const sel = document.getElementById('tp-tourney-select');
+  if (!body) return;
+
+  if (!PITCH_UI.tournament) {
+    const next = upcomingTournaments()[0];
+    PITCH_UI.tournament = next?.id || TM_STATE.tournaments[0]?.id || '';
+  }
+  if (sel) {
+    sel.innerHTML = TM_STATE.tournaments.length
+      ? TM_STATE.tournaments.map(t => {
+          const when = t.start_date ? fmtShortDate(t.start_date) : 'TBD';
+          return `<option value="${t.id}" ${PITCH_UI.tournament === t.id ? 'selected' : ''}>${when} · ${esc(t.name || 'Untitled')}</option>`;
+        }).join('')
+      : `<option value="">No tournaments</option>`;
+  }
+  const tourney = TM_STATE.tournaments.find(t => t.id === PITCH_UI.tournament) || null;
+
+  if (!tourney) {
+    body.innerHTML = `<div class="card"><div class="card-empty" style="padding:40px 20px">
+      <div style="font-size:14px;color:var(--text);margin-bottom:6px">No tournaments yet</div>
+      <div style="margin-bottom:16px">Add one and this becomes the weekend plan.</div>
+      <button class="btn btn-primary btn-sm" onclick="navigate('tournaments')">Add tournament</button>
+    </div></div>`;
+    return;
+  }
+
+  const rules = defaultRules();
+  const pool = pitcherPool();
+  const scnOn = scenarioTotal() > 0;
+  const byDate = pitchedByDate(scnOn ? PITCH_UI.scenario : null);
+  const days = tournamentDays(tourney);
+  const total = expectedGamesTotal(tourney);
+  const range = days.length
+    ? `${fmtShortDate(days[0])}${days.length > 1 ? ' – ' + fmtShortDate(days[days.length - 1]) : ''}`
+    : 'No dates set';
+
+  body.innerHTML = `
+    <div class="pt-toolbar">
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:15px;font-weight:600;letter-spacing:-0.01em">${esc(tourney.name || 'Untitled')}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px" class="mono">
+          ${range} · ${total} game${total === 1 ? '' : 's'} forecast${tourney.status === 'registered' ? ' · Registered' : ''}
+        </div>
+      </div>
+      ${scnOn ? `<button class="btn btn-secondary btn-sm" onclick="clearScenario()">Clear what-if (${scenarioTotal()} IP)</button>` : ''}
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">Weekend Overview <span class="card-link" onclick="navigate('planner')">Plan a game →</span></div>
+      <div id="tp-overview"></div>
+    </div>
+
     <div class="card" style="margin-bottom:12px">
       <div class="card-title">
-        Tournament Scenario${tourney ? ' — ' + esc(tourney.name || '') : ''}
+        Games Forecast &amp; Workload
         <span class="card-link">how many arms this takes</span>
       </div>
       <div id="pitch-weekend"></div>
@@ -4837,35 +5038,81 @@ function renderPitching() {
       <div id="pitch-multigame"></div>
     </div>
 
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-title">
-        Weekend Forecast${tourney ? ' — ' + esc(tourney.name || '') : ''}
-        <span class="card-link">${scnOn ? 'includes what-if' : 'from saved game plans'}</span>
-      </div>
-      <div id="pitch-forecast"></div>
-    </div>
-
-    <div class="dash-row cols-2">
+    <div class="dash-row cols-2-wide">
       <div class="card">
         <div class="card-title">
-          What-if
-          <span class="card-link">${tourney ? esc(fmtShortDate(tourney.start_date)) : 'pick a weekend'}</span>
+          Pitcher Availability Forecast
+          <span class="card-link">${scnOn ? 'includes what-if' : 'from saved game plans'}</span>
         </div>
-        <div id="pitch-scenario"></div>
+        <div id="pitch-forecast"></div>
       </div>
       <div class="card">
-        <div class="card-title">Workload Log <span class="card-link">${totalIP} IP recorded</span></div>
-        <div id="pitch-log"></div>
+        <div class="card-title">Rules Summary <span class="card-link">${esc(rules.label)}</span></div>
+        <div id="tp-rules"></div>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        Scenario What-if
+        <span class="card-link">${days.length ? esc(fmtShortDate(days[0])) : 'no dates'}</span>
+      </div>
+      <div id="pitch-scenario"></div>
     </div>`;
 
-  renderPitchBoard(avail, rules, asOf);
-  renderPitchRules(rules);
+  renderTpOverview(tourney, days);
   renderWeekendPlan(tourney);
   renderMultiGamePlan(tourney);
   renderPitchForecast(tourney, byDate, rules, pool);
+  renderPitchRules(rules, 'tp-rules');
   renderPitchScenario(tourney, pool);
-  renderPitchLog(real, pool);
+}
+
+// Game cards for the weekend: scheduled games first, then forecast placeholders.
+function renderTpOverview(tourney, days) {
+  const el = document.getElementById('tp-overview');
+  if (!el) return;
+  if (!days.length) {
+    el.innerHTML = `<div class="card-empty">This tournament has no dates. Add a start and end date in
+      <span class="card-link" onclick="navigate('tournaments')">Tournaments</span> to lay out the weekend.</div>`;
+    return;
+  }
+
+  const cards = [];
+  let n = 0;
+  days.forEach((date, di) => {
+    const planned = GAMES.filter(g => g.game_date === date && g.tournament_id === tourney.id)
+      .sort((a, b) => (a.game_time || '').localeCompare(b.game_time || ''));
+    const override = PITCH_UI.gamesPerDay[date];
+    const count = override !== undefined ? override : planned.length;
+    for (let i = 0; i < count; i++) {
+      n++;
+      const g = planned[i];
+      cards.push({
+        n, date, game: g || null,
+        label: g?.opponent || (di === 0 ? `Pool Game ${i + 1}` : `Bracket Game ${i + 1}`),
+        time: g?.game_time || '',
+        scheduled: !!g,
+      });
+    }
+  });
+
+  if (!cards.length) {
+    el.innerHTML = `<div class="card-empty">No games forecast yet — set the number below.</div>`;
+    return;
+  }
+
+  el.innerHTML = `<div class="tp-cards">${cards.map(c => `
+    <div class="tp-card ${c.scheduled ? 'is-set' : ''}" ${c.game ? `onclick="selectGame('${c.game.id}'); navigate('planner')"` : ''}>
+      <div class="tp-card-n">${c.n}</div>
+      <div class="tp-card-name">${esc(c.label)}</div>
+      <div class="tp-card-meta mono">${fmtShortDate(c.date)}${c.time ? ' · ' + esc(c.time) : ''}</div>
+      <div class="tp-card-tag">${c.scheduled
+        ? (hasAnyFielding(c.game) ? '<span class="pill pill-pos">Planned</span>' : '<span class="pill pill-warn">No lineup</span>')
+        : '<span class="pill pill-muted">Forecast</span>'}</div>
+    </div>`).join('')}</div>
+    <div class="rule-note">Numbered cards are the shape of the weekend, not a schedule — opponents and times come from
+    the tournament. Click a scheduled game to open it in Game Planner.</div>`;
 }
 
 function renderPitchBoard(avail, rules, asOf) {
@@ -4895,8 +5142,8 @@ function renderPitchBoard(avail, rules, asOf) {
   }).join('');
 }
 
-function renderPitchRules(rules) {
-  const el = document.getElementById('pitch-rules');
+function renderPitchRules(rules, targetId) {
+  const el = document.getElementById(targetId || 'pitch-rules');
   if (!el) return;
   const items = [
     { n: rules.restThreshold, t: `${rules.restThreshold} innings in one day`, d: `Throw more than ${rules.restThreshold} in a day and the player must rest the next day.` },
@@ -5012,7 +5259,7 @@ function setExpectedGames(total) {
     left -= share;
   });
   PITCH_UI.gamesPerDay = out;
-  renderPitching();
+  refreshPitchViews();
 }
 
 function expectedGamesTotal(tourney) {
@@ -5138,9 +5385,9 @@ function setGamesPerDay(date, delta) {
   const cur = PITCH_UI.gamesPerDay[date];
   const base = cur !== undefined ? cur : GAMES.filter(g => g.game_date === date).length;
   PITCH_UI.gamesPerDay[date] = Math.max(0, Math.min(6, base + delta));
-  renderPitching();
+  refreshPitchViews();
 }
-function clearGamesPerDay() { PITCH_UI.gamesPerDay = {}; renderPitching(); }
+function clearGamesPerDay() { PITCH_UI.gamesPerDay = {}; refreshPitchViews(); }
 
 function renderWeekendPlan(tourney) {
   const el = document.getElementById('pitch-weekend');
@@ -7810,6 +8057,7 @@ document.addEventListener('keydown', (e) => {
     if (UI.section === 'dashboard') { renderDashboard(); loadUniformOrders(); }
     if (UI.section === 'planner') { ensureGameLoaded(); renderPlanner(); }
     if (UI.section === 'playingtime') renderPlayingTimeSection();
+    if (UI.section === 'tourplanner') renderTourPlanner();
     if (UI.section === 'pitching') renderPitching();
     if (UI.section === 'livegame') renderLive();
     if (UI.section === 'roster') renderRoster();
