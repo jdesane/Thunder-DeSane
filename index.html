@@ -842,6 +842,104 @@
   .pt-fill { height: 100%; border-radius: 3px; }
   .pt-num { width: 72px; text-align: right; font-size: 11px; color: var(--text-muted); white-space: nowrap; }
 
+  /* ===== PLAYING TIME ===== */
+  .pt-toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  .pt-toolbar .field { min-width: 150px; }
+
+  .matrix-wrap { overflow-x: auto; }
+  table.matrix {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 2px;
+    font-size: 12px;
+  }
+  table.matrix th {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: 500;
+    padding: 4px 3px;
+    text-align: center;
+    white-space: nowrap;
+  }
+  table.matrix th.who { text-align: left; padding-left: 6px; min-width: 150px; }
+  table.matrix td {
+    text-align: center;
+    padding: 5px 3px;
+    border-radius: 4px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    min-width: 30px;
+  }
+  table.matrix td.who {
+    text-align: left;
+    padding-left: 6px;
+    white-space: nowrap;
+    color: var(--text);
+    background: transparent !important;
+  }
+  table.matrix td.zero { color: var(--text-subtle); }
+  table.matrix td.bench-col { color: var(--text-muted); }
+  table.matrix td.total-col { font-weight: 600; background: rgba(255,255,255,0.04) !important; }
+  table.matrix tr.clickable-row { cursor: pointer; }
+  table.matrix tr.clickable-row:hover td.who { color: var(--info); }
+  table.matrix tr.avg-row td {
+    border-top: 1px solid var(--border-strong);
+    color: var(--text-muted);
+    font-size: 11px;
+    background: transparent !important;
+  }
+
+  .share-bar {
+    display: flex;
+    height: 5px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.05);
+    margin-top: 5px;
+  }
+  .share-seg { height: 100%; }
+
+  .sug-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: var(--bg);
+  }
+  .sug-card:last-child { margin-bottom: 0; }
+  .sug-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .sug-name { font-size: 13px; font-weight: 500; }
+  .sug-target {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+  .sug-target strong { color: var(--text); font-weight: 500; }
+
+  .legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--text-subtle);
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .legend-swatch { width: 14px; height: 9px; border-radius: 2px; }
+
   /* Position chart modal */
   table.poschart { width: 100%; border-collapse: collapse; font-size: 12px; }
   table.poschart th {
@@ -1188,10 +1286,9 @@
       <svg class="nav-icon" viewBox="0 0 24 24"><path d="M9 11H3v10h6zM15 3H9v18h6zM21 7h-6v14h6z"/></svg>
       Game Planner
     </div>
-    <div class="nav-item soon" data-section="playingtime" title="Coming next">
+    <div class="nav-item" data-section="playingtime" onclick="navigate('playingtime')">
       <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
       Playing Time
-      <span class="nav-soon-tag">Soon</span>
     </div>
     <div class="nav-item soon" data-section="pitching" title="Coming next">
       <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5 6c3 3 3 9 0 12M19 6c-3 3-3 9 0 12"/></svg>
@@ -1335,6 +1432,21 @@
         </div>
       </div>
       <div id="gp-body"></div>
+    </section>
+
+    <!-- ============ PLAYING TIME ============ -->
+    <section class="section" id="section-playingtime">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Playing Time</div>
+          <div class="section-sub">Innings by position across the season — the same history that drives auto-fill.</div>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-secondary btn-sm hide-mobile" onclick="exportPlayingTime()">Export CSV</button>
+          <button class="btn btn-secondary btn-sm" onclick="navigate('planner')">Game Planner →</button>
+        </div>
+      </div>
+      <div id="pt-body"></div>
     </section>
 
     <!-- ============ ROSTER ============ -->
@@ -2456,11 +2568,12 @@ function navigate(section) {
   document.getElementById('section-' + section)?.classList.add('active');
   document.querySelector(`[data-section="${section}"]`)?.classList.add('active');
   const crumb = document.querySelector('[data-crumb="section"]');
-  const SECTION_LABEL = { planner: 'Game Planner' };
+  const SECTION_LABEL = { planner: 'Game Planner', playingtime: 'Playing Time' };
   if (crumb) crumb.textContent = SECTION_LABEL[section] || (section.charAt(0).toUpperCase() + section.slice(1));
   window.scrollTo(0, 0);
   if (section === 'dashboard') { renderDashboard(); loadUniformOrders(); }
   if (section === 'planner') { ensureGameLoaded(); renderPlanner(); }
+  if (section === 'playingtime') renderPlayingTimeSection();
   if (section === 'roster') renderRoster();
   if (section === 'finances') renderFinances();
   if (section === 'tournaments') renderTournaments();
@@ -3524,6 +3637,464 @@ function printLineup() {
   w.document.close();
   w.focus();
   setTimeout(() => w.print(), 250);
+}
+
+// ============================================================
+// PLAYING TIME
+// ============================================================
+let PT_UI = { scope: 'all', includePlanned: false, player: '' };
+
+const mean = arr => arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : 0;
+const pct  = v => `${Math.round(v * 100)}%`;
+const firstName = p => (p?.name || '').trim().split(/\s+/)[0] || '';
+
+function ptGames() {
+  return GAMES
+    .filter(g => {
+      if (PT_UI.scope !== 'all' && g.tournament_id !== PT_UI.scope) return false;
+      return PT_UI.includePlanned ? true : isPlayedGame(g);
+    })
+    .sort((a, b) => (a.game_date || '').localeCompare(b.game_date || ''));
+}
+
+// Innings by position for every player across the selected games.
+// A player marked unavailable for a game gets no innings AND no bench time —
+// an absence shouldn't read as being benched.
+function playingTimeData() {
+  const games = ptGames();
+  const rows = {};
+  const touch = pid => (rows[pid] = rows[pid] || {
+    pid, byPos: {}, total: 0, bench: 0, games: 0,
+    infield: 0, outfield: 0, mid: 0, pitch: 0,
+    positions: new Set(), log: [],
+  });
+  PLAYERS.filter(p => p.cloudId).forEach(p => touch(p.cloudId));
+
+  games.forEach(g => {
+    const innings = g.innings || 6;
+    const def = g.defense || {};
+    const avail = g.availability || {};
+    PLAYERS.filter(p => p.cloudId).forEach(p => {
+      const pid = p.cloudId;
+      if (avail[pid] === false) return;
+      const r = touch(pid);
+      r.games++;
+      let gameInn = 0;
+      const gamePos = {};
+      for (let i = 1; i <= innings; i++) {
+        let played = false;
+        POSITIONS.forEach(pos => {
+          if (def[i]?.[pos] !== pid) return;
+          played = true;
+          r.byPos[pos] = (r.byPos[pos] || 0) + 1;
+          r.positions.add(pos);
+          r.total++; gameInn++;
+          gamePos[pos] = (gamePos[pos] || 0) + 1;
+          if (INFIELD.includes(pos)) r.infield++;
+          if (OUTFIELD.includes(pos)) r.outfield++;
+          if (MID_INFIELD.includes(pos)) r.mid++;
+          if (pos === 'P') r.pitch++;
+        });
+        if (!played) r.bench++;
+      }
+      r.log.push({ game: g, innings: gameInn, of: innings, byPos: gamePos });
+    });
+  });
+  return { games, rows };
+}
+
+function ptOpportunity(r) { return r.total + r.bench; }
+function ptShare(r) { const o = ptOpportunity(r); return o ? r.total / o : 0; }
+
+function ptAverages(list) {
+  const withInn = list.filter(r => r.total > 0);
+  return {
+    share: mean(list.map(ptShare)),
+    mid:   mean(withInn.map(r => r.mid / r.total)),
+    of:    mean(withInn.map(r => r.outfield / r.total)),
+    inf:   mean(withInn.map(r => r.infield / r.total)),
+    total: mean(list.map(r => r.total)),
+  };
+}
+
+// Real, computed fairness findings — nothing fires unless the data supports it.
+// Collapsed to at most one entry per player: a list with three findings for the
+// same kid is noise, not a summary.
+function fairnessAlerts(data) {
+  const list = Object.values(data.rows).filter(r => r.games > 0);
+  if (list.length < 2) return [];
+  const avg = ptAverages(list);
+  const spread = Math.max(...list.map(r => r.total)) - Math.min(...list.map(r => r.total));
+
+  const entries = [];
+  list.forEach(r => {
+    const p = playerById(r.pid);
+    if (!p) return;
+    const fn = firstName(p);
+    const s = ptShare(r);
+    const found = [];   // most important first
+
+    if (s < avg.share - 0.12) {
+      found.push({
+        level: 'high', rank: 0,
+        title: `${fn} is short on innings`,
+        detail: `On the field for ${pct(s)} of available innings vs a team average of ${pct(avg.share)} — ${r.total} of ${ptOpportunity(r)}.`,
+        short: `${pct(s)} field share`, targets: [], targetLabel: 'more total innings',
+      });
+    }
+    if (r.total >= 8 && r.positions.size <= 2) {
+      found.push({
+        level: 'med', rank: 1,
+        title: `${fn} has played only ${r.positions.size} position${r.positions.size === 1 ? '' : 's'}`,
+        detail: `${r.total} innings, all at ${[...r.positions].join(', ')}.`,
+        short: `only ${[...r.positions].join('/')}`,
+        targets: POSITIONS.filter(x => !r.positions.has(x) && x !== 'P' && x !== 'C').slice(0, 3),
+        targetLabel: 'a new position',
+      });
+    }
+    if (r.total >= 6 && (r.mid / r.total) < avg.mid - 0.15) {
+      found.push({
+        level: 'med', rank: 2,
+        title: `${fn} needs middle infield reps`,
+        detail: `Only ${pct(r.mid / r.total)} of innings at 2B/SS (team avg ${pct(avg.mid)}).`,
+        short: `${pct(r.mid / r.total)} at 2B/SS`, targets: ['2B', 'SS'], targetLabel: '2B / SS',
+      });
+    }
+    if (r.total >= 6 && (r.outfield / r.total) < avg.of - 0.15) {
+      found.push({
+        level: 'med', rank: 3,
+        title: `${fn} needs outfield reps`,
+        detail: `Only ${pct(r.outfield / r.total)} of innings in LF/CF/RF (team avg ${pct(avg.of)}).`,
+        short: `${pct(r.outfield / r.total)} in the outfield`, targets: ['LF', 'CF', 'RF'], targetLabel: 'LF / CF / RF',
+      });
+    }
+
+    if (!found.length) return;
+    found.sort((a, b) => a.rank - b.rank);
+    const primary = found[0];
+    const extras = found.slice(1);
+    entries.push({
+      level: primary.level,
+      pid: r.pid,
+      title: primary.title,
+      detail: primary.detail + (extras.length ? ` Also ${extras.map(e => e.short).join(', ')}.` : ''),
+      targets: [...new Set(found.flatMap(f => f.targets))],
+      targetLabel: primary.targetLabel,
+    });
+  });
+
+  // A single "leads the team" note, and only when the gap is real —
+  // flagging six players as leaders tells you nothing.
+  if (spread > 4) {
+    const top = [...list].sort((a, b) => ptShare(b) - ptShare(a))[0];
+    if (top && ptShare(top) > avg.share + 0.14 && !entries.some(e => e.pid === top.pid)) {
+      const p = playerById(top.pid);
+      if (p) entries.push({
+        level: 'info', pid: top.pid,
+        title: `${firstName(p)} leads the team in innings`,
+        detail: `On the field ${pct(ptShare(top))} of the time (team avg ${pct(avg.share)}).`,
+        targets: [], targetLabel: '',
+      });
+    }
+  }
+
+  const rank = { high: 0, med: 1, info: 2 };
+  return entries.sort((a, b) => rank[a.level] - rank[b.level]);
+}
+
+// ---- render ----
+function renderPlayingTimeSection() {
+  const body = document.getElementById('pt-body');
+  if (!body) return;
+
+  const tourneyOpts = TM_STATE.tournaments
+    .map(t => `<option value="${t.id}" ${PT_UI.scope === t.id ? 'selected' : ''}>${esc(t.name || 'Untitled')}</option>`).join('');
+
+  const data = playingTimeData();
+  const list = Object.values(data.rows).filter(r => r.games > 0);
+
+  const toolbar = `
+    <div class="pt-toolbar">
+      <div class="field">
+        <label class="field-label">Scope</label>
+        <select class="input" onchange="PT_UI.scope=this.value; renderPlayingTimeSection()">
+          <option value="all" ${PT_UI.scope === 'all' ? 'selected' : ''}>All games</option>
+          ${tourneyOpts}
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Include</label>
+        <div class="seg">
+          <button class="seg-btn ${!PT_UI.includePlanned ? 'active' : ''}" onclick="PT_UI.includePlanned=false; renderPlayingTimeSection()">Played only</button>
+          <button class="seg-btn ${PT_UI.includePlanned ? 'active' : ''}" onclick="PT_UI.includePlanned=true; renderPlayingTimeSection()">Include planned</button>
+        </div>
+      </div>
+    </div>`;
+
+  if (!data.games.length || !list.length) {
+    body.innerHTML = toolbar + `
+      <div class="card">
+        <div class="card-empty" style="padding:40px 20px">
+          <div style="font-size:14px;color:var(--text);margin-bottom:6px">No playing time recorded yet</div>
+          <div style="margin-bottom:6px;line-height:1.6">
+            This fills in automatically from the defense grids you build in the Game Planner.<br>
+            Plan a game, save it, and every inning at every position lands here.
+          </div>
+          <div style="margin-bottom:16px;font-size:11px">
+            ${PT_UI.includePlanned ? '' : 'Showing played games only — switch to <strong style="color:var(--text)">Include planned</strong> to preview upcoming plans.'}
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="navigate('planner')">Open Game Planner</button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const avg = ptAverages(list);
+  const spread = list.length ? Math.max(...list.map(r => r.total)) - Math.min(...list.map(r => r.total)) : 0;
+  const totalInnings = list.reduce((s, r) => s + r.total, 0);
+
+  body.innerHTML = toolbar + `
+    <div class="kpi-strip">
+      <div class="kpi"><div class="kpi-label">Games</div><div class="kpi-value mono">${data.games.length}</div></div>
+      <div class="kpi"><div class="kpi-label">Defensive innings</div><div class="kpi-value mono">${totalInnings}</div></div>
+      <div class="kpi"><div class="kpi-label">Avg per player</div><div class="kpi-value mono">${avg.total.toFixed(1)}</div></div>
+      <div class="kpi"><div class="kpi-label">Field share</div><div class="kpi-value mono">${pct(avg.share)}</div></div>
+      <div class="kpi"><div class="kpi-label">Most-to-least gap</div><div class="kpi-value mono" style="color:${spread > 6 ? 'var(--warn)' : 'var(--pos)'}">${spread} inn</div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">
+        Playing Time Distribution
+        <span class="card-link">${data.games.length} game${data.games.length === 1 ? '' : 's'} · ${PT_UI.includePlanned ? 'played + planned' : 'played only'}</span>
+      </div>
+      <div class="matrix-wrap"><table class="matrix" id="pt-matrix"></table></div>
+      <div class="legend">
+        <span>Fewer</span>
+        ${[0.08, 0.16, 0.24, 0.32, 0.38].map(a => `<span class="legend-swatch" style="background:rgba(34,197,94,${a})"></span>`).join('')}
+        <span>More innings</span>
+        <span style="margin-left:10px"><span class="legend-swatch" style="background:rgba(245,158,11,0.28);display:inline-block;vertical-align:middle"></span> Bench</span>
+        <span style="margin-left:10px">Click a row for that player's game log</span>
+      </div>
+    </div>
+
+    <div class="dash-row cols-2">
+      <div class="card">
+        <div class="card-title">Fairness Summary <span class="card-link" id="pt-alert-count"></span></div>
+        <div id="pt-alerts"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Next Game Targets <span class="card-link" onclick="navigate('planner')">Plan →</span></div>
+        <div id="pt-suggestions"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        Player Game Log
+        <select class="input" style="width:auto;font-size:12px;padding:3px 8px" id="pt-player-select"
+                onchange="PT_UI.player=this.value; renderPlayerLog()">
+          ${PLAYERS.filter(p => p.cloudId).map(p => `<option value="${p.cloudId}" ${PT_UI.player === p.cloudId ? 'selected' : ''}>${esc(playerLabel(p))}</option>`).join('')}
+        </select>
+      </div>
+      <div id="pt-log"></div>
+    </div>`;
+
+  renderMatrix(data, avg);
+  renderFairness(data);
+  if (!PT_UI.player || !playerById(PT_UI.player)) PT_UI.player = PLAYERS.find(p => p.cloudId)?.cloudId || '';
+  const sel = document.getElementById('pt-player-select');
+  if (sel) sel.value = PT_UI.player;
+  renderPlayerLog();
+}
+
+function heatStyle(v, max, hue) {
+  if (!v) return '';
+  const a = 0.08 + 0.30 * (v / Math.max(1, max));
+  return `background:${hue === 'warn' ? `rgba(245,158,11,${a.toFixed(3)})` : `rgba(34,197,94,${a.toFixed(3)})`}`;
+}
+
+function renderMatrix(data, avg) {
+  const el = document.getElementById('pt-matrix');
+  if (!el) return;
+  const list = PLAYERS.filter(p => p.cloudId)
+    .map(p => ({ p, r: data.rows[p.cloudId] }))
+    .filter(x => x.r && x.r.games > 0)
+    .sort((a, b) => b.r.total - a.r.total);
+
+  const maxPos = Math.max(1, ...list.flatMap(x => POSITIONS.map(pos => x.r.byPos[pos] || 0)));
+  const maxBench = Math.max(1, ...list.map(x => x.r.bench));
+
+  const head = `<thead><tr>
+    <th class="who">Player</th>
+    ${POSITIONS.map(pos => `<th>${pos}</th>`).join('')}
+    <th>Bench</th><th>Total</th><th>Share</th>
+  </tr></thead>`;
+
+  const rows = list.map(({ p, r }) => {
+    const cells = POSITIONS.map(pos => {
+      const v = r.byPos[pos] || 0;
+      return `<td class="${v ? '' : 'zero'}" style="${heatStyle(v, maxPos)}">${v || '·'}</td>`;
+    }).join('');
+    const s = ptShare(r);
+    const tone = s < avg.share - 0.12 ? 'var(--neg)' : s > avg.share + 0.14 ? 'var(--info)' : 'var(--text-muted)';
+    return `<tr class="clickable-row" onclick="PT_UI.player='${r.pid}'; document.getElementById('pt-player-select').value='${r.pid}'; renderPlayerLog(); document.getElementById('pt-log').scrollIntoView({behavior:'smooth',block:'center'})">
+      <td class="who">#${esc(p.num || '')} ${esc(p.name || '')}</td>
+      ${cells}
+      <td class="bench-col" style="${heatStyle(r.bench, maxBench, 'warn')}">${r.bench || '·'}</td>
+      <td class="total-col">${r.total}</td>
+      <td style="color:${tone}">${pct(s)}</td>
+    </tr>`;
+  }).join('');
+
+  const avgCells = POSITIONS.map(pos => {
+    const m = mean(list.map(x => x.r.byPos[pos] || 0));
+    return `<td>${m.toFixed(1)}</td>`;
+  }).join('');
+
+  el.innerHTML = head + `<tbody>${rows}
+    <tr class="avg-row">
+      <td class="who">Team average</td>
+      ${avgCells}
+      <td>${mean(list.map(x => x.r.bench)).toFixed(1)}</td>
+      <td>${mean(list.map(x => x.r.total)).toFixed(1)}</td>
+      <td>${pct(avg.share)}</td>
+    </tr></tbody>`;
+}
+
+function renderFairness(data) {
+  const el = document.getElementById('pt-alerts');
+  const sugEl = document.getElementById('pt-suggestions');
+  if (!el) return;
+  const alerts = fairnessAlerts(data);
+  const avgShare = ptAverages(Object.values(data.rows).filter(r => r.games > 0)).share;
+  const countEl = document.getElementById('pt-alert-count');
+  const actionable = alerts.filter(a => a.level !== 'info').length;
+  if (countEl) {
+    countEl.textContent = actionable ? `${actionable} to address` : 'Balanced';
+    countEl.style.color = alerts.some(a => a.level === 'high') ? 'var(--neg)' : '';
+  }
+
+  const SHOW = 6;
+  const shown = alerts.slice(0, SHOW);
+  el.innerHTML = alerts.length
+    ? shown.map(a => {
+        const dot = a.level === 'high' ? 'neg' : a.level === 'med' ? 'warn' : 'info';
+        return `<div class="alert-row" style="cursor:pointer" onclick="PT_UI.player='${a.pid}'; document.getElementById('pt-player-select').value='${a.pid}'; renderPlayerLog(); document.getElementById('pt-log').scrollIntoView({behavior:'smooth',block:'center'})">
+          <div class="alert-dot ${dot}"></div>
+          <div class="alert-body">
+            <div class="alert-title">${esc(a.title)}</div>
+            <div class="alert-sub" style="white-space:normal">${esc(a.detail)}</div>
+          </div>
+        </div>`;
+      }).join('') + (alerts.length > SHOW
+        ? `<div class="card-empty" style="padding:10px 0 0">+ ${alerts.length - SHOW} more player${alerts.length - SHOW === 1 ? '' : 's'} flagged — see the matrix above</div>`
+        : '')
+    : `<div class="card-empty" style="color:var(--pos)">Playing time is evenly distributed. No gaps worth flagging.</div>`;
+
+  // Suggestions: only the actionable ones, grouped per player
+  const byPlayer = {};
+  alerts.filter(a => a.level !== 'info' && a.targets.length).forEach(a => {
+    byPlayer[a.pid] = byPlayer[a.pid] || { pid: a.pid, targets: new Set(), reasons: [] };
+    a.targets.forEach(t => byPlayer[a.pid].targets.add(t));
+    byPlayer[a.pid].reasons.push(a.targetLabel);
+  });
+  const shortOnly = alerts.filter(a => a.level === 'high' && !a.targets.length);
+
+  const cards = [
+    ...shortOnly.slice(0, 4).map(a => {
+      const p = playerById(a.pid);
+      const r = data.rows[a.pid];
+      const s = r ? pct(ptShare(r)) : '';
+      const behind = r ? Math.max(0, Math.round((avgShare - ptShare(r)) * ptOpportunity(r))) : 0;
+      return `<div class="sug-card">
+        <div class="sug-head"><div class="sug-name">${esc(playerLabel(p))}</div><span class="pill pill-neg">Innings</span></div>
+        <div class="sug-target">At <strong>${s}</strong> field share — roughly <strong>${behind} inning${behind === 1 ? '' : 's'}</strong> behind the team average. Target a full game next time out.</div>
+      </div>`;
+    }),
+    ...Object.values(byPlayer).slice(0, 4).map(s => {
+      const p = playerById(s.pid);
+      const targets = [...s.targets].join(' / ');
+      return `<div class="sug-card">
+        <div class="sug-head"><div class="sug-name">${esc(playerLabel(p))}</div><span class="pill pill-warn">Reps</span></div>
+        <div class="sug-target">Target <strong>2+ innings</strong> at <strong>${esc(targets)}</strong> next game.</div>
+      </div>`;
+    }),
+  ];
+
+  sugEl.innerHTML = cards.length
+    ? cards.join('') + `<div style="margin-top:10px;font-size:11px;color:var(--text-subtle);line-height:1.5">
+        Auto-fill already reads this history — running it in <strong style="color:var(--text-muted)">Balanced</strong> or
+        <strong style="color:var(--text-muted)">Play Time</strong> mode will pull these players up on its own.
+      </div>`
+    : `<div class="card-empty" style="color:var(--pos)">Nothing to correct. Auto-fill will keep it level.</div>`;
+}
+
+function renderPlayerLog() {
+  const el = document.getElementById('pt-log');
+  if (!el) return;
+  const pid = PT_UI.player;
+  const data = playingTimeData();
+  const r = data.rows[pid];
+  const p = playerById(pid);
+  if (!r || !p || !r.log.length) {
+    el.innerHTML = `<div class="card-empty">No games recorded for this player in the current scope.</div>`;
+    return;
+  }
+
+  const posSummary = POSITIONS.filter(pos => r.byPos[pos])
+    .sort((a, b) => r.byPos[b] - r.byPos[a])
+    .map(pos => `<span class="pill pill-muted" style="margin-right:4px">${pos} ${r.byPos[pos]}</span>`).join('');
+
+  el.innerHTML = `
+    <div class="snap" style="margin-bottom:14px">
+      <div class="snap-item"><div class="snap-val mono">${r.total}</div><div class="snap-lbl">Innings</div></div>
+      <div class="snap-item"><div class="snap-val mono">${r.bench}</div><div class="snap-lbl">Bench</div></div>
+      <div class="snap-item"><div class="snap-val mono">${pct(ptShare(r))}</div><div class="snap-lbl">Field share</div></div>
+      <div class="snap-item"><div class="snap-val mono">${r.positions.size}</div><div class="snap-lbl">Positions</div></div>
+      <div class="snap-item"><div class="snap-val mono">${r.pitch}</div><div class="snap-lbl">IP</div></div>
+    </div>
+    <div style="margin-bottom:12px">${posSummary || '<span style="color:var(--text-subtle);font-size:12px">No defensive innings yet</span>'}</div>
+    <div class="table-wrap"><div class="table-scroll">
+      <table class="data">
+        <thead><tr><th>Date</th><th>Opponent</th><th class="right">Innings</th><th>Positions</th></tr></thead>
+        <tbody>
+          ${r.log.slice().reverse().map(l => `
+            <tr>
+              <td class="mono muted">${l.game.game_date ? fmtShortDate(l.game.game_date) : '—'}</td>
+              <td>${esc(l.game.opponent || 'Untitled')}${isPlayedGame(l.game) ? '' : ' <span class="pill pill-info" style="margin-left:4px">Planned</span>'}</td>
+              <td class="right mono">${l.innings}/${l.of}</td>
+              <td class="muted">${Object.keys(l.byPos).map(pos => `${pos}${l.byPos[pos] > 1 ? '×' + l.byPos[pos] : ''}`).join(', ') || '—'}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div></div>`;
+}
+
+function exportPlayingTime() {
+  const data = playingTimeData();
+  const list = PLAYERS.filter(p => p.cloudId)
+    .map(p => ({ p, r: data.rows[p.cloudId] }))
+    .filter(x => x.r && x.r.games > 0)
+    .sort((a, b) => b.r.total - a.r.total);
+  if (!list.length) { toast('No playing time to export yet'); return; }
+
+  const header = ['Number', 'Player', ...POSITIONS, 'Bench', 'Total', 'Games', 'Field share'];
+  const lines = [header.join(',')];
+  list.forEach(({ p, r }) => {
+    lines.push([
+      `"${p.num || ''}"`, `"${(p.name || '').replace(/"/g, '""')}"`,
+      ...POSITIONS.map(pos => r.byPos[pos] || 0),
+      r.bench, r.total, r.games, pct(ptShare(r)),
+    ].join(','));
+  });
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `playing-time-${todayISO()}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Exported');
 }
 
 // ============================================================
@@ -5387,6 +5958,7 @@ document.addEventListener('keydown', (e) => {
     applyTeamSettings();
     if (UI.section === 'dashboard') { renderDashboard(); loadUniformOrders(); }
     if (UI.section === 'planner') { ensureGameLoaded(); renderPlanner(); }
+    if (UI.section === 'playingtime') renderPlayingTimeSection();
     if (UI.section === 'roster') renderRoster();
     if (UI.section === 'finances') renderFinances();
     if (UI.section === 'tournaments') renderTournaments();
