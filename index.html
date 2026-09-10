@@ -1021,6 +1021,126 @@
     border-top: 1px solid var(--border);
   }
 
+  /* ===== LIVE GAME ===== */
+  .live-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  .live-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--neg);
+    animation: livepulse 1.8s ease-in-out infinite;
+    flex: 0 0 8px;
+  }
+  @keyframes livepulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+  .live-opp { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  .live-spacer { flex: 1; }
+
+  .inning-ctl { display: flex; align-items: center; gap: 8px; }
+  .inn-btn {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 16px;
+    font-family: inherit;
+    cursor: pointer;
+    display: grid; place-items: center;
+  }
+  .inn-btn:hover:not(:disabled) { background: var(--bg-hover); }
+  .inn-btn:disabled { opacity: 0.3; cursor: default; }
+  .inn-now { text-align: center; min-width: 62px; }
+  .inn-num { font-size: 22px; font-weight: 600; line-height: 1; letter-spacing: -0.02em; }
+  .inn-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-top: 3px; }
+
+  .score-box { display: flex; gap: 10px; align-items: center; }
+  .score-side { text-align: center; }
+  .score-val {
+    font-size: 20px; font-weight: 600; line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .score-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-top: 3px; }
+  .score-step {
+    width: 22px; height: 22px; border-radius: 5px;
+    border: 1px solid var(--border-strong); background: var(--bg);
+    color: var(--text-muted); font-family: inherit; font-size: 12px;
+    cursor: pointer; display: grid; place-items: center;
+  }
+  .score-step:hover { color: var(--text); }
+
+  /* Defense list */
+  .fld-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 8px;
+    border-radius: 6px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .fld-row:hover { background: var(--bg-hover); }
+  .fld-row.is-p:hover { background: rgba(245,158,11,0.10); }
+  .fld-row:last-child { border-bottom: none; }
+  .fld-row.is-p { background: rgba(245,158,11,0.06); }
+  .fld-pos {
+    width: 34px; flex: 0 0 34px;
+    font-size: 11px; font-weight: 600;
+    color: var(--text-muted);
+  }
+  .fld-name { flex: 1; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fld-name.empty { color: var(--text-subtle); font-style: italic; }
+  .fld-changed { font-size: 10px; color: var(--info); margin-top: 2px; }
+  /* The whole row is the control — tap anywhere to sub. Keeps the name
+     big and glanceable instead of printing it twice. */
+  .fld-sel {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    border: none;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .fld-chev { color: var(--text-subtle); font-size: 11px; flex: 0 0 auto; }
+
+  /* Pitch counter */
+  .pc-wrap { text-align: center; padding: 6px 0 2px; }
+  .pc-num {
+    font-size: 46px; font-weight: 600; line-height: 1;
+    letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+  }
+  .pc-sub { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+  .pc-btns { display: flex; gap: 8px; margin-top: 14px; }
+  .pc-btn {
+    flex: 1;
+    padding: 14px 0;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .pc-btn.primary { background: var(--pos); border-color: var(--pos); color: #06210f; }
+  .pc-btn.primary:hover { filter: brightness(1.08); }
+  .pc-btn.minor { flex: 0 0 64px; font-size: 18px; font-weight: 400; color: var(--text-muted); }
+
+  .live-empty-cta { padding: 40px 20px; text-align: center; }
+
+  @media (max-width: 900px) {
+    .live-bar { gap: 10px; padding: 10px 12px; }
+    .live-opp { width: 100%; }
+  }
+
   /* Position chart modal */
   table.poschart { width: 100%; border-collapse: collapse; font-size: 12px; }
   table.poschart th {
@@ -1382,10 +1502,9 @@
       <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5 6c3 3 3 9 0 12M19 6c-3 3-3 9 0 12"/></svg>
       Pitching
     </div>
-    <div class="nav-item soon" data-section="livegame" title="Coming next">
+    <div class="nav-item" data-section="livegame" onclick="navigate('livegame')">
       <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.5"/><path d="M5.5 5.5a9 9 0 0 0 0 13M18.5 5.5a9 9 0 0 1 0 13"/></svg>
       Live Game
-      <span class="nav-soon-tag">Soon</span>
     </div>
 
     <div class="nav-group-label">Operations</div>
@@ -1549,6 +1668,20 @@
         </div>
       </div>
       <div id="pitch-body"></div>
+    </section>
+
+    <!-- ============ LIVE GAME ============ -->
+    <section class="section" id="section-livegame">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Live Game</div>
+          <div class="section-sub">Run the plan from the dugout — subs, pitch counts, and limits as they happen.</div>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-secondary btn-sm" onclick="navigate('planner')">Game Planner →</button>
+        </div>
+      </div>
+      <div id="live-body"></div>
     </section>
 
     <!-- ============ ROSTER ============ -->
@@ -2673,13 +2806,14 @@ function navigate(section) {
   // On the phone the bar scrolls, so keep the active tab in view
   if (window.innerWidth <= 768) navEl?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
   const crumb = document.querySelector('[data-crumb="section"]');
-  const SECTION_LABEL = { planner: 'Game Planner', playingtime: 'Playing Time' };
+  const SECTION_LABEL = { planner: 'Game Planner', playingtime: 'Playing Time', livegame: 'Live Game' };
   if (crumb) crumb.textContent = SECTION_LABEL[section] || (section.charAt(0).toUpperCase() + section.slice(1));
   window.scrollTo(0, 0);
   if (section === 'dashboard') { renderDashboard(); loadUniformOrders(); }
   if (section === 'planner') { ensureGameLoaded(); renderPlanner(); }
   if (section === 'playingtime') renderPlayingTimeSection();
   if (section === 'pitching') renderPitching();
+  if (section === 'livegame') renderLive();
   if (section === 'roster') renderRoster();
   if (section === 'finances') renderFinances();
   if (section === 'tournaments') renderTournaments();
@@ -4563,6 +4697,429 @@ function renderPitchLog(real, pool) {
 }
 
 // ============================================================
+// LIVE GAME
+// ============================================================
+// GameChanger keeps the scorebook. This is the thing it doesn't do:
+// running your defensive plan and arm limits in real time.
+let LIVE = null;              // the GAMES entry being run
+let LIVE_SAVE_TIMER = null;
+
+// MLB Pitch Smart guidance for 9-10 year olds. Advisory arm care — separate
+// from the USSSA innings rules, which are what actually govern eligibility.
+const PITCH_SMART = {
+  label: 'Pitch Smart 9–10U',
+  dailyMax: 75,
+  rest: [[66, 4], [51, 3], [36, 2], [21, 1]],
+};
+function restDaysFor(pitches) {
+  for (const [threshold, days] of PITCH_SMART.rest) if (pitches >= threshold) return days;
+  return 0;
+}
+
+function liveState() {
+  if (!LIVE) return null;
+  LIVE.live_state = LIVE.live_state || {};
+  const s = LIVE.live_state;
+  if (typeof s.inning !== 'number') s.inning = 1;
+  s.pitches = s.pitches || {};        // pid -> total pitches this game
+  s.score = s.score || { us: 0, them: 0 };
+  s.planned = s.planned || null;      // snapshot of the defense as planned
+  return s;
+}
+
+function saveLiveSoon() {
+  clearTimeout(LIVE_SAVE_TIMER);
+  LIVE_SAVE_TIMER = setTimeout(saveLiveNow, 1200);
+}
+async function saveLiveNow() {
+  if (!LIVE?.id) return;
+  await supa('team_games', 'PATCH', {
+    defense: LIVE.defense || {},
+    live_state: LIVE.live_state || {},
+    status: LIVE.status || 'live',
+    updated_at: new Date().toISOString(),
+  }, `?id=eq.${LIVE.id}`);
+  const i = GAMES.findIndex(g => g.id === LIVE.id);
+  if (i >= 0) GAMES[i] = { ...GAMES[i], defense: LIVE.defense, live_state: LIVE.live_state, status: LIVE.status };
+}
+
+function startLive(gameId) {
+  const g = GAMES.find(x => x.id === gameId);
+  if (!g) return;
+  LIVE = g;
+  const s = liveState();
+  // Snapshot the plan once, so deviations stay visible all game
+  if (!s.planned) s.planned = JSON.parse(JSON.stringify(g.defense || {}));
+  if (!s.started_at) s.started_at = new Date().toISOString();
+  LIVE.status = 'live';
+  saveLiveNow();
+  renderLive();
+}
+
+function setLiveInning(delta) {
+  const s = liveState();
+  if (!s) return;
+  s.inning = Math.max(1, Math.min(LIVE.innings || 6, s.inning + delta));
+  saveLiveSoon();
+  renderLive();
+}
+
+function setScore(side, delta) {
+  const s = liveState();
+  if (!s) return;
+  s.score[side] = Math.max(0, (s.score[side] || 0) + delta);
+  saveLiveSoon();
+  renderLiveBar();
+}
+
+function liveSub(pos, pid) {
+  const s = liveState();
+  if (!s) return;
+  const inn = s.inning;
+  LIVE.defense = LIVE.defense || {};
+  LIVE.defense[inn] = LIVE.defense[inn] || {};
+  // Clear anyone already at another spot this inning
+  if (pid) POSITIONS.forEach(o => { if (o !== pos && LIVE.defense[inn][o] === pid) delete LIVE.defense[inn][o]; });
+  if (pid) LIVE.defense[inn][pos] = pid;
+  else delete LIVE.defense[inn][pos];
+  saveLiveSoon();
+  renderLive();
+}
+
+function addPitch(n) {
+  const s = liveState();
+  if (!s) return;
+  const pid = LIVE.defense?.[s.inning]?.P;
+  if (!pid) { toast('No pitcher set for this inning'); return; }
+  s.pitches[pid] = Math.max(0, (s.pitches[pid] || 0) + n);
+  saveLiveSoon();
+  renderLivePitcher();
+  renderLiveRules();
+}
+
+async function endLiveGame() {
+  if (!LIVE) return;
+  if (!confirm('End the game? It will be marked final and counted in playing-time history.')) return;
+  LIVE.status = 'final';
+  await saveLiveNow();
+  toast('Game final');
+  renderLive();
+}
+
+// ---- render ----
+function renderLive() {
+  const body = document.getElementById('live-body');
+  if (!body) return;
+
+  // Nothing selected yet — offer today's game, else any planned game
+  if (!LIVE) {
+    const today = todayISO();
+    const candidates = GAMES.filter(g => g.status !== 'final')
+      .sort((a, b) => Math.abs(new Date(a.game_date || today) - new Date(today)) - Math.abs(new Date(b.game_date || today) - new Date(today)));
+    if (!candidates.length) {
+      body.innerHTML = `<div class="card"><div class="live-empty-cta">
+        <div style="font-size:14px;color:var(--text);margin-bottom:6px">No game ready to run</div>
+        <div style="color:var(--text-muted);margin-bottom:16px;line-height:1.6">
+          Build a plan in the Game Planner first — Live Game picks it up from there,<br>
+          then records what actually happened back into playing time.
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="navigate('planner')">Open Game Planner</button>
+      </div></div>`;
+      return;
+    }
+    body.innerHTML = `<div class="card">
+      <div class="card-title">Start a game</div>
+      ${candidates.slice(0, 6).map(g => `
+        <div class="alert-row" onclick="startLive('${g.id}')">
+          <div class="alert-dot ${g.game_date === today ? 'neg' : 'info'}"></div>
+          <div class="alert-body">
+            <div class="alert-title">${esc(g.opponent || 'Untitled')}</div>
+            <div class="alert-sub mono">${g.game_date ? fmtShortDate(g.game_date) : 'No date'} · ${g.innings || 6} innings${g.status === 'live' ? ' · in progress' : ''}</div>
+          </div>
+          <span class="pill ${g.status === 'live' ? 'pill-neg' : 'pill-muted'}">${g.status === 'live' ? 'Resume' : 'Start'}</span>
+        </div>`).join('')}
+    </div>`;
+    return;
+  }
+
+  const s = liveState();
+  const isFinal = LIVE.status === 'final';
+
+  body.innerHTML = `
+    <div id="live-bar"></div>
+
+    <div class="dash-row cols-2-wide">
+      <div class="card">
+        <div class="card-title">
+          Inning ${s.inning} — On the field
+          <span class="card-link" onclick="LIVE=null; renderLive()">Switch game</span>
+        </div>
+        <div id="live-defense"></div>
+      </div>
+
+      <div>
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-title">Pitch Count</div>
+          <div id="live-pitcher"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Limits <span class="card-link">live</span></div>
+          <div id="live-rules"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-row cols-2">
+      <div class="card">
+        <div class="card-title">Bench & Rotation <span class="card-link">this game</span></div>
+        <div id="live-bench"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Plan vs Actual <span class="card-link">deviations</span></div>
+        <div id="live-diff"></div>
+      </div>
+    </div>`;
+
+  renderLiveBar();
+  renderLiveDefense();
+  renderLivePitcher();
+  renderLiveRules();
+  renderLiveBench();
+  renderLiveDiff();
+}
+
+function renderLiveBar() {
+  const el = document.getElementById('live-bar');
+  if (!el || !LIVE) return;
+  const s = liveState();
+  const isFinal = LIVE.status === 'final';
+  const maxInn = LIVE.innings || 6;
+
+  el.innerHTML = `
+    <div class="live-bar">
+      ${isFinal ? '' : '<div class="live-dot"></div>'}
+      <div class="live-opp">${esc(LIVE.opponent || 'Untitled')}</div>
+      <div class="live-spacer"></div>
+
+      <div class="score-box">
+        <div class="score-side">
+          <div class="score-val" style="color:var(--pos)">${s.score.us}</div>
+          <div class="score-lbl">Us</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <button class="score-step" onclick="setScore('us',1)">+</button>
+          <button class="score-step" onclick="setScore('us',-1)">−</button>
+        </div>
+        <div class="score-side" style="margin-left:6px">
+          <div class="score-val">${s.score.them}</div>
+          <div class="score-lbl">Them</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <button class="score-step" onclick="setScore('them',1)">+</button>
+          <button class="score-step" onclick="setScore('them',-1)">−</button>
+        </div>
+      </div>
+
+      <div class="inning-ctl" style="margin-left:6px">
+        <button class="inn-btn" onclick="setLiveInning(-1)" ${s.inning <= 1 ? 'disabled' : ''}>◀</button>
+        <div class="inn-now">
+          <div class="inn-num">${s.inning}</div>
+          <div class="inn-lbl">of ${maxInn}</div>
+        </div>
+        <button class="inn-btn" onclick="setLiveInning(1)" ${s.inning >= maxInn ? 'disabled' : ''}>▶</button>
+      </div>
+
+      ${isFinal
+        ? '<span class="pill pill-pos" style="margin-left:6px">Final</span>'
+        : `<button class="btn btn-secondary btn-sm" style="margin-left:6px" onclick="endLiveGame()">End game</button>`}
+    </div>`;
+}
+
+function renderLiveDefense() {
+  const el = document.getElementById('live-defense');
+  if (!el || !LIVE) return;
+  const s = liveState();
+  const inn = s.inning;
+  const def = LIVE.defense?.[inn] || {};
+  const planned = s.planned?.[inn] || {};
+  const avail = PLAYERS.filter(p => p.cloudId && (LIVE.availability || {})[p.cloudId] !== false);
+
+  el.innerHTML = POSITIONS.map(pos => {
+    const cur = def[pos] || '';
+    const wasPlanned = planned[pos] || '';
+    const changed = wasPlanned && cur && wasPlanned !== cur;
+    const opts = [`<option value="">— open —</option>`].concat(
+      avail.map(p => `<option value="${p.cloudId}" ${cur === p.cloudId ? 'selected' : ''}>${esc(playerShort(p))}</option>`)
+    ).join('');
+    return `
+      <div class="fld-row ${pos === 'P' ? 'is-p' : ''}">
+        <div class="fld-pos">${pos}</div>
+        <div class="fld-name ${cur ? '' : 'empty'}">
+          ${cur ? esc(playerShort(playerById(cur))) : 'open'}
+          ${changed ? `<div class="fld-changed">was ${esc(playerShort(playerById(wasPlanned)))}</div>` : ''}
+        </div>
+        <div class="fld-chev">Change ▾</div>
+        <select class="fld-sel" aria-label="${pos}" onchange="liveSub('${pos}', this.value)">${opts}</select>
+      </div>`;
+  }).join('');
+}
+
+function renderLivePitcher() {
+  const el = document.getElementById('live-pitcher');
+  if (!el || !LIVE) return;
+  const s = liveState();
+  const pid = LIVE.defense?.[s.inning]?.P;
+  if (!pid) {
+    el.innerHTML = `<div class="card-empty">No pitcher set for inning ${s.inning}.<br>Assign P on the left.</div>`;
+    return;
+  }
+  const p = playerById(pid);
+  const count = s.pitches[pid] || 0;
+  const ipToday = Object.keys(LIVE.defense || {}).filter(i => LIVE.defense[i]?.P === pid).length;
+  const rest = restDaysFor(count);
+  const overDaily = count >= PITCH_SMART.dailyMax;
+  const tone = overDaily ? 'var(--neg)' : count >= PITCH_SMART.dailyMax * 0.8 ? 'var(--warn)' : 'var(--text)';
+
+  el.innerHTML = `
+    <div class="pc-wrap">
+      <div class="pc-num" style="color:${tone}">${count}</div>
+      <div class="pc-sub">${esc(playerLabel(p))} · ${ipToday} IP today</div>
+      <div class="pc-sub" style="margin-top:4px;color:${overDaily ? 'var(--neg)' : 'var(--text-subtle)'}">
+        ${overDaily
+          ? `Past the ${PITCH_SMART.dailyMax}-pitch daily guideline`
+          : `${PITCH_SMART.dailyMax - count} to the ${PITCH_SMART.dailyMax}-pitch guideline`}
+        · ${rest} rest day${rest === 1 ? '' : 's'} at this count
+      </div>
+    </div>
+    <div class="pc-btns">
+      <button class="pc-btn minor" onclick="addPitch(-1)">−</button>
+      <button class="pc-btn primary" onclick="addPitch(1)">+1 Pitch</button>
+    </div>`;
+}
+
+function renderLiveRules() {
+  const el = document.getElementById('live-rules');
+  if (!el || !LIVE) return;
+  const rules = ruleSetFor(LIVE);
+  const byDate = pitchedByDateFor(LIVE);
+  const out = [];
+
+  const pitcherIds = [...new Set(Object.keys(LIVE.defense || {})
+    .map(i => LIVE.defense[i]?.P).filter(Boolean))];
+
+  pitcherIds.forEach(pid => {
+    const p = playerById(pid);
+    const findings = pitcherFindingsOn(pid, byDate, LIVE.game_date, rules);
+    const s = liveState();
+    const count = s.pitches[pid] || 0;
+    if (count >= PITCH_SMART.dailyMax) {
+      out.push({ level: 'fail', label: `${playerShort(p)} — ${count} pitches`, detail: `Past the ${PITCH_SMART.label} daily guideline of ${PITCH_SMART.dailyMax}.` });
+    } else if (count >= PITCH_SMART.dailyMax * 0.8) {
+      out.push({ level: 'warn', label: `${playerShort(p)} — ${count} pitches`, detail: `Approaching the ${PITCH_SMART.dailyMax}-pitch guideline. ${restDaysFor(count)} rest days at this count.` });
+    }
+    findings.forEach(f => out.push({ level: f.level, label: `${playerShort(p)} — innings`, detail: f.text }));
+  });
+
+  if (!out.length) {
+    out.push({ level: 'pass', label: 'Everyone within limits', detail: `${rules.label} innings rules and ${PITCH_SMART.label} pitch guidance.` });
+  }
+
+  el.innerHTML = out.map(c => `
+    <div class="rule-row">
+      <div class="rule-icon ${c.level}">${c.level === 'pass' ? '✓' : c.level === 'warn' ? '!' : '✕'}</div>
+      <div class="rule-body">
+        <div class="rule-label">${esc(c.label)}</div>
+        <div class="rule-detail">${esc(c.detail)}</div>
+      </div>
+    </div>`).join('') +
+    `<div class="rule-note">Innings limits are USSSA and govern eligibility. Pitch counts follow MLB
+     Pitch Smart, which is arm-care guidance rather than a rule — confirm anything binding with the tournament director.</div>`;
+}
+
+function renderLiveBench() {
+  const el = document.getElementById('live-bench');
+  if (!el || !LIVE) return;
+  const s = liveState();
+  const innings = LIVE.innings || 6;
+  const def = LIVE.defense || {};
+  const avail = PLAYERS.filter(p => p.cloudId && (LIVE.availability || {})[p.cloudId] !== false);
+
+  const rows = avail.map(p => {
+    let played = 0, sitStreak = 0, curStreak = 0;
+    for (let i = 1; i <= innings; i++) {
+      const on = POSITIONS.some(pos => def[i]?.[pos] === p.cloudId);
+      if (on) { played++; curStreak = 0; }
+      else if (i <= s.inning) { curStreak++; sitStreak = Math.max(sitStreak, curStreak); }
+    }
+    const onNow = POSITIONS.some(pos => def[s.inning]?.[pos] === p.cloudId);
+    return { p, played, sitStreak, onNow, curStreak };
+  }).sort((a, b) => a.played - b.played || b.curStreak - a.curStreak);
+
+  el.innerHTML = rows.map(r => {
+    const tone = r.curStreak >= 2 ? 'var(--warn)' : 'var(--text-muted)';
+    return `
+      <div class="pt-row">
+        <div class="pt-name" style="${r.onNow ? '' : 'color:var(--text-muted)'}">${esc(playerShort(r.p))}</div>
+        <div class="pt-track"><div class="pt-fill" style="width:${(r.played / innings) * 100}%;background:${r.played === 0 ? 'var(--neg)' : 'var(--pos)'}"></div></div>
+        <div class="pt-num mono" style="color:${tone}">${r.played}/${innings}${r.onNow ? '' : ` · sat ${r.curStreak}`}</div>
+      </div>`;
+  }).join('') +
+    `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-subtle)">
+       Sorted by fewest innings — the top of this list is who to get in next.
+     </div>`;
+}
+
+function renderLiveDiff() {
+  const el = document.getElementById('live-diff');
+  if (!el || !LIVE) return;
+  const s = liveState();
+  const planned = s.planned || {};
+  const innings = LIVE.innings || 6;
+  const diffs = [];
+  for (let i = 1; i <= innings; i++) {
+    POSITIONS.forEach(pos => {
+      const was = planned[i]?.[pos] || '';
+      const now = LIVE.defense?.[i]?.[pos] || '';
+      if (was !== now) diffs.push({ i, pos, was, now });
+    });
+  }
+  if (!diffs.length) {
+    el.innerHTML = `<div class="card-empty">Running exactly to plan.</div>`;
+    return;
+  }
+  el.innerHTML = diffs.slice(0, 12).map(d => `
+    <div class="alert-row" style="cursor:default">
+      <div class="alert-dot info"></div>
+      <div class="alert-body">
+        <div class="alert-title">Inn ${d.i} · ${d.pos}</div>
+        <div class="alert-sub">${d.was ? esc(playerShort(playerById(d.was))) : 'open'} → ${d.now ? esc(playerShort(playerById(d.now))) : 'open'}</div>
+      </div>
+    </div>`).join('') +
+    (diffs.length > 12 ? `<div class="card-empty" style="padding:8px 0 0">+ ${diffs.length - 12} more</div>` : '') +
+    `<div style="margin-top:10px;font-size:11px;color:var(--text-subtle);line-height:1.5">
+       Changes are written straight into the game, so Playing Time reflects what actually happened.
+     </div>`;
+}
+
+// Rule helpers that work off an explicit game rather than the planner's GAME
+function ruleSetFor(g) { return RULE_SETS[g?.rule_set] || RULE_SETS.usssa_9u; }
+function pitchedByDateFor(g) {
+  const out = {};
+  const all = GAMES.some(x => x.id === g?.id) ? GAMES : [...GAMES, g].filter(Boolean);
+  all.forEach(src => {
+    const date = src.game_date;
+    if (!date) return;
+    Object.keys(src.defense || {}).forEach(inn => {
+      const pid = src.defense[inn]?.P;
+      if (!pid) return;
+      out[pid] = out[pid] || {};
+      out[pid][date] = (out[pid][date] || 0) + 1;
+    });
+  });
+  return out;
+}
+
+// ============================================================
 // DASHBOARD
 // ============================================================
 function todayISO() { return new Date().toISOString().slice(0, 10); }
@@ -6425,6 +6982,7 @@ document.addEventListener('keydown', (e) => {
     if (UI.section === 'planner') { ensureGameLoaded(); renderPlanner(); }
     if (UI.section === 'playingtime') renderPlayingTimeSection();
     if (UI.section === 'pitching') renderPitching();
+    if (UI.section === 'livegame') renderLive();
     if (UI.section === 'roster') renderRoster();
     if (UI.section === 'finances') renderFinances();
     if (UI.section === 'tournaments') renderTournaments();
