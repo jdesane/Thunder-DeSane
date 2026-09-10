@@ -738,6 +738,14 @@
   .lineup-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .lineup-ip { font-size: 11px; color: var(--text-subtle); }
   .lineup-grip { color: var(--text-subtle); font-size: 12px; cursor: grab; }
+  .lineup-x {
+    border: none; background: transparent; color: var(--text-subtle);
+    font-family: inherit; font-size: 11px; cursor: pointer;
+    padding: 2px 4px; border-radius: 4px; opacity: 0; transition: opacity .1s, color .1s;
+  }
+  .lineup-row:hover .lineup-x { opacity: 1; }
+  .lineup-x:hover { color: var(--neg); background: rgba(239,68,68,0.1); }
+  @media (max-width: 768px) { .lineup-x { opacity: 1; } }
 
   /* Defense grid */
   .def-wrap { overflow-x: auto; }
@@ -3512,7 +3520,7 @@ function setDefense(inning, pos, pid) {
   else delete GAME.defense[inning][pos];
   markDirty();
   renderDefense();
-  renderPitching();
+  renderPlannerPitching();
   renderRuleCheck();
   renderPlayingTime();
 }
@@ -3611,7 +3619,11 @@ function renderPlanner() {
       <div class="card">
         <div class="card-title">
           Batting Order
-          <span class="card-link" onclick="autoOrder()">Auto ↻</span>
+          <span>
+            <span class="card-link" onclick="clearOrder()">Clear</span>
+            <span style="color:var(--text-subtle);margin:0 4px">·</span>
+            <span class="card-link" onclick="autoOrder()">Auto ↻</span>
+          </span>
         </div>
         <div id="gp-lineup"></div>
       </div>
@@ -3619,7 +3631,11 @@ function renderPlanner() {
       <div class="card">
         <div class="card-title">
           Defense by Inning
-          <span class="card-link" onclick="autoFillDefense()">Auto-fill ↻</span>
+          <span>
+            <span class="card-link" onclick="clearDefense()">Clear</span>
+            <span style="color:var(--text-subtle);margin:0 4px">·</span>
+            <span class="card-link" onclick="autoFillDefense()">Auto-fill ↻</span>
+          </span>
         </div>
         <div class="def-wrap"><table class="def" id="gp-defense"></table></div>
       </div>
@@ -3650,7 +3666,7 @@ function renderPlanner() {
   renderAvailability();
   renderLineup();
   renderDefense();
-  renderPitching();
+  renderPlannerPitching();
   renderRuleCheck();
   renderPlayingTime();
   updateSaveButton();
@@ -3690,6 +3706,8 @@ function renderLineup() {
         <div class="lineup-num mono">#${esc(p.num || '')}</div>
         <div class="lineup-name">${esc(p.name || '')}</div>
         <div class="lineup-ip mono">${season[id]?.total || 0}</div>
+        <button class="lineup-x" title="Remove from this game's order"
+                onclick="event.stopPropagation(); removeFromOrder('${id}')">✕</button>
         <div class="lineup-grip">⋮⋮</div>
       </div>`;
   }).join('');
@@ -3716,6 +3734,37 @@ function addToOrder(pid) {
   GAME.batting_order = [...(GAME.batting_order || []), pid];
   markDirty();
   renderLineup();
+}
+
+// Drop a player out of the order without marking them absent — they may still
+// be at the park, just not hitting in this game.
+function removeFromOrder(pid) {
+  if (!GAME) return;
+  GAME.batting_order = (GAME.batting_order || []).filter(x => x !== pid);
+  markDirty();
+  renderLineup();
+}
+
+function clearOrder() {
+  if (!GAME) return;
+  if ((GAME.batting_order || []).length && !confirm('Clear the batting order?')) return;
+  GAME.batting_order = [];
+  markDirty();
+  renderLineup();
+  toast('Batting order cleared');
+}
+
+function clearDefense() {
+  if (!GAME) return;
+  const hasAny = Object.keys(GAME.defense || {}).some(i => POSITIONS.some(pos => GAME.defense[i]?.[pos]));
+  if (hasAny && !confirm('Clear every defensive assignment for this game?')) return;
+  GAME.defense = {};
+  markDirty();
+  renderDefense();
+  renderPlannerPitching();
+  renderRuleCheck();
+  renderPlayingTime();
+  toast('Defense cleared');
 }
 
 let GP_DRAG_FROM = null;
@@ -3787,7 +3836,10 @@ function renderDefense() {
   el.innerHTML = head + `<tbody>${rows}<tr class="bench-row"><td class="pos-c">Bench</td>${benchCells}</tr></tbody>`;
 }
 
-function renderPitching() {
+// The planner's own pitching panel. Distinct name from the Pitching section's
+// renderPitching(); when both were called that, the later declaration silently
+// shadowed this one and the panel stopped rendering.
+function renderPlannerPitching() {
   const el = document.getElementById('gp-pitching');
   if (!el) return;
   const innings = GAME.innings || 6;
@@ -4643,10 +4695,18 @@ function renderPitching() {
 
     <div class="card" style="margin-bottom:12px">
       <div class="card-title">
-        Weekend Workload${tourney ? ' — ' + esc(tourney.name || '') : ''}
+        Tournament Scenario${tourney ? ' — ' + esc(tourney.name || '') : ''}
         <span class="card-link">how many arms this takes</span>
       </div>
       <div id="pitch-weekend"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">
+        Multi-Game Pitching Plan
+        <span class="card-link">starters and relief for the scenario</span>
+      </div>
+      <div id="pitch-multigame"></div>
     </div>
 
     <div class="card" style="margin-bottom:12px">
@@ -4674,6 +4734,7 @@ function renderPitching() {
   renderPitchBoard(avail, rules, asOf);
   renderPitchRules(rules);
   renderWeekendPlan(tourney);
+  renderMultiGamePlan(tourney);
   renderPitchForecast(tourney, byDate, rules, pool);
   renderPitchScenario(tourney, pool);
   renderPitchLog(real, pool);
@@ -4798,6 +4859,146 @@ function weekendPlan(tourney) {
   return { rows, total, minArmsWeekend, peakArms, pool: pool.length, rules };
 }
 
+// The coach's forecast for how far the team goes. Day one is held to the pool
+// games actually scheduled; the rest spread across the remaining days.
+function setExpectedGames(total) {
+  const t = TM_STATE.tournaments.find(x => x.id === PITCH_UI.tournament);
+  const days = tournamentDays(t);
+  if (!days.length) return;
+  total = Number(total) || 0;
+  const pooled = GAMES.filter(g => g.tournament_id === t.id && g.game_date === days[0]).length;
+  const out = {};
+  const day0 = Math.min(pooled || Math.ceil(total / days.length), total);
+  out[days[0]] = day0;
+  let left = total - day0;
+  const rest = days.slice(1);
+  rest.forEach((d, i) => {
+    const share = Math.max(0, Math.ceil(left / (rest.length - i)));
+    out[d] = share;
+    left -= share;
+  });
+  PITCH_UI.gamesPerDay = out;
+  renderPitching();
+}
+
+function expectedGamesTotal(tourney) {
+  const days = tournamentDays(tourney);
+  return days.reduce((s, d) => {
+    const o = PITCH_UI.gamesPerDay[d];
+    return s + (o !== undefined ? o : GAMES.filter(g => g.game_date === d && g.tournament_id === tourney.id).length);
+  }, 0);
+}
+
+// A legal starter/relief framework for every game in the scenario.
+// Non-final days cap each arm at the rest threshold so nobody is lost for the
+// bracket; the final day opens up to the daily maximum.
+// Pitchers already assigned in a saved game plan, in the order they appear.
+function gamePitcherBlocks(g) {
+  const innings = g.innings || 6;
+  const def = g.defense || {};
+  const order = [];
+  const counts = {};
+  for (let i = 1; i <= innings; i++) {
+    const pid = def[i]?.P;
+    if (!pid) continue;
+    if (!(pid in counts)) { counts[pid] = 0; order.push(pid); }
+    counts[pid]++;
+  }
+  return order.map(pid => ({ pid, ip: counts[pid] }));
+}
+
+function buildMultiGamePlan(tourney) {
+  const rules = defaultRules();
+  const days = tournamentDays(tourney);
+  const pool = pitcherPool();
+  if (!days.length || !pool.length) return null;
+
+  const real = pitchedByDate();
+  const usage = {};
+  pool.forEach(p => { usage[p.cloudId] = { ...(real[p.cloudId] || {}) }; });
+
+  const games = [];
+  let n = 0;
+  days.forEach((date, di) => {
+    const isLast = di === days.length - 1;
+    const dayCap = isLast ? rules.maxIPPerDay : rules.restThreshold;
+    const override = PITCH_UI.gamesPerDay[date];
+    const planned = GAMES.filter(g => g.game_date === date && g.tournament_id === tourney.id);
+    const count = override !== undefined ? override : planned.length;
+    const innPerGame = planned[0]?.innings || 6;
+
+    for (let g = 0; g < count; g++) {
+      n++;
+      // A game you've already planned in Game Planner keeps its own pitching.
+      // Its innings are already in `real`, so re-planning it would count them twice.
+      const existing = planned[g];
+      const already = existing ? gamePitcherBlocks(existing) : [];
+      if (already.length) {
+        const ip = already.reduce((s, a) => s + a.ip, 0);
+        games.push({
+          n, date, isLast, assigned: already,
+          need: existing.innings || innPerGame,
+          covered: ip,
+          label: existing.opponent || `Game ${n}`,
+          fromPlan: true,
+        });
+        continue;
+      }
+
+      const assigned = [];
+      let remaining = innPerGame;
+      let guard = 0;
+      const weekendUsed = pid => days.reduce((s, d) => s + (usage[pid][d] || 0), 0);
+
+      while (remaining > 0 && guard++ < 12) {
+        const legal = pool.filter(p => {
+          if (assigned.some(a => a.pid === p.cloudId)) return false;
+          if ((usage[p.cloudId][date] || 0) >= dayCap) return false;
+          return !wouldExceedOn(p.cloudId, usage, date, 1, rules);
+        });
+        if (!legal.length) break;
+
+        // Stay well under the hard 3-day ceiling. Riding two arms to the legal
+        // maximum leaves nothing for an extra game and isn't how you'd treat
+        // nine-year-olds — so hold a softer cap unless there's genuinely no one else.
+        const soft = Math.max(rules.restThreshold, rules.maxIPPer3Days - 2);
+        const rested = legal.filter(p => weekendUsed(p.cloudId) < soft);
+        const cand = rested.length ? rested : legal;
+
+        // Spread the work first, quality as the tie-break among equally fresh arms.
+        cand.sort((a, b) => {
+          const u = weekendUsed(a.cloudId) - weekendUsed(b.cloudId);
+          if (u !== 0) return u;
+          return posRating(b, 'P') - posRating(a, 'P');
+        });
+        const pick = cand[0];
+        const headroom = dayCap - (usage[pick.cloudId][date] || 0);
+        const give = Math.min(remaining, headroom, assigned.length === 0 ? 3 : 2);
+        if (give <= 0) break;
+        usage[pick.cloudId][date] = (usage[pick.cloudId][date] || 0) + give;
+        assigned.push({ pid: pick.cloudId, ip: give });
+        remaining -= give;
+      }
+      games.push({
+        n, date, isLast, assigned,
+        need: innPerGame,
+        covered: innPerGame - remaining,
+        label: planned[g]?.opponent || (di === 0 ? `Pool Game ${g + 1}` : `Bracket Game ${g + 1}`),
+      });
+    }
+  });
+
+  // Projected weekend load per arm
+  const readiness = pool.map(p => {
+    const wk = days.reduce((s, d) => s + (usage[p.cloudId][d] || 0), 0);
+    const status = wk === 0 ? 'Unused' : wk >= rules.maxIPPer3Days ? 'Maxed' : wk > rules.restThreshold ? 'Monitor' : 'Ready';
+    const tone = status === 'Maxed' ? 'neg' : status === 'Monitor' ? 'warn' : status === 'Unused' ? 'muted' : 'pos';
+    return { p, wk, status, tone };
+  }).sort((a, b) => b.wk - a.wk);
+
+  return { games, readiness, rules, days, pool };
+}
+
 function setGamesPerDay(date, delta) {
   const cur = PITCH_UI.gamesPerDay[date];
   const base = cur !== undefined ? cur : GAMES.filter(g => g.game_date === date).length;
@@ -4816,6 +5017,21 @@ function renderWeekendPlan(tourney) {
   const { rules } = plan;
   const needed = Math.max(plan.minArmsWeekend, plan.peakArms);
   const short = needed > plan.pool;
+
+  const total = expectedGamesTotal(tourney);
+  const picker = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <div class="field" style="min-width:0">
+        <label class="field-label">How many games do you expect to play?</label>
+        <select class="input" style="width:auto" onchange="setExpectedGames(this.value)">
+          ${[3, 4, 5, 6, 7].map(n => `<option value="${n}" ${n === total ? 'selected' : ''}>${n} games</option>`).join('')}
+        </select>
+      </div>
+      <div style="font-size:11px;color:var(--text-subtle);line-height:1.5;flex:1;min-width:180px">
+        Your call on how far you go. Day one holds the pool games you've scheduled;
+        the rest spread across the bracket days. Adjust any day below.
+      </div>
+    </div>`;
 
   const head = `<thead><tr><th class="who">&nbsp;</th>${
     plan.rows.map(r => `<th>${fmtShortDate(r.date)}${r.isLast ? '' : ''}</th>`).join('')
@@ -4856,7 +5072,7 @@ function renderWeekendPlan(tourney) {
        </div>`
     : '';
 
-  el.innerHTML = `
+  el.innerHTML = picker + `
     <div class="matrix-wrap"><table class="forecast">${head}<tbody>
       ${gamesRow}${demandRow}${capRow}${armsRow}${supplyRow}
     </tbody></table></div>
@@ -4877,6 +5093,77 @@ function renderWeekendPlan(tourney) {
     ${Object.keys(PITCH_UI.gamesPerDay).length
       ? `<div style="margin-top:10px"><button class="btn btn-secondary btn-xs" onclick="clearGamesPerDay()">Reset to planned games</button></div>`
       : ''}`;
+}
+
+function renderMultiGamePlan(tourney) {
+  const el = document.getElementById('pitch-multigame');
+  if (!el) return;
+  if (!tourney) { el.innerHTML = `<div class="card-empty">Pick a tournament to build a plan.</div>`; return; }
+  const mg = buildMultiGamePlan(tourney);
+  if (!mg || !mg.games.length) {
+    el.innerHTML = `<div class="card-empty">Set how many games you expect above and a plan appears here.</div>`;
+    return;
+  }
+  const { rules } = mg;
+
+  const rows = mg.games.map(g => {
+    const starter = g.assigned[0];
+    const relief = g.assigned.slice(1);
+    const short = g.covered < g.need;
+    return `
+      <tr>
+        <td class="mono muted">${g.n}</td>
+        <td>${esc(g.label)}</td>
+        <td class="mono muted">${fmtShortDate(g.date)}</td>
+        <td>${starter ? esc(playerShort(playerById(starter.pid))) + ` <span class="muted mono">(${starter.ip})</span>` : '—'}</td>
+        <td class="hide-mobile">${relief.length
+          ? relief.map(r => `${esc(playerShort(playerById(r.pid)))} <span class="muted mono">(${r.ip})</span>`).join(', ')
+          : '<span class="muted">—</span>'}</td>
+        <td class="right mono">${g.covered}/${g.need}</td>
+        <td>${short
+          ? `<span class="pill pill-neg">Short ${g.need - g.covered}</span>`
+          : g.fromPlan
+            ? `<span class="pill pill-info">From game plan</span>`
+            : `<span class="pill pill-pos">Suggested</span>`}</td>
+      </tr>`;
+  }).join('');
+
+  const anyShort = mg.games.some(g => g.covered < g.need);
+
+  el.innerHTML = `
+    <div class="table-wrap"><div class="table-scroll">
+      <table class="data">
+        <thead><tr>
+          <th style="width:28px">#</th><th>Game</th><th>Date</th><th>Starter</th>
+          <th class="hide-mobile">Relief</th><th class="right">IP</th><th>Status</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div></div>
+
+    <div style="margin-top:14px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:8px">
+        Projected load across the weekend
+      </div>
+      ${mg.readiness.map(r => `
+        <div class="pt-row">
+          <div class="pt-name">${esc(playerShort(r.p))}</div>
+          <div class="pt-track"><div class="pt-fill" style="width:${Math.min(100, (r.wk / rules.maxIPPer3Days) * 100)}%;background:${
+            r.tone === 'neg' ? 'var(--neg)' : r.tone === 'warn' ? 'var(--warn)' : 'var(--pos)'}"></div></div>
+          <div class="pt-num mono">${r.wk}/${rules.maxIPPer3Days} IP</div>
+          <div style="width:70px;text-align:right"><span class="pill pill-${r.tone}">${r.status}</span></div>
+        </div>`).join('')}
+    </div>
+
+    ${anyShort
+      ? `<div class="rule-note" style="color:var(--neg)">
+           Some games can't be fully covered inside ${esc(rules.label)} limits with the arms marked eligible.
+           Either widen the pitcher pool in the position chart, or expect to be short late in the tournament.
+         </div>`
+      : `<div class="rule-note">
+           Every game is covered and no arm exceeds ${rules.maxIPPer3Days} innings across the event.
+           This is a framework, not a commitment — in-game decisions will move it, and Live Game records what actually happens.
+         </div>`}`;
 }
 
 function renderPitchScenario(tourney, pool) {
