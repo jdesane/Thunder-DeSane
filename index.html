@@ -1150,12 +1150,15 @@
   table.poschart th.name-h { text-align: left; }
   table.poschart td { padding: 3px; border-top: 1px solid var(--border); text-align: center; }
   table.poschart td.name-c { text-align: left; white-space: nowrap; font-size: 12px; }
-  .rate-select {
+  .rate-select, .preset-select {
     width: 42px; background: var(--bg); border: 1px solid transparent;
     color: var(--text); font-family: inherit; font-size: 11px;
     padding: 3px; border-radius: 4px; outline: none; cursor: pointer; text-align: center;
   }
-  .rate-select:hover { border-color: var(--border-strong); }
+  /* Distinct class from .rate-select on purpose: savePositionChart walks
+     .rate-select[data-pid] and a preset control must never be read as a rating. */
+  .preset-select { width: 82px; color: var(--text-muted); }
+  .rate-select:hover, .preset-select:hover { border-color: var(--border-strong); }
   .rate-select[data-v="0"] { color: var(--text-subtle); }
   .rate-select[data-v="5"], .rate-select[data-v="4"] { color: var(--pos); }
 
@@ -1580,6 +1583,30 @@
             <span class="card-link" onclick="navigate('roster')">View →</span>
           </div>
           <div id="dash-roster"></div>
+        </div>
+      </div>
+
+      <div class="dash-row cols-3">
+        <div class="card">
+          <div class="card-title">
+            Game Plan Status
+            <span class="card-link" onclick="navigate('planner')">Planner →</span>
+          </div>
+          <div id="dash-plan"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            Pitching Availability
+            <span class="card-link" onclick="navigate('pitching')">Pitching →</span>
+          </div>
+          <div id="dash-arms"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            Playing Time Watch
+            <span class="card-link" onclick="navigate('playingtime')">Details →</span>
+          </div>
+          <div id="dash-ptwatch"></div>
         </div>
       </div>
 
@@ -2040,7 +2067,12 @@
         <div class="card mb-4">
           <div class="card-title">Tools</div>
           <div class="flex flex-col gap-2">
-            <a class="btn btn-ghost" href="coach.html" style="justify-content:flex-start;padding:8px 10px">Coach tools — practice plans, lineup, stats</a>
+            <a class="btn btn-ghost" href="coach.html" style="justify-content:flex-start;padding:8px 10px">Coach tools (legacy) — practice plans &amp; drill library</a>
+            <div style="font-size:11px;color:var(--warn);line-height:1.5;padding:0 10px 4px">
+              Superseded by Game Planner, Playing Time and Pitching. Its lineup and stats screens run on a
+              <strong>separate, out-of-date roster</strong> that still lists players who have left the team — don't plan from it.
+              The practice plans and drill library have no replacement here yet, which is the only reason it's still linked.
+            </div>
             <a class="btn btn-ghost" href="scout.html" style="justify-content:flex-start;padding:8px 10px">Scout — game-day at-bat tracking</a>
           </div>
         </div>
@@ -2199,9 +2231,25 @@
       <button class="btn btn-icon" onclick="closePositionChart()">✕</button>
     </div>
     <div class="modal-body">
-      <div style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:12px">
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.5;margin-bottom:14px">
         Rate each player 0–5 at every position. <strong style="color:var(--text)">0 means never put them there</strong> — auto-fill will skip it.
         Everything defaults to 3 (neutral), so auto-fill works before you rate anyone.
+      </div>
+
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px">
+        <div style="font-size:12px;color:var(--text);font-weight:600;margin-bottom:2px">Start here — these two matter most</div>
+        <div style="font-size:11px;color:var(--text-subtle);line-height:1.5;margin-bottom:10px">
+          Ruling players out of P and C is most of the value. Everything else can stay neutral and auto-fill still works.
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">Who can pitch?</div>
+        <div id="poschips-P" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px"></div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">Who can catch?</div>
+        <div id="poschips-C" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+      </div>
+
+      <div style="font-size:11px;color:var(--text-subtle);line-height:1.5;margin-bottom:8px">
+        The <strong style="color:var(--text-muted)">8U</strong> column is where each player was recorded last season —
+        shown in amber where your two records disagree. It's a memory aid only; nothing from it has been written into a rating.
       </div>
       <div style="overflow-x:auto">
         <table class="poschart" id="poschart-table"></table>
@@ -3844,30 +3892,110 @@ function renderPlayingTime() {
 // ============================================================
 // GAME PLANNER — position chart
 // ============================================================
+// Positions recorded during the 8U coach-pitch season, shown purely as a memory
+// aid while filling the chart in. Two sources that don't always agree, so both
+// are displayed rather than silently picking one — and neither is written into
+// a rating, since 8U coach pitch had positions 9U kid pitch doesn't (RC/LC/SF).
+const PRIOR_POS = {
+  'Brecken Chatzidakis': { scout: 'CF', coach: 'RC' },
+  'Ryder Sharkey':       { scout: '1B', coach: '1B' },
+  'Alfonso Travaglini':  { scout: null, coach: 'P' },
+  'Easton DeSane':       { scout: 'SS', coach: 'SS' },
+  'Teddy Bello':         { scout: 'P',  coach: 'LF' },
+  'Micah Dubler':        { scout: '2B', coach: 'LC' },
+  'Kai Jackson':         { scout: 'RF', coach: 'RF' },
+  'Milo Huffman':        { scout: 'SF', coach: '2B' },
+  'Eli Wright':          { scout: 'C',  coach: 'C' },
+  'Adam Carpenito':      { scout: '3B', coach: '3B' },
+  'Rowe Jennings':       { scout: null, coach: null },
+};
+function priorLabel(name) {
+  const r = PRIOR_POS[name];
+  if (!r || (!r.scout && !r.coach)) return '<span style="color:var(--text-subtle)">no record</span>';
+  const vals = [...new Set([r.scout, r.coach].filter(Boolean))];
+  const conflict = vals.length > 1;
+  return `<span style="color:${conflict ? 'var(--warn)' : 'var(--text-muted)'}">${esc(vals.join(' / '))}</span>`;
+}
+
+// Presets express the coach's own judgment, so they may lower a rating.
+// They leave P and C alone — eligibility for those is set by the chips above.
+const POS_PRESETS = {
+  middle_if: { label: 'Middle IF', v: { '1B': 3, '2B': 5, '3B': 4, SS: 5, LF: 3, CF: 3, RF: 3 } },
+  corner_if: { label: 'Corner IF', v: { '1B': 5, '2B': 3, '3B': 5, SS: 3, LF: 3, CF: 3, RF: 3 } },
+  outfield:  { label: 'Outfield',  v: { '1B': 3, '2B': 3, '3B': 3, SS: 3, LF: 5, CF: 5, RF: 5 } },
+  center:    { label: 'Center OF', v: { '1B': 3, '2B': 3, '3B': 3, SS: 3, LF: 4, CF: 5, RF: 4 } },
+  utility:   { label: 'Utility',   v: { '1B': 4, '2B': 4, '3B': 4, SS: 4, LF: 4, CF: 4, RF: 4 } },
+  reset:     { label: 'Reset',     v: { '1B': 3, '2B': 3, '3B': 3, SS: 3, LF: 3, CF: 3, RF: 3 } },
+};
+
+function applyPreset(pid, key) {
+  const preset = POS_PRESETS[key];
+  if (!preset) return;
+  Object.keys(preset.v).forEach(pos => {
+    const sel = document.querySelector(`#poschart-table .rate-select[data-pid="${pid}"][data-pos="${pos}"]`);
+    if (sel) { sel.value = preset.v[pos]; sel.dataset.v = preset.v[pos]; }
+  });
+}
+
+// Chip toggles for the two ratings that matter most: can this kid pitch, can they catch.
+function togglePosEligible(pid, pos) {
+  const sel = document.querySelector(`#poschart-table .rate-select[data-pid="${pid}"][data-pos="${pos}"]`);
+  if (!sel) return;
+  const next = Number(sel.value) > 0 ? 0 : 3;
+  sel.value = next; sel.dataset.v = next;
+  renderPosChips();
+}
+
+function renderPosChips() {
+  ['P', 'C'].forEach(pos => {
+    const host = document.getElementById(`poschips-${pos}`);
+    if (!host) return;
+    host.innerHTML = PLAYERS.filter(p => p.cloudId).map(p => {
+      const sel = document.querySelector(`#poschart-table .rate-select[data-pid="${p.cloudId}"][data-pos="${pos}"]`);
+      const on = sel ? Number(sel.value) > 0 : posRating(p, pos) > 0;
+      return `<button class="chip ${on ? 'active' : ''}" style="${on ? '' : 'opacity:0.4;text-decoration:line-through'}"
+        onclick="togglePosEligible('${p.cloudId}','${pos}')">${esc(playerShort(p))}</button>`;
+    }).join('');
+  });
+}
+
 function openPositionChart() {
   const t = document.getElementById('poschart-table');
+  const presetOpts = ['<option value="">Preset…</option>']
+    .concat(Object.keys(POS_PRESETS).map(k => `<option value="${k}">${POS_PRESETS[k].label}</option>`)).join('');
+
   t.innerHTML = `
-    <thead><tr><th class="name-h">Player</th>${POSITIONS.map(p => `<th>${p}</th>`).join('')}</tr></thead>
+    <thead><tr>
+      <th class="name-h">Player</th>
+      <th class="name-h" style="font-weight:400">8U</th>
+      ${POSITIONS.map(p => `<th>${p}</th>`).join('')}
+      <th></th>
+    </tr></thead>
     <tbody>${PLAYERS.filter(p => p.cloudId).map(p => `
       <tr>
         <td class="name-c">#${esc(p.num || '')} ${esc(p.name || '')}</td>
+        <td class="name-c" style="font-size:11px">${priorLabel(p.name)}</td>
         ${POSITIONS.map(pos => {
           const v = posRating(p, pos);
           return `<td><select class="rate-select" data-v="${v}" data-pid="${p.cloudId}" data-pos="${pos}"
-                    onchange="this.dataset.v=this.value">
+                    onchange="this.dataset.v=this.value; renderPosChips()">
             ${[0, 1, 2, 3, 4, 5].map(n => `<option value="${n}" ${n === v ? 'selected' : ''}>${n}</option>`).join('')}
           </select></td>`;
         }).join('')}
+        <td><select class="preset-select" onchange="applyPreset('${p.cloudId}', this.value); this.value=''">${presetOpts}</select></td>
       </tr>`).join('')}
     </tbody>`;
+
+  renderPosChips();
   document.getElementById('poschart-modal').classList.add('open');
 }
 function closePositionChart() { document.getElementById('poschart-modal').classList.remove('open'); }
 
 async function savePositionChart() {
   const updates = {};
-  document.querySelectorAll('#poschart-table .rate-select').forEach(sel => {
+  document.querySelectorAll('#poschart-table .rate-select[data-pid]').forEach(sel => {
     const { pid, pos } = sel.dataset;
+    if (!pid || !pos) return;
     updates[pid] = updates[pid] || {};
     updates[pid][pos] = Number(sel.value);
   });
@@ -5154,10 +5282,128 @@ function renderDashboard() {
   renderDashHero();
   renderDashReadiness();
   renderDashRoster();
+  renderDashPlan();
+  renderDashArms();
+  renderDashPtWatch();
   renderDashMoney();
   renderDashWatch();
   renderDashTourneys();
   renderDashActivity();
+}
+
+// ---- Game plan status for the next game ----
+function nextPlannedGame() {
+  const today = todayISO();
+  return GAMES.filter(g => g.status !== 'final' && g.game_date && g.game_date >= today)
+    .sort((a, b) => (a.game_date || '').localeCompare(b.game_date || ''))[0] || null;
+}
+
+function renderDashPlan() {
+  const el = document.getElementById('dash-plan');
+  if (!el) return;
+  const g = nextPlannedGame();
+  if (!g) {
+    el.innerHTML = `<div class="card-empty" style="padding:24px 0">
+      <div style="margin-bottom:12px">No game planned yet.</div>
+      <button class="btn btn-primary btn-xs" onclick="navigate('planner')">Build a plan</button>
+    </div>`;
+    return;
+  }
+
+  const innings = g.innings || 6;
+  const def = g.defense || {};
+  const avail = PLAYERS.filter(p => p.cloudId && (g.availability || {})[p.cloudId] !== false);
+  const order = g.batting_order || [];
+  let filled = 0;
+  for (let i = 1; i <= innings; i++) POSITIONS.forEach(pos => { if (def[i]?.[pos]) filled++; });
+  const need = innings * POSITIONS.length;
+  const pitchers = [...new Set(Array.from({ length: innings }, (_, k) => def[k + 1]?.P).filter(Boolean))];
+
+  const rows = [
+    { label: 'Batting order', ok: order.length >= avail.length && order.length > 0, val: `${order.length}/${avail.length}` },
+    { label: 'Defense', ok: filled === need, val: `${Math.round((filled / Math.max(1, need)) * 100)}%` },
+    { label: 'Pitching', ok: pitchers.length > 0, val: pitchers.length ? `${pitchers.length} arm${pitchers.length === 1 ? '' : 's'}` : 'none' },
+  ];
+
+  el.innerHTML = `
+    <div style="font-size:13px;margin-bottom:2px">${esc(g.opponent || 'Untitled')}</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px" class="mono">${fmtShortDate(g.game_date)} · ${innings} innings · ${MODE_LABEL[g.planning_mode] || ''}</div>
+    ${rows.map(r => `
+      <div class="check-row">
+        <div class="check-mark ${r.ok ? 'done' : 'partial'}">${r.ok ? '✓' : '•'}</div>
+        <div class="check-label">${r.label}</div>
+        <div class="check-value mono">${r.val}</div>
+      </div>`).join('')}`;
+}
+
+// ---- Pitching availability for the next game date ----
+function renderDashArms() {
+  const el = document.getElementById('dash-arms');
+  if (!el) return;
+  const pool = pitcherPool();
+  if (!pool.length) {
+    el.innerHTML = `<div class="card-empty" style="padding:24px 0">
+      <div style="margin-bottom:12px">Nobody marked as a pitcher.</div>
+      <button class="btn btn-secondary btn-xs" onclick="openPositionChart()">Set who can pitch</button>
+    </div>`;
+    return;
+  }
+  const g = nextPlannedGame();
+  const date = g?.game_date || upcomingTournaments()[0]?.start_date || todayISO();
+  const rules = defaultRules();
+  const byDate = pitchedByDate();
+  const rows = pool.map(p => ({ p, a: availabilityOn(p.cloudId, byDate, date, rules) }));
+  const order = { 'Available': 0, 'Limited': 1, 'Rest needed': 2 };
+  rows.sort((a, b) => order[a.a.status] - order[b.a.status] || b.a.cap - a.a.cap);
+
+  const ready = rows.filter(r => r.a.status === 'Available').length;
+  const shown = rows.slice(0, 5);
+
+  el.innerHTML = `
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px" class="mono">
+      ${fmtShortDate(date)} · ${ready} of ${rows.length} fully available
+    </div>
+    ${shown.map(r => `
+      <div class="alert-row" style="cursor:pointer;padding:7px 0" onclick="navigate('pitching')">
+        <div class="alert-dot ${r.a.tone === 'pos' ? 'info' : r.a.tone === 'warn' ? 'warn' : 'neg'}"></div>
+        <div class="alert-body"><div class="alert-title">${esc(playerShort(r.p))}</div></div>
+        <div class="alert-amt mono" style="color:var(--text-muted)">${r.a.status === 'Rest needed' ? 'Rest' : r.a.cap + ' IP'}</div>
+      </div>`).join('')}
+    ${rows.length > shown.length ? `<div class="card-empty" style="padding:8px 0 0">+ ${rows.length - shown.length} more</div>` : ''}`;
+}
+
+// ---- Playing time fairness, surfaced on the dashboard ----
+function renderDashPtWatch() {
+  const el = document.getElementById('dash-ptwatch');
+  if (!el) return;
+  const savedScope = PT_UI.scope, savedPlanned = PT_UI.includePlanned;
+  PT_UI.scope = 'all'; PT_UI.includePlanned = false;
+  const data = playingTimeData();
+  const alerts = fairnessAlerts(data);
+  PT_UI.scope = savedScope; PT_UI.includePlanned = savedPlanned;
+
+  const played = data.games.length;
+  if (!played) {
+    el.innerHTML = `<div class="card-empty" style="padding:24px 0">
+      <div style="margin-bottom:12px">No games played yet.<br>Fairness tracking starts with your first final game.</div>
+      <button class="btn btn-secondary btn-xs" onclick="navigate('playingtime')">Open Playing Time</button>
+    </div>`;
+    return;
+  }
+  const actionable = alerts.filter(a => a.level !== 'info');
+  if (!actionable.length) {
+    el.innerHTML = `<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px" class="mono">${played} game${played === 1 ? '' : 's'}</div>
+      <div class="card-empty" style="color:var(--pos)">Playing time is even. Nothing to correct.</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px" class="mono">${played} game${played === 1 ? '' : 's'} · ${actionable.length} flagged</div>
+    ${actionable.slice(0, 4).map(a => `
+      <div class="alert-row" style="cursor:pointer;padding:7px 0" onclick="navigate('playingtime')">
+        <div class="alert-dot ${a.level === 'high' ? 'neg' : 'warn'}"></div>
+        <div class="alert-body"><div class="alert-title">${esc(a.title)}</div></div>
+      </div>`).join('')}
+    ${actionable.length > 4 ? `<div class="card-empty" style="padding:8px 0 0">+ ${actionable.length - 4} more</div>` : ''}`;
 }
 
 async function refreshDashboard() {
@@ -5244,6 +5490,15 @@ function dashReadinessChecks() {
     { label: 'Invoices sent',      done: all(invoiced),             partial: invoiced > 0,   value: `${invoiced}/${n}` },
     { label: 'Uniform orders',     done: all(ordered),              partial: ordered > 0,    value: `${ordered}/${n}` },
     { label: 'Tournaments booked', done: tGoal > 0 && tBooked >= tGoal, partial: tBooked > 0, value: tGoal > 0 ? `${tBooked}/${tGoal}` : `${tBooked}` },
+    (() => {
+      const g = nextPlannedGame();
+      if (!g) return { label: 'Next game planned', done: false, partial: false, value: 'None' };
+      const innings = g.innings || 6;
+      let filled = 0;
+      for (let i = 1; i <= innings; i++) POSITIONS.forEach(pos => { if (g.defense?.[i]?.[pos]) filled++; });
+      const need = innings * POSITIONS.length;
+      return { label: 'Next game planned', done: filled === need, partial: filled > 0, value: `${Math.round((filled / Math.max(1, need)) * 100)}%` };
+    })(),
   ];
 }
 
