@@ -2034,6 +2034,30 @@
               <div class="field"><label class="field-label">Type</label><input class="input" id="setting-season-type" placeholder="Coach Pitch"></div>
             </div>
             <div class="field"><label class="field-label">Next practice</label><input class="input" id="setting-next-practice" placeholder="Wed 6:30pm"></div>
+
+            <div style="border-top:1px solid var(--border);padding-top:12px">
+              <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px">Game length</div>
+              <div style="font-size:11px;color:var(--text-subtle);line-height:1.5;margin-bottom:10px">
+                Time-capped games rarely reach the scheduled six innings. Pitching demand and defensive
+                plans are sized from these, not from the rulebook length.
+              </div>
+              <div class="grid-3" style="gap:10px">
+                <div class="field">
+                  <label class="field-label">Typical innings</label>
+                  <input class="input" type="number" step="0.5" min="1" max="9" id="setting-typical-innings">
+                </div>
+                <div class="field">
+                  <label class="field-label">Longest seen</label>
+                  <input class="input" type="number" step="0.5" min="1" max="9" id="setting-max-innings">
+                </div>
+                <div class="field">
+                  <label class="field-label">Games played</label>
+                  <input class="input" id="setting-innings-history" placeholder="3, 3, 4, 3.5">
+                </div>
+              </div>
+              <div id="setting-innings-summary" style="font-size:11px;color:var(--text-muted);margin-top:8px"></div>
+            </div>
+
             <div>
               <button class="btn btn-primary" id="save-settings-btn" onclick="saveTeamSettings()">Save team info</button>
             </div>
@@ -2414,6 +2438,12 @@ const DEFAULT_SETTINGS = {
   season_type: 'Coach Pitch',
   manager: 'Joe DeSane',
   next_practice: 'TBD',
+  // 9U games are time-capped, so they rarely reach a full six. Planning off
+  // the scheduled length overstates pitching demand badly; these come from
+  // actual games played and can be edited in Settings.
+  innings_history: [3, 3, 4, 3.5, 4, 4.5, 3, 5],
+  typical_innings: 4,
+  max_innings: 5,
   coaches: [
     { name: 'Joe DeSane', role: 'Manager', isMgr: true },
     { name: 'Kevin Dubler', role: "Assistant Coach · Micah's Dad" },
@@ -2919,6 +2949,30 @@ function defaultRules() { return RULE_SETS.usssa_9u; }
 
 const MODE_LABEL = { have_to_win: 'Have to Win', balanced: 'Balanced', play_time: 'Play Time' };
 
+// How long a game actually runs, from recorded history where available.
+// A partial inning still charges a full inning against pitching limits,
+// so demand estimates round up.
+function inningsProfile() {
+  const h = (TEAM_SETTINGS.innings_history || []).map(Number).filter(n => n > 0);
+  if (!h.length) {
+    const t = Number(TEAM_SETTINGS.typical_innings) || 4;
+    return { typical: t, min: t, max: Number(TEAM_SETTINGS.max_innings) || t, mean: t, games: 0 };
+  }
+  const mean = h.reduce((s, n) => s + n, 0) / h.length;
+  return {
+    typical: Number(TEAM_SETTINGS.typical_innings) || Math.round(mean),
+    mean,
+    min: Math.min(...h),
+    max: Math.max(...h),
+    games: h.length,
+  };
+}
+// Innings to plan a defensive grid for: cover the longest game actually seen.
+function planningInnings() {
+  const p = inningsProfile();
+  return Math.max(1, Math.ceil(Number(TEAM_SETTINGS.max_innings) || p.max));
+}
+
 function posRating(p, pos) {
   const v = (p?.positions || {})[pos];
   if (v === undefined || v === null || v === '') return DEFAULT_RATING;
@@ -3397,7 +3451,7 @@ function blankGame() {
     rule_set: 'usssa_9u',
     planning_mode: 'balanced',
     status: 'planned',
-    innings: 6,
+    innings: planningInnings(),
     batting_order: [],
     defense: {},
     pitching_notes: {},
@@ -4837,26 +4891,32 @@ function weekendPlan(tourney) {
   const pool = pitcherPool();
   const byDate = pitchedByDate();
 
+  const prof = inningsProfile();
   const rows = days.map((d, i) => {
     const planned = GAMES.filter(g => g.game_date === d && g.tournament_id === tourney.id);
     const override = PITCH_UI.gamesPerDay[d];
     const games = override !== undefined ? override : planned.length;
-    const innPerGame = planned[0]?.innings || 6;
-    const demand = games * innPerGame;
+    // Estimate from how long games actually run, not the scheduled length.
+    const demand = Math.ceil(games * prof.typical);
+    const demandMax = Math.ceil(games * prof.max);
+    const demandMin = Math.ceil(games * prof.min);
     const isLast = i === days.length - 1;
     // On any day but the last, holding arms at or under the rest threshold
     // is what keeps them available tomorrow.
     const cap = isLast ? rules.maxIPPerDay : rules.restThreshold;
-    const minArms = demand ? Math.ceil(demand / cap) : 0;
+    // Size the staff for the long version of the day, not the average one.
+    const minArms = demandMax ? Math.ceil(demandMax / cap) : 0;
     const supply = pool.reduce((s, p) =>
       s + Math.min(cap, remainingCapacity(p.cloudId, byDate, d, rules)), 0);
-    return { date: d, games, innPerGame, demand, cap, minArms, supply, isLast, ok: supply >= demand };
+    return { date: d, games, demand, demandMin, demandMax, cap, minArms, supply, isLast, ok: supply >= demandMax };
   });
 
   const total = rows.reduce((s, r) => s + r.demand, 0);
-  const minArmsWeekend = total ? Math.ceil(total / rules.maxIPPer3Days) : 0;
+  const totalMax = rows.reduce((s, r) => s + r.demandMax, 0);
+  const totalMin = rows.reduce((s, r) => s + r.demandMin, 0);
+  const minArmsWeekend = totalMax ? Math.ceil(totalMax / rules.maxIPPer3Days) : 0;
   const peakArms = Math.max(0, ...rows.map(r => r.minArms));
-  return { rows, total, minArmsWeekend, peakArms, pool: pool.length, rules };
+  return { rows, total, totalMin, totalMax, minArmsWeekend, peakArms, pool: pool.length, rules, prof };
 }
 
 // The coach's forecast for how far the team goes. Day one is held to the pool
@@ -4925,7 +4985,8 @@ function buildMultiGamePlan(tourney) {
     const override = PITCH_UI.gamesPerDay[date];
     const planned = GAMES.filter(g => g.game_date === date && g.tournament_id === tourney.id);
     const count = override !== undefined ? override : planned.length;
-    const innPerGame = planned[0]?.innings || 6;
+    // Plan arms for the long version of a game; a short one just leaves innings unused.
+    const innPerGame = planningInnings();
 
     for (let g = 0; g < count; g++) {
       n++;
@@ -4937,7 +4998,7 @@ function buildMultiGamePlan(tourney) {
         const ip = already.reduce((s, a) => s + a.ip, 0);
         games.push({
           n, date, isLast, assigned: already,
-          need: existing.innings || innPerGame,
+          need: ip,                 // a saved plan defines its own length
           covered: ip,
           label: existing.opponent || `Game ${n}`,
           fromPlan: true,
@@ -5045,8 +5106,12 @@ function renderWeekendPlan(tourney) {
     </div></td>`).join('')}<td class="mono">${plan.rows.reduce((s, r) => s + r.games, 0)}</td></tr>`;
 
   const demandRow = `<tr><td class="who">Innings needed</td>${
-    plan.rows.map(r => `<td class="mono">${r.demand}</td>`).join('')
-  }<td class="mono">${plan.total}</td></tr>`;
+    plan.rows.map(r => `<td class="mono" title="Typical ${r.demand}, range ${r.demandMin}–${r.demandMax}">${r.demand}${
+      r.demandMax !== r.demandMin ? ` <span style="color:var(--text-subtle);font-size:10px">(${r.demandMin}–${r.demandMax})</span>` : ''
+    }</td>`).join('')
+  }<td class="mono">${plan.total}${
+    plan.totalMax !== plan.totalMin ? ` <span style="color:var(--text-subtle);font-size:10px">(${plan.totalMin}–${plan.totalMax})</span>` : ''
+  }</td></tr>`;
 
   const capRow = `<tr><td class="who">Per-arm cap</td>${
     plan.rows.map(r => `<td class="mono" title="${r.isLast ? 'Last day — the daily max applies' : 'Staying at or under this keeps an arm eligible the next day'}">${r.cap} IP</td>`).join('')
@@ -5066,9 +5131,19 @@ function renderWeekendPlan(tourney) {
          <strong style="color:var(--text)">The binding constraint:</strong> anyone who throws more than
          ${rules.restThreshold} innings on ${fmtShortDate(nonLast[0].date)} cannot pitch on
          ${fmtShortDate(plan.rows[plan.rows.length - 1].date)} at all. Covering
-         ${nonLast[0].demand} innings while keeping everyone eligible takes at least
-         <strong style="color:var(--text)">${nonLast[0].minArms} arms</strong> that day, capped at
+         ${nonLast[0].demandMax} innings — the long version of that day — while keeping everyone eligible
+         takes at least <strong style="color:var(--text)">${nonLast[0].minArms} arms</strong>, capped at
          ${rules.restThreshold} innings each.
+       </div>`
+    : '';
+
+  const p = plan.prof;
+  const basis = p.games
+    ? `<div class="rule-note">
+         Innings are estimated from your last <strong style="color:var(--text)">${p.games} games</strong>,
+         which averaged <strong style="color:var(--text)">${p.mean.toFixed(2)}</strong> innings
+         (${p.min}–${p.max}). Staff sizing uses the long end, since a partial inning still charges a full
+         one against pitching limits. Change these in Settings.
        </div>`
     : '';
 
@@ -5090,6 +5165,7 @@ function renderWeekendPlan(tourney) {
          </div>`
       : ''}
     ${constraint}
+    ${basis}
     ${Object.keys(PITCH_UI.gamesPerDay).length
       ? `<div style="margin-top:10px"><button class="btn btn-secondary btn-xs" onclick="clearGamesPerDay()">Reset to planned games</button></div>`
       : ''}`;
@@ -7488,6 +7564,17 @@ function renderSettings() {
   set('setting-season-type', TEAM_SETTINGS.season_type);
   set('setting-manager', TEAM_SETTINGS.manager);
   set('setting-next-practice', TEAM_SETTINGS.next_practice);
+  set('setting-typical-innings', TEAM_SETTINGS.typical_innings);
+  set('setting-max-innings', TEAM_SETTINGS.max_innings);
+  set('setting-innings-history', (TEAM_SETTINGS.innings_history || []).join(', '));
+  const sum = document.getElementById('setting-innings-summary');
+  if (sum) {
+    const p = inningsProfile();
+    sum.innerHTML = p.games
+      ? `${p.games} games recorded · average <strong style="color:var(--text)">${p.mean.toFixed(2)}</strong> innings · range ${p.min}–${p.max}.
+         Defensive plans are built for ${planningInnings()} innings.`
+      : 'No game lengths recorded yet — estimates fall back to the typical value above.';
+  }
 
   const plan = TM_STATE.payment_plan || DEFAULT_PAYMENT_PLAN;
   set('pp-initial-amount', plan.initial_amount);
@@ -7559,6 +7646,10 @@ async function saveTeamSettings() {
     age_division: g('setting-age-division'),
     season: g('setting-season'),
     season_type: g('setting-season-type'),
+    typical_innings: parseFloat(g('setting-typical-innings')) || 4,
+    max_innings: parseFloat(g('setting-max-innings')) || 5,
+    innings_history: g('setting-innings-history')
+      .split(/[,\s]+/).map(parseFloat).filter(n => n > 0),
     manager: g('setting-manager'),
     next_practice: g('setting-next-practice'),
   };
