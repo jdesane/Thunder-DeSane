@@ -940,6 +940,87 @@
   }
   .legend-swatch { width: 14px; height: 9px; border-radius: 2px; }
 
+  /* ===== PITCHING ===== */
+  .arm-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .arm-row:last-child { border-bottom: none; }
+  .arm-body { flex: 1; min-width: 0; }
+  .arm-name { font-size: 13px; color: var(--text); }
+  .arm-why { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.45; }
+  .arm-cap {
+    display: flex;
+    gap: 2px;
+    margin-top: 5px;
+  }
+  .cap-pip {
+    width: 12px; height: 5px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.07);
+  }
+  .cap-pip.on   { background: var(--pos); }
+  .cap-pip.used { background: rgba(245,158,11,0.55); }
+  .arm-right { text-align: right; white-space: nowrap; }
+  .arm-num { font-size: 11px; color: var(--text-subtle); margin-top: 4px; }
+
+  /* Scenario steppers */
+  .scn-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .scn-row:last-child { border-bottom: none; }
+  .scn-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stepper { display: flex; align-items: center; gap: 4px; }
+  .step-btn {
+    width: 20px; height: 20px;
+    border-radius: 4px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    display: grid; place-items: center;
+  }
+  .step-btn:hover:not(:disabled) { color: var(--text); border-color: var(--text-subtle); }
+  .step-btn:disabled { opacity: 0.3; cursor: default; }
+  .step-val { width: 22px; text-align: center; font-size: 12px; }
+  .step-val.hot { color: var(--warn); font-weight: 600; }
+
+  /* Forecast grid */
+  table.forecast { width: 100%; border-collapse: separate; border-spacing: 2px; font-size: 12px; }
+  table.forecast th {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-muted); font-weight: 500; padding: 4px 6px; text-align: center; white-space: nowrap;
+  }
+  table.forecast th.who { text-align: left; min-width: 140px; }
+  table.forecast td {
+    text-align: center; padding: 6px 6px; border-radius: 4px;
+    font-size: 11px; white-space: nowrap;
+  }
+  table.forecast td.who { text-align: left; color: var(--text); font-size: 12px; background: transparent !important; }
+  td.st-pos { background: rgba(34,197,94,0.12);  color: var(--pos); }
+  td.st-warn{ background: rgba(245,158,11,0.12); color: var(--warn); }
+  td.st-neg { background: rgba(239,68,68,0.12);  color: var(--neg); }
+
+  .rule-note {
+    font-size: 11px;
+    color: var(--text-subtle);
+    line-height: 1.55;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+
   /* Position chart modal */
   table.poschart { width: 100%; border-collapse: collapse; font-size: 12px; }
   table.poschart th {
@@ -1222,7 +1303,13 @@
       flex-direction: row;
       padding: 6px 4px;
       z-index: 50;
+      /* Too many destinations to squeeze onto a phone — scroll instead of crushing labels */
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
     }
+    .sidebar::-webkit-scrollbar { display: none; }
     .sidebar-brand, .nav-group-label, .sidebar-bottom { display: none; }
     .sidebar > div:not(.nav-item) { display: none; }
     /* Roadmap items aren't tappable — keep the bottom bar to real destinations */
@@ -1230,9 +1317,10 @@
     .nav-item {
       flex-direction: column;
       gap: 3px;
-      padding: 6px 8px;
+      padding: 6px 6px;
       font-size: 10px;
-      flex: 1;
+      flex: 0 0 auto;
+      min-width: 64px;
       justify-content: center;
       text-align: center;
       border-radius: 6px;
@@ -1290,10 +1378,9 @@
       <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
       Playing Time
     </div>
-    <div class="nav-item soon" data-section="pitching" title="Coming next">
+    <div class="nav-item" data-section="pitching" onclick="navigate('pitching')">
       <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5 6c3 3 3 9 0 12M19 6c-3 3-3 9 0 12"/></svg>
       Pitching
-      <span class="nav-soon-tag">Soon</span>
     </div>
     <div class="nav-item soon" data-section="livegame" title="Coming next">
       <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.5"/><path d="M5.5 5.5a9 9 0 0 0 0 13M18.5 5.5a9 9 0 0 1 0 13"/></svg>
@@ -1447,6 +1534,21 @@
         </div>
       </div>
       <div id="pt-body"></div>
+    </section>
+
+    <!-- ============ PITCHING ============ -->
+    <section class="section" id="section-pitching">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Pitching</div>
+          <div class="section-sub">Workload, rest, and weekend availability under USSSA 9U limits.</div>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-secondary btn-sm hide-mobile" onclick="openPositionChart()">Who can pitch</button>
+          <button class="btn btn-secondary btn-sm" onclick="navigate('planner')">Game Planner →</button>
+        </div>
+      </div>
+      <div id="pitch-body"></div>
     </section>
 
     <!-- ============ ROSTER ============ -->
@@ -2566,7 +2668,10 @@ function navigate(section) {
   document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   document.getElementById('section-' + section)?.classList.add('active');
-  document.querySelector(`[data-section="${section}"]`)?.classList.add('active');
+  const navEl = document.querySelector(`[data-section="${section}"]`);
+  navEl?.classList.add('active');
+  // On the phone the bar scrolls, so keep the active tab in view
+  if (window.innerWidth <= 768) navEl?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
   const crumb = document.querySelector('[data-crumb="section"]');
   const SECTION_LABEL = { planner: 'Game Planner', playingtime: 'Playing Time' };
   if (crumb) crumb.textContent = SECTION_LABEL[section] || (section.charAt(0).toUpperCase() + section.slice(1));
@@ -2574,6 +2679,7 @@ function navigate(section) {
   if (section === 'dashboard') { renderDashboard(); loadUniformOrders(); }
   if (section === 'planner') { ensureGameLoaded(); renderPlanner(); }
   if (section === 'playingtime') renderPlayingTimeSection();
+  if (section === 'pitching') renderPitching();
   if (section === 'roster') renderRoster();
   if (section === 'finances') renderFinances();
   if (section === 'tournaments') renderTournaments();
@@ -2619,6 +2725,7 @@ const RULE_SETS = {
   },
 };
 function ruleSet() { return RULE_SETS[GAME?.rule_set] || RULE_SETS.usssa_9u; }
+function defaultRules() { return RULE_SETS.usssa_9u; }
 
 const MODE_LABEL = { have_to_win: 'Have to Win', balanced: 'Balanced', play_time: 'Play Time' };
 
@@ -2676,7 +2783,7 @@ function seasonInnings(excludeGameId) {
 
 // ---- Innings pitched per calendar date (for rest rules) ----
 // Includes the game being planned, since same-weekend usage is the whole point.
-function pitchedByDate() {
+function pitchedByDate(overlay) {
   const out = {};   // pid -> { 'YYYY-MM-DD': innings }
   const all = [...GAMES];
   if (GAME && !GAMES.some(g => g.id === GAME.id)) all.push(GAME);
@@ -2692,15 +2799,26 @@ function pitchedByDate() {
       out[pid][date] = (out[pid][date] || 0) + 1;
     });
   });
+  // Hypothetical innings layered on top, for what-if planning.
+  if (overlay) {
+    Object.keys(overlay).forEach(pid => {
+      Object.keys(overlay[pid] || {}).forEach(date => {
+        const n = Number(overlay[pid][date]) || 0;
+        if (!n) return;
+        out[pid] = out[pid] || {};
+        out[pid][date] = (out[pid][date] || 0) + n;
+      });
+    });
+  }
   return out;
 }
 
 function shiftDate(dateStr, days) { return addDays(dateStr, days); }
 
-// Rest/limit findings for one pitcher on the current game's date.
-function pitcherFindings(pid, byDate) {
-  const rules = ruleSet();
-  const date = GAME?.game_date;
+// Rest/limit findings for one pitcher on a given date. Date-explicit so the
+// Pitching module can ask about any day without a planner game being open.
+function pitcherFindingsOn(pid, byDate, date, rules) {
+  rules = rules || defaultRules();
   const days = byDate[pid] || {};
   const findings = [];
   if (!date) return findings;
@@ -2732,11 +2850,13 @@ function pitcherFindings(pid, byDate) {
   }
   return findings;
 }
+function pitcherFindings(pid, byDate) {
+  return pitcherFindingsOn(pid, byDate, GAME?.game_date, ruleSet());
+}
 
-// True if giving this player `extra` more innings today would break a hard limit.
-function wouldExceed(pid, byDate, extra) {
-  const rules = ruleSet();
-  const date = GAME?.game_date;
+// True if giving this player `extra` more innings on `date` would break a hard limit.
+function wouldExceedOn(pid, byDate, date, extra, rules) {
+  rules = rules || defaultRules();
   if (!date) return false;
   const days = byDate[pid] || {};
   const dayTotal = (days[date] || 0) + extra;
@@ -2748,6 +2868,44 @@ function wouldExceed(pid, byDate, extra) {
     if (sum > rules.maxIPPer3Days) return true;
   }
   return false;
+}
+function wouldExceed(pid, byDate, extra) {
+  return wouldExceedOn(pid, byDate, GAME?.game_date, extra, ruleSet());
+}
+
+// Most additional innings this pitcher could legally throw on `date`.
+function remainingCapacity(pid, byDate, date, rules) {
+  rules = rules || defaultRules();
+  let n = 0;
+  while (n < rules.maxIPPerDay && !wouldExceedOn(pid, byDate, date, n + 1, rules)) n++;
+  return n;
+}
+
+// Availability verdict for one pitcher on one date.
+function availabilityOn(pid, byDate, date, rules) {
+  rules = rules || defaultRules();
+  const days = byDate[pid] || {};
+  const cap = remainingCapacity(pid, byDate, date, rules);
+  const today = days[date] || 0;
+  const prev = days[shiftDate(date, -1)] || 0;
+  const last3 = [0, 1, 2].reduce((s, k) => s + (days[shiftDate(date, -k)] || 0), 0);
+
+  let status, tone, why;
+  if (cap === 0) {
+    status = 'Rest needed'; tone = 'neg';
+    why = prev > rules.restThreshold
+      ? `Threw ${prev} IP on ${fmtShortDate(shiftDate(date, -1))} — required rest day.`
+      : today >= rules.maxIPPerDay
+        ? `Already at the ${rules.maxIPPerDay}-inning daily max.`
+        : `At the ${rules.maxIPPer3Days}-inning limit for 3 consecutive days.`;
+  } else if (cap < rules.restThreshold) {
+    status = 'Limited'; tone = 'warn';
+    why = `${cap} inning${cap === 1 ? '' : 's'} left today${today ? ` (${today} already thrown)` : ''}.`;
+  } else {
+    status = 'Available'; tone = 'pos';
+    why = last3 === 0 ? 'Fresh — 0 IP in the last 3 days.' : `${last3} IP in the last 3 days · ${cap} available.`;
+  }
+  return { status, tone, why, cap, today, prev, last3 };
 }
 
 // ---- This game's tallies ----
@@ -4095,6 +4253,313 @@ function exportPlayingTime() {
   a.click();
   URL.revokeObjectURL(a.href);
   toast('Exported');
+}
+
+// ============================================================
+// PITCHING
+// ============================================================
+let PITCH_UI = { asOf: '', tournament: '', scenario: {} };
+
+function pitcherPool() {
+  return PLAYERS.filter(p => p.cloudId && canPlay(p, 'P'));
+}
+
+// Dates a tournament spans, inclusive. Falls back to a 2-day weekend.
+function tournamentDays(t) {
+  if (!t?.start_date) return [];
+  const end = t.end_date || t.start_date;
+  const days = [];
+  let d = t.start_date;
+  let guard = 0;
+  while (d <= end && guard++ < 14) { days.push(d); d = shiftDate(d, 1); }
+  return days;
+}
+
+function scenarioTotal() {
+  return Object.values(PITCH_UI.scenario)
+    .reduce((s, byDate) => s + Object.values(byDate || {}).reduce((a, n) => a + (Number(n) || 0), 0), 0);
+}
+
+function setScenario(pid, date, delta) {
+  PITCH_UI.scenario[pid] = PITCH_UI.scenario[pid] || {};
+  const cur = Number(PITCH_UI.scenario[pid][date]) || 0;
+  const next = Math.max(0, Math.min(6, cur + delta));
+  if (next === 0) delete PITCH_UI.scenario[pid][date];
+  else PITCH_UI.scenario[pid][date] = next;
+  if (!Object.keys(PITCH_UI.scenario[pid]).length) delete PITCH_UI.scenario[pid];
+  renderPitching();
+}
+function clearScenario() { PITCH_UI.scenario = {}; renderPitching(); }
+
+function renderPitching() {
+  const body = document.getElementById('pitch-body');
+  if (!body) return;
+
+  const rules = defaultRules();
+  const pool = pitcherPool();
+  const asOf = PITCH_UI.asOf || todayISO();
+
+  // Default the forecast to the next tournament
+  if (!PITCH_UI.tournament) {
+    const next = upcomingTournaments()[0];
+    PITCH_UI.tournament = next?.id || (TM_STATE.tournaments[0]?.id || '');
+  }
+  const tourney = TM_STATE.tournaments.find(t => t.id === PITCH_UI.tournament) || null;
+
+  const real = pitchedByDate();
+  const withScn = pitchedByDate(PITCH_UI.scenario);
+  const scnOn = scenarioTotal() > 0;
+  const byDate = scnOn ? withScn : real;
+
+  if (!pool.length) {
+    body.innerHTML = `<div class="card"><div class="card-empty" style="padding:40px 20px">
+      <div style="font-size:14px;color:var(--text);margin-bottom:6px">Nobody is marked as a pitcher</div>
+      <div style="margin-bottom:16px">Open the position chart and give at least one player a rating above 0 at P.</div>
+      <button class="btn btn-primary btn-sm" onclick="openPositionChart()">Open position chart</button>
+    </div></div>`;
+    return;
+  }
+
+  const avail = pool.map(p => ({ p, a: availabilityOn(p.cloudId, byDate, asOf, rules) }));
+  const ready   = avail.filter(x => x.a.status === 'Available').length;
+  const limited = avail.filter(x => x.a.status === 'Limited').length;
+  const resting = avail.filter(x => x.a.status === 'Rest needed').length;
+
+  const seasonIP = {};
+  pool.forEach(p => { seasonIP[p.cloudId] = Object.values(real[p.cloudId] || {}).reduce((s, n) => s + n, 0); });
+  const totalIP = Object.values(seasonIP).reduce((s, n) => s + n, 0);
+  const topArm = pool.slice().sort((a, b) => (seasonIP[b.cloudId] || 0) - (seasonIP[a.cloudId] || 0))[0];
+
+  const tOpts = TM_STATE.tournaments
+    .map(t => `<option value="${t.id}" ${PITCH_UI.tournament === t.id ? 'selected' : ''}>${esc(t.name || 'Untitled')}</option>`).join('');
+
+  body.innerHTML = `
+    <div class="pt-toolbar">
+      <div class="field">
+        <label class="field-label">As of</label>
+        <input class="input" type="date" value="${asOf}" onchange="PITCH_UI.asOf=this.value; renderPitching()">
+      </div>
+      <div class="field">
+        <label class="field-label">Forecast weekend</label>
+        <select class="input" onchange="PITCH_UI.tournament=this.value; renderPitching()">
+          <option value="">— none —</option>${tOpts}
+        </select>
+      </div>
+      ${scnOn ? `<div class="field">
+        <label class="field-label">&nbsp;</label>
+        <button class="btn btn-secondary btn-sm" onclick="clearScenario()">Clear what-if (${scenarioTotal()} IP)</button>
+      </div>` : ''}
+    </div>
+
+    ${scnOn ? `<div class="card" style="margin-bottom:12px;border-color:rgba(245,158,11,0.35)">
+      <div style="font-size:12px;color:var(--warn)">
+        What-if mode — showing availability as if ${scenarioTotal()} hypothetical inning${scenarioTotal() === 1 ? '' : 's'} had been thrown. Nothing here is saved.
+      </div>
+    </div>` : ''}
+
+    <div class="kpi-strip">
+      <div class="kpi"><div class="kpi-label">Available</div><div class="kpi-value mono" style="color:var(--pos)">${ready}</div></div>
+      <div class="kpi"><div class="kpi-label">Limited</div><div class="kpi-value mono" style="color:${limited ? 'var(--warn)' : 'var(--text)'}">${limited}</div></div>
+      <div class="kpi"><div class="kpi-label">Resting</div><div class="kpi-value mono" style="color:${resting ? 'var(--neg)' : 'var(--text)'}">${resting}</div></div>
+      <div class="kpi"><div class="kpi-label">Season IP</div><div class="kpi-value mono">${totalIP}</div></div>
+      <div class="kpi"><div class="kpi-label">Most used</div><div class="kpi-value">${totalIP ? esc(playerShort(topArm)) + ' · ' + (seasonIP[topArm.cloudId] || 0) : '—'}</div></div>
+    </div>
+
+    <div class="dash-row cols-2-wide">
+      <div class="card">
+        <div class="card-title">
+          Availability — ${fmtShortDate(asOf)}
+          <span class="card-link">${pool.length} eligible arm${pool.length === 1 ? '' : 's'}</span>
+        </div>
+        <div id="pitch-board"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">${esc(rules.label)} limits</div>
+        <div id="pitch-rules"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">
+        Weekend Forecast${tourney ? ' — ' + esc(tourney.name || '') : ''}
+        <span class="card-link">${scnOn ? 'includes what-if' : 'from saved game plans'}</span>
+      </div>
+      <div id="pitch-forecast"></div>
+    </div>
+
+    <div class="dash-row cols-2">
+      <div class="card">
+        <div class="card-title">
+          What-if
+          <span class="card-link">${tourney ? esc(fmtShortDate(tourney.start_date)) : 'pick a weekend'}</span>
+        </div>
+        <div id="pitch-scenario"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Workload Log <span class="card-link">${totalIP} IP recorded</span></div>
+        <div id="pitch-log"></div>
+      </div>
+    </div>`;
+
+  renderPitchBoard(avail, rules, asOf);
+  renderPitchRules(rules);
+  renderPitchForecast(tourney, byDate, rules, pool);
+  renderPitchScenario(tourney, pool);
+  renderPitchLog(real, pool);
+}
+
+function renderPitchBoard(avail, rules, asOf) {
+  const el = document.getElementById('pitch-board');
+  if (!el) return;
+  const order = { 'Available': 0, 'Limited': 1, 'Rest needed': 2 };
+  const sorted = [...avail].sort((a, b) => order[a.a.status] - order[b.a.status] || b.a.cap - a.a.cap);
+
+  el.innerHTML = sorted.map(({ p, a }) => {
+    const pips = Array.from({ length: rules.maxIPPerDay }, (_, i) => {
+      if (i < a.today) return `<div class="cap-pip used" title="already thrown"></div>`;
+      if (i < a.today + a.cap) return `<div class="cap-pip on" title="available"></div>`;
+      return `<div class="cap-pip"></div>`;
+    }).join('');
+    return `
+      <div class="arm-row">
+        <div class="arm-body">
+          <div class="arm-name">${esc(playerLabel(p))}</div>
+          <div class="arm-why">${esc(a.why)}</div>
+          <div class="arm-cap">${pips}</div>
+        </div>
+        <div class="arm-right">
+          <span class="pill pill-${a.tone}">${a.status}</span>
+          <div class="arm-num mono">${a.cap} IP left</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderPitchRules(rules) {
+  const el = document.getElementById('pitch-rules');
+  if (!el) return;
+  const items = [
+    { n: rules.restThreshold, t: `${rules.restThreshold} innings in one day`, d: `Throw more than ${rules.restThreshold} in a day and the player must rest the next day.` },
+    { n: rules.maxIPPerDay, t: `${rules.maxIPPerDay} innings max in one day`, d: `A player may not throw more than ${rules.maxIPPerDay} innings in any single day.` },
+    { n: rules.maxIPPer3Days, t: `${rules.maxIPPer3Days} innings in 3 consecutive days`, d: `No more than ${rules.maxIPPer3Days} innings across any three days in a row.` },
+  ];
+  el.innerHTML = items.map(i => `
+    <div class="rule-row">
+      <div class="rule-icon pass">✓</div>
+      <div class="rule-body">
+        <div class="rule-label">${esc(i.t)}</div>
+        <div class="rule-detail">${esc(i.d)}</div>
+      </div>
+    </div>`).join('') +
+    `<div class="rule-note">One pitch in an inning counts as a full inning. These are the published USSSA
+     rules — individual events modify them, so confirm with the tournament director before the first pitch.</div>`;
+}
+
+function renderPitchForecast(tourney, byDate, rules, pool) {
+  const el = document.getElementById('pitch-forecast');
+  if (!el) return;
+  const days = tournamentDays(tourney);
+  if (!days.length) {
+    el.innerHTML = `<div class="card-empty">Pick a tournament above to project availability across its days.</div>`;
+    return;
+  }
+
+  const head = `<thead><tr><th class="who">Pitcher</th>${
+    days.map(d => `<th>${fmtShortDate(d)}</th>`).join('')
+  }<th>Weekend IP</th></tr></thead>`;
+
+  const rows = pool.map(p => {
+    const cells = days.map(d => {
+      const a = availabilityOn(p.cloudId, byDate, d, rules);
+      const cls = a.tone === 'pos' ? 'st-pos' : a.tone === 'warn' ? 'st-warn' : 'st-neg';
+      const label = a.status === 'Rest needed' ? 'Rest' : `${a.cap} left`;
+      return `<td class="${cls}" title="${esc(a.why)}">${label}</td>`;
+    }).join('');
+    const weekendIP = days.reduce((s, d) => s + ((byDate[p.cloudId] || {})[d] || 0), 0);
+    return `<tr><td class="who">${esc(playerLabel(p))}</td>${cells}<td class="mono" style="color:var(--text-muted)">${weekendIP}</td></tr>`;
+  }).join('');
+
+  const singleDay = days.length === 1
+    ? `<div class="rule-note">Only one day shown — <strong style="color:var(--text)">${esc(tourney.name || 'this tournament')}</strong>
+       has no end date set. Add one in <span class="card-link" onclick="navigate('tournaments')">Tournaments</span>
+       to forecast the whole weekend.</div>`
+    : '';
+
+  el.innerHTML = `<div class="matrix-wrap"><table class="forecast">${head}<tbody>${rows}</tbody></table></div>
+    ${singleDay}
+    <div class="legend">
+      <span class="legend-swatch" style="background:rgba(34,197,94,0.2)"></span><span>Available</span>
+      <span class="legend-swatch" style="background:rgba(245,158,11,0.2);margin-left:8px"></span><span>Limited</span>
+      <span class="legend-swatch" style="background:rgba(239,68,68,0.2);margin-left:8px"></span><span>Rest required</span>
+      <span style="margin-left:10px">Cells show innings still <em>available</em> that day; Weekend IP is what's already planned. Hover for the reason.</span>
+    </div>`;
+}
+
+function renderPitchScenario(tourney, pool) {
+  const el = document.getElementById('pitch-scenario');
+  if (!el) return;
+  const days = tournamentDays(tourney);
+  if (!days.length) {
+    el.innerHTML = `<div class="card-empty">Pick a tournament to model innings against it.</div>`;
+    return;
+  }
+  const day = days[0];
+  el.innerHTML = `
+    <div style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-bottom:10px">
+      Add hypothetical innings on <strong style="color:var(--text)">${fmtShortDate(day)}</strong> and watch the forecast
+      above recompute. Useful for "if we burn him Saturday morning, who starts Sunday?"
+    </div>
+    ${pool.map(p => {
+      const n = (PITCH_UI.scenario[p.cloudId] || {})[day] || 0;
+      return `<div class="scn-row">
+        <div class="scn-name">${esc(playerShort(p))}</div>
+        <div class="stepper">
+          <button class="step-btn" onclick="setScenario('${p.cloudId}','${day}',-1)" ${n === 0 ? 'disabled' : ''}>−</button>
+          <div class="step-val ${n ? 'hot' : ''} mono">${n}</div>
+          <button class="step-btn" onclick="setScenario('${p.cloudId}','${day}',1)" ${n >= 6 ? 'disabled' : ''}>+</button>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+function renderPitchLog(real, pool) {
+  const el = document.getElementById('pitch-log');
+  if (!el) return;
+  // Every game that had a pitcher, newest first
+  const entries = [];
+  GAMES.forEach(g => {
+    if (!g.game_date) return;
+    const def = g.defense || {};
+    const counts = {};
+    Object.keys(def).forEach(inn => {
+      const pid = def[inn]?.P;
+      if (pid) counts[pid] = (counts[pid] || 0) + 1;
+    });
+    Object.keys(counts).forEach(pid => {
+      entries.push({ date: g.game_date, game: g, pid, ip: counts[pid] });
+    });
+  });
+  entries.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  if (!entries.length) {
+    el.innerHTML = `<div class="card-empty">No innings pitched recorded yet.<br>
+      Assign the <strong style="color:var(--text)">P</strong> row in a game plan and it logs here automatically.</div>`;
+    return;
+  }
+
+  el.innerHTML = `<div class="table-wrap"><div class="table-scroll">
+    <table class="data">
+      <thead><tr><th>Date</th><th>Pitcher</th><th>Opponent</th><th class="right">IP</th></tr></thead>
+      <tbody>${entries.slice(0, 14).map(e => `
+        <tr>
+          <td class="mono muted">${fmtShortDate(e.date)}</td>
+          <td>${esc(playerShort(playerById(e.pid)))}</td>
+          <td class="muted">${esc(e.game.opponent || 'Untitled')}${isPlayedGame(e.game) ? '' : ' <span class="pill pill-info" style="margin-left:4px">Planned</span>'}</td>
+          <td class="right mono">${e.ip}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div></div>`;
 }
 
 // ============================================================
@@ -5959,6 +6424,7 @@ document.addEventListener('keydown', (e) => {
     if (UI.section === 'dashboard') { renderDashboard(); loadUniformOrders(); }
     if (UI.section === 'planner') { ensureGameLoaded(); renderPlanner(); }
     if (UI.section === 'playingtime') renderPlayingTimeSection();
+    if (UI.section === 'pitching') renderPitching();
     if (UI.section === 'roster') renderRoster();
     if (UI.section === 'finances') renderFinances();
     if (UI.section === 'tournaments') renderTournaments();
