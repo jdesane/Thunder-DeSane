@@ -3886,7 +3886,8 @@ function renderPlanner() {
       <div class="field">
         <label class="field-label">Home / Away</label>
         <div class="seg">
-          ${['home', 'away'].map(l => `<button class="seg-btn ${GAME.location === l ? 'active' : ''}" onclick="setGameField('location','${l}');renderPlanner()">${l[0].toUpperCase() + l.slice(1)}</button>`).join('')}
+          ${[['home', 'Home'], ['away', 'Away'], ['coin', 'Coin flip']].map(([l, lbl]) =>
+            `<button class="seg-btn ${GAME.location === l ? 'active' : ''}" onclick="setGameField('location','${l}');renderPlanner()">${lbl}</button>`).join('')}
         </div>
       </div>
       <div class="field">
@@ -4372,7 +4373,8 @@ function printLineup() {
   const title = `${TEAM_SETTINGS.team_name || 'Team'} vs ${GAME.opponent || 'TBD'}`;
   const sub = [
     GAME.game_date ? fmtShortDate(GAME.game_date) : '',
-    GAME.location === 'away' ? 'Away' : 'Home',
+    GAME.game_time || '',
+    { home: 'Home', away: 'Away', coin: 'Home/away by coin flip' }[GAME.location] || '',
     MODE_LABEL[GAME.planning_mode],
   ].filter(Boolean).join(' · ');
 
