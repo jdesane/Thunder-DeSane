@@ -673,7 +673,7 @@
   /* ===== GAME PLANNER ===== */
   .gp-bar {
     display: grid;
-    grid-template-columns: 1.4fr 1fr 0.8fr 1fr auto;
+    grid-template-columns: 1.4fr 1fr 0.8fr 0.6fr 1fr auto;
     gap: 10px;
     align-items: end;
     background: var(--bg-elev);
@@ -682,7 +682,7 @@
     padding: 12px 14px;
     margin-bottom: 12px;
   }
-  .gp-bar.gp-bar-modes { grid-template-columns: auto auto 1fr; gap: 16px; }
+  .gp-bar.gp-bar-modes { grid-template-columns: auto auto auto 1fr; gap: 16px; }
   .seg {
     display: inline-flex;
     background: var(--bg);
@@ -3816,7 +3816,8 @@ function renderGameSelect() {
   const sel = document.getElementById('gp-game-select');
   if (!sel) return;
   const opts = GAMES.map(g => {
-    const label = `${g.game_date ? fmtShortDate(g.game_date) : 'TBD'} · ${g.opponent || 'Untitled'}`;
+    const when = [g.game_date ? fmtShortDate(g.game_date) : 'TBD', g.game_time].filter(Boolean).join(' ');
+    const label = `${when} · ${g.opponent || 'Untitled'}`;
     return `<option value="${g.id}" ${GAME?.id === g.id ? 'selected' : ''}>${esc(label)}</option>`;
   });
   if (GAME && !GAME.id) opts.unshift(`<option value="" selected>● Unsaved new game</option>`);
@@ -3855,6 +3856,10 @@ function renderPlanner() {
         <input class="input" type="date" value="${GAME.game_date || ''}" onchange="setGameField('game_date', this.value)">
       </div>
       <div class="field">
+        <label class="field-label">Time</label>
+        <input class="input" value="${esc(GAME.game_time || '')}" placeholder="1:00 PM" oninput="setGameField('game_time', this.value)">
+      </div>
+      <div class="field">
         <label class="field-label">Innings</label>
         <input class="input" type="number" min="1" max="9" value="${GAME.innings || 6}" onchange="setGameField('innings', this.value)">
       </div>
@@ -3874,6 +3879,10 @@ function renderPlanner() {
     </div>
 
     <div class="gp-bar gp-bar-modes">
+      <div class="field">
+        <label class="field-label">Field</label>
+        <input class="input" style="min-width:170px" value="${esc(GAME.venue || '')}" placeholder="Venue / field" oninput="setGameField('venue', this.value)">
+      </div>
       <div class="field">
         <label class="field-label">Home / Away</label>
         <div class="seg">
