@@ -3381,15 +3381,32 @@ function autoFillDefense() {
 
   const pitcherPool = avail.filter(p => canPlay(p, 'P'));
   const chosenPitchers = [];
+
+  // If this tournament has another day after this one, hold every arm at the
+  // rest threshold today so they're still eligible tomorrow. The hard daily
+  // max only applies on the last day.
+  const tourneyOfGame = TM_STATE.tournaments.find(t => t.id === GAME.tournament_id);
+  const laterDay = !!(tourneyOfGame && dateKey && tournamentDays(tourneyOfGame).some(d => d > dateKey));
+  const dayCap = laterDay ? rules.restThreshold : rules.maxIPPerDay;
+  const todayIP = pid => (byDate[pid]?.[dateKey]) || 0;
+
   pitchBlocks.forEach(block => {
     const cand = pitcherPool
       .filter(p => !chosenPitchers.some(c => c && c.cloudId === p.cloudId))
-      .filter(p => !wouldExceed(p.cloudId, byDate, block.length));
+      .filter(p => !wouldExceed(p.cloudId, byDate, block.length))
+      .filter(p => todayIP(p.cloudId) + block.length <= dayCap);
     if (!cand.length) { chosenPitchers.push(null); return; }
     cand.sort((a, b) => {
+      // Have to Win: best arms. Play Time: freshest arms. Balanced: a blend that
+      // still lets quality win when two arms are similarly rested.
       if (mode === 'have_to_win') return posRating(b, 'P') - posRating(a, 'P');
-      const d = seasonPos(a.cloudId, 'P') - seasonPos(b.cloudId, 'P');   // fewest season IP first
-      return d !== 0 ? d : posRating(b, 'P') - posRating(a, 'P');
+      if (mode === 'play_time') {
+        const d = seasonPos(a.cloudId, 'P') - seasonPos(b.cloudId, 'P');
+        return d !== 0 ? d : posRating(b, 'P') - posRating(a, 'P');
+      }
+      const sa = posRating(a, 'P') * 2 - seasonPos(a.cloudId, 'P') * 0.5 - todayIP(a.cloudId) * 2;
+      const sb = posRating(b, 'P') * 2 - seasonPos(b.cloudId, 'P') * 0.5 - todayIP(b.cloudId) * 2;
+      return sb - sa;
     });
     const pick = cand[0];
     chosenPitchers.push(pick);
@@ -5392,15 +5409,29 @@ function buildMultiGamePlan(tourney) {
         const rested = legal.filter(p => weekendUsed(p.cloudId) < soft);
         const cand = rested.length ? rested : legal;
 
-        // Spread the work first, quality as the tie-break among equally fresh arms.
+        // A game's own planning mode decides who gets the ball. Have to Win sends
+        // the best arms; Play Time the freshest; Balanced spreads the work with
+        // quality breaking ties. A forecast game with no saved plan is Balanced on
+        // the pool day and Have to Win after that — bracket games are elimination,
+        // and saving arms for them is the whole point of a light pool day.
+        const gMode = planned[g]?.planning_mode || (di === 0 ? 'balanced' : 'have_to_win');
         cand.sort((a, b) => {
+          if (gMode === 'have_to_win') {
+            // Quality first, but a tiring ace loses ground to a fresh good arm —
+            // a P5 at five innings on the weekend scores level with a fresh P4.
+            const sa = posRating(a, 'P') * 2 - weekendUsed(a.cloudId) * 0.6;
+            const sb = posRating(b, 'P') * 2 - weekendUsed(b.cloudId) * 0.6;
+            return sb - sa;
+          }
           const u = weekendUsed(a.cloudId) - weekendUsed(b.cloudId);
           if (u !== 0) return u;
           return posRating(b, 'P') - posRating(a, 'P');
         });
         const pick = cand[0];
         const headroom = dayCap - (usage[pick.cloudId][date] || 0);
-        const give = Math.min(remaining, headroom, assigned.length === 0 ? 3 : 2);
+        // The soft weekend cap bounds the outing, not just eligibility for it.
+        const softLeft = Math.max(0, soft - weekendUsed(pick.cloudId));
+        const give = Math.min(remaining, headroom, softLeft || 1, assigned.length === 0 ? 3 : 2);
         if (give <= 0) break;
         usage[pick.cloudId][date] = (usage[pick.cloudId][date] || 0) + give;
         assigned.push({ pid: pick.cloudId, ip: give });
