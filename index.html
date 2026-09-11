@@ -2,8 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SFL Thunder Black — Team Manager</title>
+
+<!-- Installable: Add to Home Screen runs full-screen with its own icon -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Thunder">
+<meta name="application-name" content="Thunder">
+<meta name="theme-color" content="#0b0d10">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1464,6 +1475,8 @@
       border-top: 1px solid var(--border);
       flex-direction: row;
       padding: 6px 4px;
+      /* Clear the iPhone home indicator when installed to the home screen */
+      padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
       z-index: 50;
       /* Too many destinations to squeeze onto a phone — scroll instead of crushing labels */
       overflow-x: auto;
@@ -1488,7 +1501,7 @@
       border-radius: 6px;
     }
     .nav-item .nav-icon { width: 20px; height: 20px; }
-    .main { padding-bottom: 60px; }
+    .main { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
     .topbar { padding: 10px 16px; height: 48px; }
     .section { padding: 14px 16px 40px; }
     .kpi-strip { gap: 16px; overflow-x: auto; padding-bottom: 14px; }
