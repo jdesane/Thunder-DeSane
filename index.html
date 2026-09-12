@@ -5892,6 +5892,25 @@ function renderLive() {
   body.innerHTML = `
     <div id="live-bar"></div>
 
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">
+        Dictate a change
+        <span class="card-link">tap the mic on your keyboard</span>
+      </div>
+      <textarea class="input" id="live-dictate" rows="2" style="resize:none;font-size:15px;line-height:1.4"
+        placeholder="“Kai to right field, Easton to short for the third and fourth inning”"
+        oninput="DICT_PENDING=null"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="pc-btn primary" style="padding:12px 0" onclick="readBackDictation()">Read it back</button>
+        <button class="pc-btn minor" onclick="clearDictation()">✕</button>
+      </div>
+      <div id="live-dictate-preview"></div>
+      <div style="font-size:11px;color:var(--text-subtle);line-height:1.5;margin-top:10px">
+        Names or jersey numbers, any position, "bench", "swap", "in for". Say an inning or it applies to the current one.
+        Nothing is saved until you tap Apply.
+      </div>
+    </div>
+
     <div class="dash-row cols-2-wide">
       <div class="card">
         <div class="card-title">
@@ -6143,6 +6162,368 @@ function renderLiveDiff() {
     `<div style="margin-top:10px;font-size:11px;color:var(--text-subtle);line-height:1.5">
        Changes are written straight into the game, so Playing Time reflects what actually happened.
      </div>`;
+}
+
+// ============================================================
+// LIVE GAME — dictation
+// ============================================================
+// Speech-to-text is the phone's job (the keyboard mic). This turns the text
+// into defensive changes. It's a small grammar, not a language model: names or
+// numbers, nine positions, a handful of verbs, and inning references. Runs
+// entirely on the phone, so it works with no signal — and it never applies
+// anything without reading it back first.
+
+const DICT_ALIASES = {
+  alfonso: ['funzy', 'fonzie', 'fonz', 'alfonzo'],
+  kai:     ['ky', 'kye', 'kie', 'kai'],
+  micah:   ['mica', 'mika', 'mikah'],
+  rowe:    ['row', 'roe', 'rowie', 'rowan'],
+  easton:  ['eastin', 'eston', 'easten'],
+  brecken: ['brekkin', 'breckin', 'brecon', 'bracken', 'brecken'],
+  eli:     ['ely', 'eli'],
+  ryder:   ['rider', 'ryder'],
+  milo:    ['mylo', 'milo'],
+  teddy:   ['teddie', 'ted', 'teddy'],
+  adam:    ['adam', 'adem'],
+};
+const DICT_NUMBER_WORDS = {
+  zero: 0, oh: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18,
+  nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+};
+const DICT_ORDINALS = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9 };
+// Multi-word phrases first so "third base" wins over the ordinal "third".
+const DICT_POSITIONS = [
+  [['second', 'base'], '2B'], [['2nd', 'base'], '2B'],
+  [['third', 'base'], '3B'],  [['3rd', 'base'], '3B'],
+  [['first', 'base'], '1B'],  [['1st', 'base'], '1B'],
+  [['short', 'stop'], 'SS'],  [['shortstop'], 'SS'], [['short'], 'SS'], [['ss'], 'SS'],
+  [['left', 'field'], 'LF'],  [['left'], 'LF'],  [['lf'], 'LF'],
+  [['center', 'field'], 'CF'], [['centre', 'field'], 'CF'], [['center'], 'CF'], [['centre'], 'CF'], [['cf'], 'CF'],
+  [['right', 'field'], 'RF'], [['right'], 'RF'], [['rf'], 'RF'],
+  [['behind', 'the', 'plate'], 'C'], [['catcher'], 'C'], [['catching'], 'C'], [['catch'], 'C'],
+  [['the', 'mound'], 'P'], [['mound'], 'P'], [['pitcher'], 'P'], [['pitching'], 'P'], [['pitch'], 'P'],
+  [['1b'], '1B'], [['2b'], '2B'], [['3b'], '3B'],
+];
+const DICT_BENCH   = new Set(['bench', 'benched', 'sit', 'sits', 'sitting', 'sat', 'rest', 'resting']);
+const DICT_PRONOUN = new Set(['he', 'him', 'she', 'her', 'they', 'them', 'his', 'hers']);
+const DICT_POSVERB = new Set(['to', 'at', 'play', 'plays', 'playing', 'played', 'on', 'over', 'into', 'goes', 'go']);
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
+function dictSimilar(word, name) {
+  if (word === name) return true;
+  if (word.length < 3 || name.length < 3) return false;
+  return levenshtein(word, name) <= (name.length >= 6 ? 2 : 1);
+}
+
+// Every way a player might be referred to, lower-cased.
+function dictNameIndex() {
+  return PLAYERS.filter(p => p.cloudId).map(p => {
+    const parts = (p.name || '').toLowerCase().split(/\s+/);
+    const first = parts[0] || '', last = parts[parts.length - 1] || '';
+    const names = new Set([first, last, ...(DICT_ALIASES[first] || [])]);
+    return { pid: p.cloudId, first, last, names: [...names].filter(Boolean), num: String(p.num || '').replace(/^0+(?=\d)/, '') , rawNum: String(p.num || '') };
+  });
+}
+
+// Break the text into a flat list of tokens the scanner understands.
+function dictTokenize(text) {
+  const words = text.toLowerCase()
+    .replace(/[’']s\b/g, '')
+    .replace(/#(\d+)/g, ' number $1 ')
+    .replace(/(\d+)(st|nd|rd|th)\b/g, '$1')
+    .replace(/[^a-z0-9\s]/g, ' , ')          // punctuation becomes a soft separator
+    .split(/\s+/).filter(Boolean);
+  const index = dictNameIndex();
+  const toks = [];
+  let i = 0;
+  const at = k => words[k] || '';
+  while (i < words.length) {
+    const w = at(i);
+
+    // separators
+    if (w === ',') { toks.push({ t: 'sep' }); i++; continue; }
+
+    // "rest of the game" / "rest of the way"
+    if (w === 'rest' && at(i + 1) === 'of' && (at(i + 3) === 'game' || at(i + 3) === 'way')) { toks.push({ t: 'inn_rest' }); i += 4; continue; }
+    if (w === 'next' && at(i + 1) === 'inning') { toks.push({ t: 'inn_next' }); i += 2; continue; }
+    if ((w === 'this' && at(i + 1) === 'inning') || (w === 'right' && at(i + 1) === 'now')) { toks.push({ t: 'inn_now' }); i += 2; continue; }
+    if (w === 'now' || w === 'currently') { toks.push({ t: 'inn_now' }); i++; continue; }
+
+    // "in for" / replaces
+    if (w === 'in' && at(i + 1) === 'for') { toks.push({ t: 'infor' }); i += 2; continue; }
+    if (w === 'replaces' || w === 'replacing' || w === 'replace') { toks.push({ t: 'infor' }); i++; continue; }
+    if (w === 'swap' || w === 'switch' || w === 'flip') { toks.push({ t: 'swap' }); i++; continue; }
+
+    // bare "double zero" / "zero zero" / "oh oh" — a jersey, not a word to fuzzy-match
+    if ((w === 'double' && (at(i + 1) === 'zero' || at(i + 1) === 'oh')) ||
+        ((w === 'zero' || w === 'oh') && (at(i + 1) === 'zero' || at(i + 1) === 'oh'))) {
+      const hit = index.find(p => p.rawNum === '00');
+      toks.push(hit ? { t: 'player', pid: hit.pid } : { t: 'unknown', w: '#00' });
+      i += 2; continue;
+    }
+
+    // jersey number: "number twelve", "number 12", "double zero"
+    if (w === 'number' || w === 'no') {
+      let n = null, used = 1;
+      const a = at(i + 1), b = at(i + 2);
+      if (/^\d+$/.test(a)) { n = a; used = 2; }
+      else if (a === 'double' && (b === 'zero' || b === 'oh')) { n = '00'; used = 3; }
+      else if ((a === 'zero' || a === 'oh') && (b === 'zero' || b === 'oh')) { n = '00'; used = 3; }
+      else if (a in DICT_NUMBER_WORDS) {
+        let v = DICT_NUMBER_WORDS[a]; used = 2;
+        if (v >= 20 && b in DICT_NUMBER_WORDS && DICT_NUMBER_WORDS[b] < 10) { v += DICT_NUMBER_WORDS[b]; used = 3; }
+        n = String(v);
+      }
+      if (n !== null) {
+        const key = n.replace(/^0+(?=\d)/, '');
+        const hit = index.find(p => p.rawNum === n || p.num === key);
+        toks.push(hit ? { t: 'player', pid: hit.pid } : { t: 'unknown', w: `#${n}` });
+        i += used; continue;
+      }
+    }
+
+    // positions, longest phrase first
+    let matched = false;
+    for (const [phrase, pos] of DICT_POSITIONS) {
+      if (phrase.every((pw, k) => at(i + k) === pw)) {
+        toks.push({ t: 'pos', pos }); i += phrase.length; matched = true; break;
+      }
+    }
+    if (matched) continue;
+
+    // bare ordinal: "first/second/third" is a base after a position verb,
+    // an inning otherwise ("the third", "third inning", "third and fourth").
+    if (w in DICT_ORDINALS) {
+      const prev = at(i - 1), next = at(i + 1);
+      const asBase = { first: '1B', second: '2B', third: '3B' }[w];
+      if (asBase && DICT_POSVERB.has(prev) && next !== 'inning' && next !== 'innings') {
+        toks.push({ t: 'pos', pos: asBase }); i++; continue;
+      }
+      toks.push({ t: 'inn', n: DICT_ORDINALS[w] });
+      i += (next === 'inning' || next === 'innings') ? 2 : 1;
+      continue;
+    }
+    if (/^[1-9]$/.test(w)) {
+      toks.push({ t: 'inn', n: Number(w) });
+      i += (at(i + 1) === 'inning' || at(i + 1) === 'innings') ? 2 : 1;
+      continue;
+    }
+    if (w === 'inning' || w === 'innings') { i++; continue; }
+    if (w === 'through' || w === 'thru' || w === 'until' || w === 'till') { toks.push({ t: 'range' }); i++; continue; }
+
+    if (DICT_BENCH.has(w)) { toks.push({ t: 'bench' }); i++; continue; }
+    if (DICT_PRONOUN.has(w)) { toks.push({ t: 'pronoun' }); i++; continue; }
+
+    // player by name: exact on any name, fuzzy on first names and aliases only —
+    // surnames are rarely spoken in a dugout and collide with ordinary words
+    const exact = index.find(p => p.names.includes(w));
+    if (exact) { toks.push({ t: 'player', pid: exact.pid }); i++; continue; }
+    const fuzzy = index.filter(p => p.names.filter(nm => nm !== p.last).some(nm => dictSimilar(w, nm)));
+    if (fuzzy.length === 1) { toks.push({ t: 'player', pid: fuzzy[0].pid, fuzzy: w }); i++; continue; }
+
+    // "to" between two innings is a range; otherwise a position verb we skip
+    if (w === 'to' && toks.length && toks[toks.length - 1].t === 'inn' && (/^[1-9]$/.test(at(i + 1)) || at(i + 1) in DICT_ORDINALS)) {
+      toks.push({ t: 'range' }); i++; continue;
+    }
+    if (w === 'and') { toks.push({ t: 'and' }); i++; continue; }
+    // everything else is connective tissue
+    i++;
+  }
+  return toks;
+}
+
+// Walk the tokens into events: { kind:'pos'|'bench'|'swap'|'infor', pid, pos?, target?, innings[] }
+function parseDictation(text, ctx) {
+  const toks = dictTokenize(text);
+  const cur = ctx?.inning || 1, maxInn = ctx?.innings || 6;
+  const events = [], notes = [];
+  let subject = null, prevSubject = null, pendingKind = null, pendingPos = null, innings = [], rangeFrom = null, lastInn = null;
+  let swapWait = null, inforWait = null;
+
+  const expandRest = () => { const from = (lastInn || cur) ; return Array.from({ length: maxInn - from + 1 }, (_, k) => from + k); };
+  const flush = () => {
+    if (!pendingKind || !subject) { pendingKind = null; pendingPos = null; innings = []; return; }
+    const inns = innings.length ? [...new Set(innings)].sort((a, b) => a - b) : [cur];
+    events.push({ kind: pendingKind, pid: subject, pos: pendingPos, innings: inns });
+    pendingKind = null; pendingPos = null; innings = []; rangeFrom = null;
+  };
+
+  toks.forEach(tk => {
+    switch (tk.t) {
+      case 'player':
+        if (tk.fuzzy) notes.push(`Took "${tk.fuzzy}" as ${playerShort(playerById(tk.pid))}`);
+        if (swapWait) {
+          if (!swapWait.a) { swapWait.a = tk.pid; return; }
+          events.push({ kind: 'swap', pid: swapWait.a, target: tk.pid, innings: innings.length ? [...innings] : [cur] });
+          swapWait = null; innings = []; return;
+        }
+        if (inforWait) {
+          events.push({ kind: 'infor', pid: inforWait, target: tk.pid, innings: innings.length ? [...innings] : [cur] });
+          inforWait = null; innings = []; subject = tk.pid; return;
+        }
+        // a verb-first clause like "sit Alfonso": pending exists but no subject yet
+        if (pendingKind && !subject) { subject = tk.pid; return; }
+        if (pendingKind) flush();
+        prevSubject = subject;
+        subject = tk.pid;
+        break;
+      case 'pronoun':
+        if (inforWait) {
+          // "Rowe in for him" — him is whoever we were talking about before Rowe
+          const target = (subject === inforWait) ? prevSubject : subject;
+          if (target) events.push({ kind: 'infor', pid: inforWait, target, innings: innings.length ? [...innings] : [cur] });
+          else notes.push('"In for" needs a player to replace');
+          inforWait = null; innings = []; return;
+        }
+        if (pendingKind) flush();   // new clause, same subject
+        break;
+      case 'pos':
+        if (pendingKind && innings.length) flush();
+        if (pendingKind && !innings.length) { /* "to short then right": keep the later one */ }
+        pendingKind = 'pos'; pendingPos = tk.pos;
+        break;
+      case 'bench':
+        if (pendingKind && innings.length) flush();
+        pendingKind = 'bench'; pendingPos = null;
+        break;
+      case 'inn':
+        if (rangeFrom !== null) { for (let k = rangeFrom; k <= tk.n; k++) innings.push(k); rangeFrom = null; }
+        else innings.push(tk.n);
+        lastInn = tk.n;
+        break;
+      case 'range': rangeFrom = innings[innings.length - 1] ?? cur; break;
+      case 'inn_rest': innings.push(...expandRest()); break;
+      case 'inn_next': innings.push(Math.min(maxInn, cur + 1)); break;
+      case 'inn_now':  innings.push(cur); break;
+      case 'swap':  if (pendingKind) flush(); swapWait = { a: null }; break;
+      case 'infor': if (pendingKind && subject) flush(); inforWait = subject; break;
+      case 'sep':
+      case 'and':
+        // a separator closes a clause only if it already has both a subject and an action
+        // ("third and fourth" has neither, so it stays open)
+        break;
+      case 'unknown': notes.push(`Couldn't match ${tk.w} to a player`); break;
+    }
+  });
+  flush();
+  if (swapWait?.a) notes.push('Swap needs two players');
+  return { events, notes };
+}
+
+// Simulate the events against the live grid and list every concrete change.
+function computeDictationChanges(events) {
+  const def = JSON.parse(JSON.stringify(LIVE?.defense || {}));
+  const maxInn = LIVE?.innings || 6;
+  const changes = [];
+  const posOf = (i, pid) => POSITIONS.find(p => def[i]?.[p] === pid) || null;
+  const move = (i, pid, to) => {
+    def[i] = def[i] || {};
+    const from = posOf(i, pid);
+    if (from === to) return;
+    const holder = to ? (def[i][to] || null) : null;
+    if (from) delete def[i][from];
+    if (to) def[i][to] = pid;
+    changes.push({ i, pid, from, to });
+    if (holder && holder !== pid) {
+      if (from) { def[i][from] = holder; changes.push({ i, pid: holder, from: to, to: from }); }
+      else changes.push({ i, pid: holder, from: to, to: null });
+    }
+  };
+  events.forEach(ev => {
+    ev.innings.forEach(i => {
+      if (i < 1 || i > maxInn) return;
+      def[i] = def[i] || {};
+      if (ev.kind === 'pos')   move(i, ev.pid, ev.pos);
+      if (ev.kind === 'bench') move(i, ev.pid, null);
+      if (ev.kind === 'swap') {
+        const a = posOf(i, ev.pid), b = posOf(i, ev.target);
+        if (a) delete def[i][a]; if (b) delete def[i][b];
+        if (b) def[i][b] = ev.pid; if (a) def[i][a] = ev.target;
+        if (a !== b) { changes.push({ i, pid: ev.pid, from: a, to: b }); changes.push({ i, pid: ev.target, from: b, to: a }); }
+      }
+      if (ev.kind === 'infor') {
+        const tpos = posOf(i, ev.target);
+        if (!tpos) return;
+        const from = posOf(i, ev.pid);
+        if (from) delete def[i][from];
+        def[i][tpos] = ev.pid;
+        changes.push({ i, pid: ev.pid, from, to: tpos });
+        changes.push({ i, pid: ev.target, from: tpos, to: null });
+      }
+    });
+  });
+  return { def, changes };
+}
+
+let DICT_PENDING = null;
+
+function readBackDictation() {
+  const ta = document.getElementById('live-dictate');
+  const out = document.getElementById('live-dictate-preview');
+  if (!ta || !out || !LIVE) return;
+  const text = ta.value.trim();
+  if (!text) { out.innerHTML = ''; DICT_PENDING = null; return; }
+  const s = liveState();
+  const { events, notes } = parseDictation(text, { inning: s.inning, innings: LIVE.innings });
+  if (!events.length) {
+    DICT_PENDING = null;
+    out.innerHTML = `<div class="rule-note" style="color:var(--warn)">Didn't catch a change in that. Try "Kai to right field" or "Easton to short for the third and fourth inning".</div>`;
+    return;
+  }
+  const { def, changes } = computeDictationChanges(events);
+  DICT_PENDING = { def, changes };
+  const byInn = {};
+  changes.forEach(c => (byInn[c.i] = byInn[c.i] || []).push(c));
+  const lbl = p => p || 'bench';
+  out.innerHTML = `
+    <div style="margin-top:10px">
+      ${Object.keys(byInn).sort((a, b) => a - b).map(i => `
+        <div class="alert-row" style="cursor:default">
+          <div class="alert-body">
+            <div class="alert-title">Inning ${i}${Number(i) === s.inning ? ' <span class="pill pill-info" style="margin-left:4px">now</span>' : ''}</div>
+            <div class="alert-sub" style="white-space:normal">${byInn[i].map(c =>
+              `${esc(playerShort(playerById(c.pid)))} <span class="mono" style="color:var(--text-subtle)">${lbl(c.from)} → </span><strong style="color:var(--text)">${lbl(c.to)}</strong>`
+            ).join(' · ')}</div>
+          </div>
+        </div>`).join('')}
+      ${changes.length === 0 ? `<div class="card-empty">Understood it, but nothing would change.</div>` : ''}
+      ${notes.length ? `<div class="rule-note" style="color:var(--warn)">${notes.map(esc).join(' · ')}</div>` : ''}
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="pc-btn primary" style="flex:1;padding:12px 0" onclick="applyDictation()" ${changes.length ? '' : 'disabled'}>Apply ${changes.length} change${changes.length === 1 ? '' : 's'}</button>
+        <button class="pc-btn" style="flex:0 0 90px;padding:12px 0" onclick="clearDictation()">Cancel</button>
+      </div>
+    </div>`;
+}
+
+function applyDictation() {
+  if (!LIVE || !DICT_PENDING) return;
+  LIVE.defense = DICT_PENDING.def;
+  const n = DICT_PENDING.changes.length;
+  DICT_PENDING = null;
+  saveLiveSoon();
+  renderLive();
+  toast(`${n} change${n === 1 ? '' : 's'} applied`);
+}
+
+function clearDictation() {
+  DICT_PENDING = null;
+  const ta = document.getElementById('live-dictate');
+  const out = document.getElementById('live-dictate-preview');
+  if (ta) ta.value = '';
+  if (out) out.innerHTML = '';
 }
 
 // Rule helpers that work off an explicit game rather than the planner's GAME
