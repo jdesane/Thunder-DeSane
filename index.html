@@ -3305,6 +3305,15 @@ function gameTallies(game) {
 // ============================================================
 // GAME PLANNER — auto-fill
 // ============================================================
+// The best open position for a player: highest rating wins; on a tie, the
+// less demanding spot (so a fill-in lands in right field before shortstop).
+function bestOpenPosition(p, inningDef) {
+  const open = FILL_ORDER.filter(pos => !inningDef[pos] && canPlay(p, pos));
+  if (!open.length) return null;
+  open.sort((a, b) => (posRating(p, b) - posRating(p, a)) || (FILL_ORDER.indexOf(b) - FILL_ORDER.indexOf(a)));
+  return open[0];
+}
+
 function blocksFor(innings, size) {
   const blocks = [];
   for (let i = 1; i <= innings; i += size) {
@@ -3445,10 +3454,10 @@ function autoFillDefense() {
     const repeatHere = (posCount[pid]?.[pos] || 0);
     // Team rule: top sits least, bottom sits most — applied in every mode.
     const tierBonus = (2 - tierRank(p)) * tierW;
-    // Team rule: nobody sits two innings in a row. Outranks everything else.
-    const backOn = satLast.has(pid) ? 200 : 0;
-    // Nobody sits the whole game: anyone still at zero outranks everyone else.
-    const unplayed = (g === 0 ? 40 : 0) + backOn;
+    // Must-play players (sat last inning) are placed explicitly before this
+    // scoring runs, at their own best open position — a flat bonus here used
+    // to drop a weak player into shortstop simply because SS is filled first.
+    const unplayed = 0;
     if (mode === 'have_to_win') return unplayed + tierBonus + r * 10 - g * 0.5 - repeatHere * 0.2;
     if (mode === 'play_time')   return unplayed + tierBonus - (g * 12) - sTot * 0.6 - repeatHere * 3 - seasonPos(pid, pos) * 0.4 + r * 0.5;
     return unplayed + tierBonus + r * 3 - g * 5 - sTot * 0.35 - repeatHere * 1.5;   // balanced
@@ -3463,6 +3472,16 @@ function autoFillDefense() {
     if (pit) { def[i].P = pit.cloudId; used.add(pit.cloudId); }
     const cat = chosenCatchers[blockIndex(i, 2)];
     if (cat && !used.has(cat.cloudId)) { def[i].C = cat.cloudId; used.add(cat.cloudId); }
+
+    // Team rule: anyone who sat last inning must play this one. Put them at
+    // the position they're best at among what's still open — never at the
+    // first premium spot the fill order happens to reach.
+    avail.filter(p => satLast.has(p.cloudId) && !used.has(p.cloudId)).forEach(p => {
+      const pos = bestOpenPosition(p, def[i]);
+      if (!pos) return;
+      def[i][pos] = p.cloudId;
+      used.add(p.cloudId);
+    });
 
     FILL_ORDER.forEach(pos => {
       if (def[i][pos]) return;
@@ -3494,10 +3513,12 @@ function autoFillDefense() {
       POSITIONS.forEach(pos => {
         if (!canPlay(p, pos)) return;
         const holder = def[i][pos];
-        if (!holder) { best = best || { i, pos, holder: null, held: Infinity }; return; }
+        const rating = posRating(p, pos);
+        if (!holder) { if (!best || best.holder || rating > best.rating) best = { i, pos, holder: null, held: Infinity, rating }; return; }
         const held = inningsOf(holder);
         if (held <= 1) return;                       // don't strand the person we displace
-        if (!best || held > best.held) best = { i, pos, holder, held };
+        // Prefer a spot they're actually good at; only then the most-played holder.
+        if (!best || (best.holder && (rating > best.rating || (rating === best.rating && held > best.held)))) best = { i, pos, holder, held, rating };
       });
     }
     if (!best) return;
@@ -3520,10 +3541,12 @@ function autoFillDefense() {
         POSITIONS.forEach(pos => {
           if (!canPlay(p, pos)) return;
           const holder = def[i][pos];
-          if (!holder) { best = { pos, holder: null }; return; }
+          const rating = posRating(p, pos);
+          if (!holder) { if (!best || best.holder || rating > best.rating) best = { pos, holder: null, rating }; return; }
           // Displacing them must not leave them sitting back-to-back either.
           if (sits(holder, i - 1) || sits(holder, i + 1)) return;
-          if (!best || best.holder) best = { pos, holder };
+          // Among swappable spots, take the one this player is best at.
+          if (!best || (best.holder && rating > best.rating)) best = { pos, holder, rating };
         });
         if (!best) return;
         if (best.holder) gameCount[best.holder] = Math.max(0, (gameCount[best.holder] || 0) - 1);
