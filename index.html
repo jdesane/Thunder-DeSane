@@ -5820,6 +5820,8 @@ function liveSub(pos, pid) {
   const s = liveState();
   if (!s) return;
   const inn = s.inning;
+  const who = pid ? playerShort(playerById(pid)) : 'open';
+  pushLiveUndo(`${who} to ${pos} (inn ${inn})`);
   LIVE.defense = LIVE.defense || {};
   LIVE.defense[inn] = LIVE.defense[inn] || {};
   // Clear anyone already at another spot this inning
@@ -5905,9 +5907,12 @@ function renderLive() {
         <button class="pc-btn minor" onclick="clearDictation()">✕</button>
       </div>
       <div id="live-dictate-preview"></div>
+      ${liveUndoLabel() ? `
+      <button class="pc-btn" style="width:100%;margin-top:10px;padding:11px 0;font-weight:500;color:var(--warn);border-color:rgba(245,158,11,0.35)"
+              onclick="undoLive()">↩ Undo — ${esc(liveUndoLabel())}</button>` : ''}
       <div style="font-size:11px;color:var(--text-subtle);line-height:1.5;margin-top:10px">
         Names or jersey numbers, any position, "bench", "swap", "in for". Say an inning or it applies to the current one.
-        Nothing is saved until you tap Apply.
+        Nothing is saved until you tap Apply — and Undo takes back the last change, dictated or tapped.
       </div>
     </div>
 
@@ -6470,6 +6475,41 @@ function computeDictationChanges(events) {
 
 let DICT_PENDING = null;
 
+// ---- Undo: a stack of grid snapshots taken before each change ----
+// In-memory for the session, which is what a dugout needs: change, look,
+// take it back. Covers dictated and tapped changes alike.
+let LIVE_UNDO = [];
+const LIVE_UNDO_MAX = 25;
+
+function pushLiveUndo(label) {
+  if (!LIVE) return;
+  LIVE_UNDO.push({
+    gameId: LIVE.id,
+    defense: JSON.parse(JSON.stringify(LIVE.defense || {})),
+    label,
+    at: Date.now(),
+  });
+  if (LIVE_UNDO.length > LIVE_UNDO_MAX) LIVE_UNDO.shift();
+}
+
+function undoLive() {
+  if (!LIVE) return;
+  // Only unwind entries that belong to the game on screen
+  while (LIVE_UNDO.length && LIVE_UNDO[LIVE_UNDO.length - 1].gameId !== LIVE.id) LIVE_UNDO.pop();
+  const snap = LIVE_UNDO.pop();
+  if (!snap) { toast('Nothing to undo'); return; }
+  LIVE.defense = snap.defense;
+  DICT_PENDING = null;
+  saveLiveSoon();
+  renderLive();
+  toast(`Undid: ${snap.label}`);
+}
+
+function liveUndoLabel() {
+  const top = [...LIVE_UNDO].reverse().find(s => s.gameId === LIVE?.id);
+  return top ? top.label : null;
+}
+
 function readBackDictation() {
   const ta = document.getElementById('live-dictate');
   const out = document.getElementById('live-dictate-preview');
@@ -6510,8 +6550,10 @@ function readBackDictation() {
 
 function applyDictation() {
   if (!LIVE || !DICT_PENDING) return;
-  LIVE.defense = DICT_PENDING.def;
   const n = DICT_PENDING.changes.length;
+  const inns = [...new Set(DICT_PENDING.changes.map(c => c.i))].sort((a, b) => a - b);
+  pushLiveUndo(`${n} dictated change${n === 1 ? '' : 's'} (inn ${inns.join(', ')})`);
+  LIVE.defense = DICT_PENDING.def;
   DICT_PENDING = null;
   saveLiveSoon();
   renderLive();
