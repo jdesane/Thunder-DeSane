@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-14.1">
+<meta name="build" content="2026-09-14.2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -3122,6 +3122,9 @@ function posRating(p, pos) {
 function canPlay(p, pos) { return posRating(p, pos) > 0; }
 function playerById(id) { return PLAYERS.find(p => p.cloudId === id) || null; }
 function playerLabel(p) { return p ? `#${p.num} ${p.name}` : '—'; }
+function initials(p) {
+  return (p?.name || '').trim().split(/\s+/).map(w => w[0] || '').join('').toUpperCase().slice(0, 3);
+}
 function playerShort(p) {
   if (!p) return '—';
   const parts = (p.name || '').trim().split(/\s+/);
@@ -3348,6 +3351,55 @@ function bestOpenPosition(p, inningDef) {
   if (!open.length) return null;
   open.sort((a, b) => (posRating(p, b) - posRating(p, a)) || (FILL_ORDER.indexOf(b) - FILL_ORDER.indexOf(a)));
   return open[0];
+}
+
+// After a manual change to inning `inn` — tapped or dictated, live or planned —
+// make sure nobody benched there sits again in inn+1. Seats them at their best
+// open spot, or displaces someone who played `inn` and will play inn+2, so the
+// fix can't create a new back-to-back somewhere else. Returns the moves made.
+function repairNextInning(def, inn, avail, maxInn) {
+  const next = inn + 1;
+  if (next > maxInn) return [];
+  def[next] = def[next] || {};
+  const on = (i, pid) => POSITIONS.some(pos => def[i]?.[pos] === pid);
+  const moves = [];
+  const benchedNow = avail.filter(p => !on(inn, p.cloudId));
+
+  benchedNow.forEach(p => {
+    if (on(next, p.cloudId)) return;
+    const open = bestOpenPosition(p, def[next]);
+    if (open) {
+      def[next][open] = p.cloudId;
+      moves.push({ i: next, pid: p.cloudId, from: null, to: open });
+      return;
+    }
+    const cands = POSITIONS.map(pos => {
+      if (!canPlay(p, pos)) return null;
+      const holder = def[next][pos];
+      const hp = playerById(holder);
+      if (!holder || !hp) return null;
+      if (!on(inn, holder)) return null;                                 // they sat `inn` too
+      if (next + 1 <= maxInn && !on(next + 1, holder)) return null;      // they'd sit twice going forward
+      if (benchedNow.some(b => b.cloudId === holder)) return null;       // don't trade seats among the benched
+      return { pos, holder, rating: posRating(p, pos), tier: tierRank(hp) };
+    }).filter(Boolean);
+    if (!cands.length) return;
+    cands.sort((a, b) => (b.rating - a.rating) || (b.tier - a.tier));  // best spot for p; else bench the lowest tier
+    const c = cands[0];
+    def[next][c.pos] = p.cloudId;
+    moves.push({ i: next, pid: p.cloudId, from: null, to: c.pos });
+    moves.push({ i: next, pid: c.holder, from: c.pos, to: null });
+  });
+  return moves;
+}
+
+function describeMoves(moves) {
+  if (!moves.length) return '';
+  const byInn = {};
+  moves.forEach(m => (byInn[m.i] = byInn[m.i] || []).push(m));
+  return Object.keys(byInn).map(i =>
+    `inning ${i}: ` + byInn[i].map(m => `${playerShort(playerById(m.pid))} ${m.to ? '→ ' + m.to : 'to bench'}`).join(', ')
+  ).join(' · ');
 }
 
 function blocksFor(innings, size) {
@@ -3592,6 +3644,7 @@ function autoFillDefense() {
     }
   }
 
+  pushPlannerUndo(`auto-fill (${MODE_LABEL[mode]})`);
   GAME.defense = def;
   markDirty();
   renderPlanner();
@@ -3742,10 +3795,26 @@ function blankGame() {
   };
 }
 
-// Open the most relevant game: the next one coming up, else the most recent.
+// Remember which game was open, per screen, so reopening the app lands on the
+// game you were working on rather than whatever the heuristic prefers.
+const LAST_GAME_KEY = 'thunder_last_game';
+function rememberGame(screen, id) {
+  try {
+    const cur = JSON.parse(localStorage.getItem(LAST_GAME_KEY) || '{}');
+    cur[screen] = id;
+    localStorage.setItem(LAST_GAME_KEY, JSON.stringify(cur));
+  } catch (e) {}
+}
+function recallGame(screen) {
+  try { return JSON.parse(localStorage.getItem(LAST_GAME_KEY) || '{}')[screen] || null; } catch (e) { return null; }
+}
+
+// Open the game you had open last; failing that, the next one coming up.
 function ensureGameLoaded() {
   if (GAME) return;
   if (!GAMES.length) return;
+  const remembered = recallGame('planner');
+  if (remembered && GAMES.some(g => g.id === remembered)) { selectGame(remembered); return; }
   const today = todayISO();
   const next = GAMES.find(g => g.game_date && g.game_date >= today) || GAMES[GAMES.length - 1];
   selectGame(next.id);
@@ -3763,6 +3832,7 @@ function selectGame(id) {
   const g = GAMES.find(x => x.id === id);
   if (!g) return;
   GAME = JSON.parse(JSON.stringify(g));
+  rememberGame('planner', g.id);
   // Backfill availability for players added since the game was saved
   GAME.availability = GAME.availability || {};
   PLAYERS.forEach(p => { if (p.cloudId && GAME.availability[p.cloudId] === undefined) GAME.availability[p.cloudId] = true; });
@@ -3850,15 +3920,18 @@ function toggleAvailable(pid) {
 
 function setDefense(inning, pos, pid) {
   if (!GAME) return;
+  pushPlannerUndo(`${pid ? playerShort(playerById(pid)) : 'open'} to ${pos} (inn ${inning})`);
   GAME.defense = GAME.defense || {};
   GAME.defense[inning] = GAME.defense[inning] || {};
   if (pid) GAME.defense[inning][pos] = pid;
   else delete GAME.defense[inning][pos];
+  const fixed = repairNextInning(GAME.defense, inning, availablePlayers(), GAME.innings || 6);
   markDirty();
   renderDefense();
   renderPlannerPitching();
   renderRuleCheck();
   renderPlayingTime();
+  if (fixed.length) toast(`Reworked ${describeMoves(fixed)}`);
 }
 
 function setPitchNote(pid, note) {
@@ -3995,6 +4068,33 @@ function renderPlanner() {
       </div>
     </div>
 
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">
+        Dictate a change
+        <span style="display:flex;align-items:center;gap:8px">
+          <span class="card-link" style="cursor:default">for inning</span>
+          <select class="input" style="width:auto;padding:3px 8px;font-size:12px" id="gp-dict-inning" onchange="GP_DICT_INNING=Number(this.value)">
+            ${Array.from({ length: GAME.innings || 6 }, (_, k) => `<option value="${k + 1}" ${GP_DICT_INNING === k + 1 ? 'selected' : ''}>${k + 1}</option>`).join('')}
+          </select>
+        </span>
+      </div>
+      <textarea class="input" id="gp-dictate" rows="2" style="resize:none;font-size:15px;line-height:1.4"
+        placeholder="“Easton pitcher, Adam catcher, Brecken first base, Funzy second, Milo short, Kai third, Eli right, Rowe left, Micah center”"
+        oninput="GP_DICT_PENDING=null"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="pc-btn primary" style="padding:12px 0" onclick="readBackPlannerDictation()">Read it back</button>
+        <button class="pc-btn minor" onclick="clearPlannerDictation()">✕</button>
+      </div>
+      <div id="gp-dictate-preview"></div>
+      ${plannerUndoLabel() ? `
+      <button class="pc-btn" style="width:100%;margin-top:10px;padding:11px 0;font-weight:500;color:var(--warn);border-color:rgba(245,158,11,0.35)"
+              onclick="undoPlanner()">↩ Undo — ${esc(plannerUndoLabel())}</button>` : ''}
+      <div style="font-size:11px;color:var(--text-subtle);line-height:1.5;margin-top:10px">
+        Name all nine and it's a full lineup card — whoever isn't named is on the bench. Name one or two and it's a swap.
+        Say an inning to override the picker. The next inning is reworked automatically so nobody sits twice in a row.
+      </div>
+    </div>
+
     <div class="dash-row cols-2">
       <div class="card">
         <div class="card-title">Rule Check <span class="card-link" id="gp-rule-count"></span></div>
@@ -4104,6 +4204,7 @@ function clearDefense() {
   if (!GAME) return;
   const hasAny = Object.keys(GAME.defense || {}).some(i => POSITIONS.some(pos => GAME.defense[i]?.[pos]));
   if (hasAny && !confirm('Clear every defensive assignment for this game?')) return;
+  pushPlannerUndo('cleared defense');
   GAME.defense = {};
   markDirty();
   renderDefense();
@@ -4176,7 +4277,7 @@ function renderDefense() {
     const inn = k + 1;
     const onField = new Set(POSITIONS.map(pos => def[inn]?.[pos]).filter(Boolean));
     const sitting = avail.filter(p => !onField.has(p.cloudId));
-    return `<td class="bench-cell">${sitting.length ? sitting.map(p => esc('#' + (p.num || ''))).join('<br>') : '—'}</td>`;
+    return `<td class="bench-cell">${sitting.length ? sitting.map(p => esc(`#${p.num || ''} ${initials(p)}`)).join('<br>') : '—'}</td>`;
   }).join('');
 
   el.innerHTML = head + `<tbody>${rows}<tr class="bench-row"><td class="pos-c">Bench</td>${benchCells}</tr></tbody>`;
@@ -4297,7 +4398,7 @@ function renderPlayingTime() {
 const PRIOR_POS = {
   'Brecken Chatzidakis': { scout: 'CF', coach: 'RC' },
   'Ryder Sharkey':       { scout: '1B', coach: '1B' },
-  'Alfonso Travaglini':  { scout: null, coach: 'P' },
+  'Funzy Travaglini':    { scout: null, coach: 'P' },
   'Easton DeSane':       { scout: 'SS', coach: 'SS' },
   'Teddy Bello':         { scout: 'P',  coach: 'LF' },
   'Micah Dubler':        { scout: '2B', coach: 'LC' },
@@ -5823,10 +5924,15 @@ async function saveLiveNow() {
   if (i >= 0) GAMES[i] = { ...GAMES[i], defense: LIVE.defense, live_state: LIVE.live_state, status: LIVE.status };
 }
 
+// Explicitly leaving a game clears the resume memory, otherwise the chooser
+// would immediately reopen the game you just left.
+function switchLiveGame() { LIVE = null; rememberGame('live', null); renderLive(); }
+
 function startLive(gameId) {
   const g = GAMES.find(x => x.id === gameId);
   if (!g) return;
   LIVE = g;
+  rememberGame('live', g.id);
   const s = liveState();
   // Snapshot the plan once, so deviations stay visible all game
   if (!s.planned) s.planned = JSON.parse(JSON.stringify(g.defense || {}));
@@ -5864,8 +5970,14 @@ function liveSub(pos, pid) {
   if (pid) POSITIONS.forEach(o => { if (o !== pos && LIVE.defense[inn][o] === pid) delete LIVE.defense[inn][o]; });
   if (pid) LIVE.defense[inn][pos] = pid;
   else delete LIVE.defense[inn][pos];
+  const fixed = repairNextInning(LIVE.defense, inn, liveAvailable(), LIVE.innings || 6);
   saveLiveSoon();
   renderLive();
+  if (fixed.length) toast(`Reworked ${describeMoves(fixed)}`);
+}
+
+function liveAvailable() {
+  return PLAYERS.filter(p => p.cloudId && (LIVE?.availability || {})[p.cloudId] !== false);
 }
 
 function addPitch(n) {
@@ -5893,7 +6005,13 @@ function renderLive() {
   const body = document.getElementById('live-body');
   if (!body) return;
 
-  // Nothing selected yet — offer today's game, else any planned game
+  // Nothing selected yet — resume the game you were running, if it isn't over
+  if (!LIVE) {
+    const remembered = recallGame('live');
+    const prev = remembered && GAMES.find(g => g.id === remembered);
+    if (prev && prev.status !== 'final') { startLive(prev.id); return; }
+  }
+  // Otherwise offer today's game, else any planned game
   if (!LIVE) {
     const today = todayISO();
     const candidates = GAMES.filter(g => g.status !== 'final')
@@ -5956,7 +6074,7 @@ function renderLive() {
       <div class="card">
         <div class="card-title">
           Inning ${s.inning} — On the field
-          <span class="card-link" onclick="LIVE=null; renderLive()">Switch game</span>
+          <span class="card-link" onclick="switchLiveGame()">Switch game</span>
         </div>
         <div id="live-defense"></div>
       </div>
@@ -6215,7 +6333,7 @@ function renderLiveDiff() {
 // anything without reading it back first.
 
 const DICT_ALIASES = {
-  alfonso: ['funzy', 'fonzie', 'fonz', 'alfonzo'],
+  funzy:   ['alfonso', 'fonzie', 'fonz', 'fuzie', 'fuzzy', 'fonzy', 'funzie', 'alfonzo'],
   kai:     ['ky', 'kye', 'kie', 'kai'],
   micah:   ['mica', 'mika', 'mikah'],
   rowe:    ['row', 'roe', 'rowie', 'rowan'],
@@ -6239,16 +6357,21 @@ const DICT_POSITIONS = [
   [['third', 'base'], '3B'],  [['3rd', 'base'], '3B'],
   [['first', 'base'], '1B'],  [['1st', 'base'], '1B'],
   [['short', 'stop'], 'SS'],  [['shortstop'], 'SS'], [['short'], 'SS'], [['ss'], 'SS'],
-  [['left', 'field'], 'LF'],  [['left'], 'LF'],  [['lf'], 'LF'],
-  [['center', 'field'], 'CF'], [['centre', 'field'], 'CF'], [['center'], 'CF'], [['centre'], 'CF'], [['cf'], 'CF'],
-  [['right', 'field'], 'RF'], [['right'], 'RF'], [['rf'], 'RF'],
+  // Dictation often runs field names together, and hears "right" as "write"/"wright"
+  [['left', 'field'], 'LF'],  [['leftfield'], 'LF'],  [['left'], 'LF'],  [['lf'], 'LF'],
+  [['center', 'field'], 'CF'], [['centre', 'field'], 'CF'], [['centerfield'], 'CF'], [['centrefield'], 'CF'],
+  [['center'], 'CF'], [['centre'], 'CF'], [['cf'], 'CF'],
+  [['right', 'field'], 'RF'], [['wright', 'field'], 'RF'], [['write', 'field'], 'RF'],
+  [['rightfield'], 'RF'], [['wrightfield'], 'RF'], [['writefield'], 'RF'], [['right'], 'RF'], [['rf'], 'RF'],
+  [['first', 'base'], '1B'], [['firstbase'], '1B'], [['second', 'base'], '2B'], [['secondbase'], '2B'],
+  [['third', 'base'], '3B'], [['thirdbase'], '3B'],
   [['behind', 'the', 'plate'], 'C'], [['catcher'], 'C'], [['catching'], 'C'], [['catch'], 'C'],
   [['the', 'mound'], 'P'], [['mound'], 'P'], [['pitcher'], 'P'], [['pitching'], 'P'], [['pitch'], 'P'],
   [['1b'], '1B'], [['2b'], '2B'], [['3b'], '3B'],
 ];
 const DICT_BENCH   = new Set(['bench', 'benched', 'sit', 'sits', 'sitting', 'sat', 'rest', 'resting']);
 const DICT_PRONOUN = new Set(['he', 'him', 'she', 'her', 'they', 'them', 'his', 'hers']);
-const DICT_POSVERB = new Set(['to', 'at', 'play', 'plays', 'playing', 'played', 'on', 'over', 'into', 'goes', 'go']);
+const DICT_POSVERB = new Set(['to', 'at', 'play', 'plays', 'playing', 'played', 'on', 'over', 'into', 'goes', 'go', 'in', 'as', 'a', 'is']);
 
 function levenshtein(a, b) {
   const m = a.length, n = b.length;
@@ -6464,11 +6587,33 @@ function parseDictation(text, ctx) {
   return { events, notes };
 }
 
-// Simulate the events against the live grid and list every concrete change.
-function computeDictationChanges(events) {
-  const def = JSON.parse(JSON.stringify(LIVE?.defense || {}));
-  const maxInn = LIVE?.innings || 6;
+// Simulate the events against a game's grid and list every concrete change.
+// Works for the live game or a planner game.
+function computeDictationChanges(events, game) {
+  const g = game || LIVE;
+  const def = JSON.parse(JSON.stringify(g?.defense || {}));
+  const maxInn = g?.innings || 6;
   const changes = [];
+
+  // Lineup-card mode: when an inning gets most of the field dictated at once
+  // ("Easton pitcher, Adam catcher, Brecken first base…"), it's a full card,
+  // not a set of swaps. Rebuild that inning from scratch — whoever isn't named
+  // is on the bench, exactly as the coach means it.
+  const posByInn = {};
+  events.filter(e => e.kind === 'pos').forEach(e => e.innings.forEach(i => (posByInn[i] = posByInn[i] || new Set()).add(e.pos)));
+  const cardInnings = new Set(Object.keys(posByInn).filter(i => posByInn[i].size >= 7).map(Number));
+  cardInnings.forEach(i => {
+    if (i < 1 || i > maxInn) return;
+    const before = { ...(def[i] || {}) };
+    def[i] = {};
+    events.filter(e => e.kind === 'pos' && e.innings.includes(i)).forEach(e => { def[i][e.pos] = e.pid; });
+    new Set([...Object.values(before), ...Object.values(def[i])]).forEach(pid => {
+      const from = POSITIONS.find(p => before[p] === pid) || null;
+      const to = POSITIONS.find(p => def[i][p] === pid) || null;
+      if (from !== to) changes.push({ i, pid, from, to });
+    });
+  });
+  const isCard = (ev, i) => ev.kind === 'pos' && cardInnings.has(i);
   const posOf = (i, pid) => POSITIONS.find(p => def[i]?.[p] === pid) || null;
   const move = (i, pid, to) => {
     def[i] = def[i] || {};
@@ -6486,6 +6631,7 @@ function computeDictationChanges(events) {
   events.forEach(ev => {
     ev.innings.forEach(i => {
       if (i < 1 || i > maxInn) return;
+      if (isCard(ev, i)) return;              // already applied as a full card
       def[i] = def[i] || {};
       if (ev.kind === 'pos')   move(i, ev.pid, ev.pos);
       if (ev.kind === 'bench') move(i, ev.pid, null);
@@ -6591,6 +6737,8 @@ function applyDictation() {
   pushLiveUndo(`${n} dictated change${n === 1 ? '' : 's'} (inn ${inns.join(', ')})`);
   LIVE.defense = DICT_PENDING.def;
   DICT_PENDING = null;
+  const fixed = inns.flatMap(i => repairNextInning(LIVE.defense, i, liveAvailable(), LIVE.innings || 6));
+  if (fixed.length) setTimeout(() => toast(`Reworked ${describeMoves(fixed)}`), 1200);
   saveLiveSoon();
   renderLive();
   toast(`${n} change${n === 1 ? '' : 's'} applied`);
@@ -6600,6 +6748,99 @@ function clearDictation() {
   DICT_PENDING = null;
   const ta = document.getElementById('live-dictate');
   const out = document.getElementById('live-dictate-preview');
+  if (ta) ta.value = '';
+  if (out) out.innerHTML = '';
+}
+
+// ---- Planner dictation ----
+let GP_DICT_PENDING = null;
+let GP_DICT_INNING = 1;
+let GP_UNDO = [];
+
+function pushPlannerUndo(label) {
+  if (!GAME) return;
+  GP_UNDO.push({ gameKey: GAME.id || 'new', defense: JSON.parse(JSON.stringify(GAME.defense || {})), label });
+  if (GP_UNDO.length > 25) GP_UNDO.shift();
+}
+function plannerUndoLabel() {
+  const key = GAME?.id || 'new';
+  const top = [...GP_UNDO].reverse().find(s => s.gameKey === key);
+  return top ? top.label : null;
+}
+function undoPlanner() {
+  if (!GAME) return;
+  const key = GAME.id || 'new';
+  while (GP_UNDO.length && GP_UNDO[GP_UNDO.length - 1].gameKey !== key) GP_UNDO.pop();
+  const snap = GP_UNDO.pop();
+  if (!snap) { toast('Nothing to undo'); return; }
+  GAME.defense = snap.defense;
+  GP_DICT_PENDING = null;
+  markDirty();
+  renderPlanner();
+  toast(`Undid: ${snap.label}`);
+}
+
+function readBackPlannerDictation() {
+  const ta = document.getElementById('gp-dictate');
+  const out = document.getElementById('gp-dictate-preview');
+  if (!ta || !out || !GAME) return;
+  const text = ta.value.trim();
+  if (!text) { out.innerHTML = ''; GP_DICT_PENDING = null; return; }
+  const { events, notes } = parseDictation(text, { inning: GP_DICT_INNING, innings: GAME.innings || 6 });
+  if (!events.length) {
+    GP_DICT_PENDING = null;
+    out.innerHTML = `<div class="rule-note" style="color:var(--warn)">Didn't catch a change in that.</div>`;
+    return;
+  }
+  const { def, changes } = computeDictationChanges(events, GAME);
+  GP_DICT_PENDING = { def, changes };
+  const byInn = {};
+  changes.forEach(c => (byInn[c.i] = byInn[c.i] || []).push(c));
+  const lbl = p => p || 'bench';
+  // Show who ends up on the bench for any inning that was rebuilt as a card
+  const benchNote = Object.keys(byInn).map(i => {
+    const on = new Set(POSITIONS.map(p => def[i]?.[p]).filter(Boolean));
+    const sitting = availablePlayers().filter(p => !on.has(p.cloudId));
+    return sitting.length ? `Inning ${i} bench: ${sitting.map(p => playerShort(p)).join(', ')}` : '';
+  }).filter(Boolean).join(' · ');
+  out.innerHTML = `
+    <div style="margin-top:10px">
+      ${Object.keys(byInn).sort((a, b) => a - b).map(i => `
+        <div class="alert-row" style="cursor:default">
+          <div class="alert-body">
+            <div class="alert-title">Inning ${i}</div>
+            <div class="alert-sub" style="white-space:normal">${byInn[i].map(c =>
+              `${esc(playerShort(playerById(c.pid)))} <span class="mono" style="color:var(--text-subtle)">${lbl(c.from)} → </span><strong style="color:var(--text)">${lbl(c.to)}</strong>`
+            ).join(' · ')}</div>
+          </div>
+        </div>`).join('')}
+      ${changes.length === 0 ? `<div class="card-empty">Understood it, but nothing would change.</div>` : ''}
+      ${benchNote ? `<div class="rule-note">${esc(benchNote)}</div>` : ''}
+      ${notes.length ? `<div class="rule-note" style="color:var(--warn)">${notes.map(esc).join(' · ')}</div>` : ''}
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="pc-btn primary" style="flex:1;padding:12px 0" onclick="applyPlannerDictation()" ${changes.length ? '' : 'disabled'}>Apply ${changes.length} change${changes.length === 1 ? '' : 's'}</button>
+        <button class="pc-btn" style="flex:0 0 90px;padding:12px 0" onclick="clearPlannerDictation()">Cancel</button>
+      </div>
+    </div>`;
+}
+
+function applyPlannerDictation() {
+  if (!GAME || !GP_DICT_PENDING) return;
+  const n = GP_DICT_PENDING.changes.length;
+  const inns = [...new Set(GP_DICT_PENDING.changes.map(c => c.i))].sort((a, b) => a - b);
+  pushPlannerUndo(`${n} dictated change${n === 1 ? '' : 's'} (inn ${inns.join(', ')})`);
+  GAME.defense = GP_DICT_PENDING.def;
+  GP_DICT_PENDING = null;
+  const fixed = inns.flatMap(i => repairNextInning(GAME.defense, i, availablePlayers(), GAME.innings || 6));
+  markDirty();
+  renderPlanner();
+  toast(`${n} change${n === 1 ? '' : 's'} applied${fixed.length ? ' · reworked ' + describeMoves(fixed) : ''}`);
+}
+
+function clearPlannerDictation() {
+  GP_DICT_PENDING = null;
+  const ta = document.getElementById('gp-dictate');
+  const out = document.getElementById('gp-dictate-preview');
   if (ta) ta.value = '';
   if (out) out.innerHTML = '';
 }
