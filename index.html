@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-14.4">
+<meta name="build" content="2026-09-14.5">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -3054,14 +3054,22 @@ function computeInstallments(p) {
   // Any "overpayment" beyond total obligation: shown as credit
   const overpayment = remainingPaid;
 
-  // Monthly installment due date = strictly sent_at + 5 days, applied ONLY to the next unpaid monthly.
-  // Later installments show no due date until their invoice is sent.
+  // Monthly installment due date = strictly sent_at + 5 days, applied ONLY to the monthly the
+  // invoice was for: the first one still unpaid by payments dated before the send. Once that
+  // one is paid, later installments show no due date until their own invoice goes out — an
+  // overpayment spilling into next month must not make next month "past due".
   const sentAt = p.invoiceSentAt || null;
   const derivedDue = sentAt ? addDays(sentAt, SEND_TO_DUE_DAYS) : null;
   schedule.forEach(row => { if (row.key !== 'initial') row.due_date = null; });
   if (derivedDue) {
-    const nextUnpaid = schedule.find(r => r.key !== 'initial' && r.amount > 0.005 && r.outstanding > 0.005);
-    if (nextUnpaid) nextUnpaid.due_date = derivedDue;
+    let paidBeforeSend = playerPayments(p).filter(x => (x.date || '') < sentAt).reduce((s, x) => s + Number(x.amount || 0), 0);
+    const invoiceWindow = addDays(sentAt, 14);   // an invoice sent late in the month can be for the next one
+    const invoiced = schedule.find(r => {
+      const covered = Math.min(r.amount, Math.max(0, paidBeforeSend));
+      paidBeforeSend -= covered;
+      return r.key !== 'initial' && r.amount > 0.005 && r.amount - covered > 0.005 && (!r.planned_due || r.planned_due <= invoiceWindow);
+    });
+    if (invoiced && invoiced.outstanding > 0.005) invoiced.due_date = derivedDue;
   }
 
   const today = new Date().toISOString().slice(0,10);
