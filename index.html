@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-14.2">
+<meta name="build" content="2026-09-14.3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1075,6 +1075,92 @@
   }
   .tp-card-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
 
+  /* ===== REVIEW ===== */
+  .rv-section { margin-bottom: 22px; }
+  .rv-kicker {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--warn); font-weight: 600; margin-bottom: 4px;
+  }
+  .rv-h {
+    font-size: 17px; font-weight: 600; letter-spacing: -0.01em;
+    color: var(--text); margin-bottom: 4px;
+  }
+  .rv-lead { font-size: 13px; color: var(--text-muted); line-height: 1.55; margin-bottom: 12px; }
+  .rv-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .rv-stat {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .rv-stat-v { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+  .rv-stat-l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-top: 4px; }
+  .rv-stat-s { font-size: 11px; color: var(--text-subtle); margin-top: 3px; line-height: 1.4; }
+  .rv-fact {
+    border-left: 3px solid var(--warn);
+    padding: 8px 12px;
+    background: rgba(245,158,11,0.06);
+    border-radius: 0 6px 6px 0;
+    font-size: 13px; line-height: 1.5;
+    margin: 10px 0;
+  }
+  .rv-fact strong { color: var(--text); }
+  .rv-note { margin-top: 12px; }
+  .rv-note-l { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500; }
+  .rv-note textarea {
+    width: 100%; min-height: 64px; resize: vertical;
+    background: var(--bg); border: 1px solid var(--border-strong); border-radius: 6px;
+    color: var(--text); font-family: inherit; font-size: 13px; line-height: 1.5; padding: 8px 10px;
+  }
+  .rv-note textarea:focus { outline: none; border-color: var(--warn); }
+  .rv-saved { font-size: 10px; color: var(--text-subtle); margin-top: 3px; height: 12px; }
+
+  .rv-games { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+  .rv-game { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .rv-game-d { font-size: 10px; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.06em; }
+  .rv-game-o { font-size: 14px; font-weight: 600; margin: 2px 0 6px; }
+  .rv-game-r { font-size: 13px; font-weight: 600; }
+  .rv-game-r.w { color: var(--pos); } .rv-game-r.l { color: var(--neg); } .rv-game-r.t { color: var(--warn); }
+  .rv-mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+  .rv-mini-v { font-size: 13px; font-weight: 500; }
+  .rv-mini-l { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-subtle); }
+
+  .rv-player { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; background: var(--bg); }
+  .rv-player summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; }
+  .rv-player summary::-webkit-details-marker { display: none; }
+  .rv-player-n { font-weight: 600; font-size: 14px; }
+  .rv-player-p { font-size: 11px; color: var(--text-muted); flex: 1; }
+  .rv-player-line { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; }
+  .rv-player-line b { color: var(--text); font-weight: 600; }
+  .rv-player-line span { color: var(--text-muted); }
+
+  .rv-srcs { font-size: 12px; color: var(--text-muted); line-height: 1.7; }
+
+  @media print {
+    body { background: #fff; color: #111; font-size: 12px; }
+    .sidebar, .topbar, .noprint, #update-banner, .nav-item { display: none !important; }
+    .app { display: block; }
+    .main { padding: 0; }
+    .section { display: none !important; }
+    #section-review { display: block !important; padding: 0 !important; }
+    .card { border: 1px solid #ddd; background: #fff; break-inside: avoid; page-break-inside: avoid; }
+    .rv-stat, .rv-game, .rv-player { background: #fafafa; border-color: #ddd; break-inside: avoid; }
+    .rv-stat-v, .rv-h, .rv-player-n, .rv-fact strong { color: #111; }
+    .rv-stat-l, .rv-lead, .rv-note-l, .rv-player-p, .rv-srcs, .rv-mini-l, .rv-game-d { color: #555; }
+    .rv-fact { background: #fff7e6; border-left-color: #d98b00; }
+    .rv-note textarea { border: 1px solid #ccc; background: #fff; color: #111; min-height: 0; }
+    .rv-note textarea:placeholder-shown { display: none; }
+    .rv-saved { display: none; }
+    .rv-player { break-inside: avoid; }
+    details.rv-player > *:not(summary) { display: block; }
+    table.data th { color: #444; background: #f3f3f3; }
+    table.data td { color: #111; border-color: #e5e5e5; }
+    .pill { border: 1px solid #ccc; color: #333 !important; background: none !important; }
+  }
+
   /* ===== UPDATE BANNER ===== */
   #update-banner {
     position: fixed;
@@ -1593,6 +1679,10 @@
       <svg class="nav-icon" viewBox="0 0 24 24"><path d="M6 3h12l-1 7a5 5 0 0 1-10 0z"/><path d="M6 5H3v2a4 4 0 0 0 4 4M18 5h3v2a4 4 0 0 1-4 4"/><path d="M9 21h6M12 17v4"/></svg>
       Tournament Planner
     </div>
+    <div class="nav-item" data-section="review" onclick="navigate('review')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 12h8M8 8h8M8 16h5"/></svg>
+      Review
+    </div>
     <div class="nav-item" data-section="pitching" onclick="navigate('pitching')">
       <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5 6c3 3 3 9 0 12M19 6c-3 3-3 9 0 12"/></svg>
       Pitching
@@ -1788,6 +1878,21 @@
         </div>
       </div>
       <div id="tp-body"></div>
+    </section>
+
+    <!-- ============ REVIEW ============ -->
+    <section class="section" id="section-review">
+      <div class="section-header noprint">
+        <div>
+          <div class="section-title">Review</div>
+          <div class="section-sub">What the numbers say about a tournament or the season — with your notes alongside.</div>
+        </div>
+        <div class="section-actions">
+          <select class="input" id="rv-scope" style="width:auto;min-width:200px" onchange="RV_UI.scope=this.value; renderReview()"></select>
+          <button class="btn btn-secondary btn-sm" onclick="window.print()">Print / PDF</button>
+        </div>
+      </div>
+      <div id="rv-body"></div>
     </section>
 
     <!-- ============ PITCHING ============ -->
@@ -2996,13 +3101,14 @@ function navigate(section) {
   // On the phone the bar scrolls, so keep the active tab in view
   if (window.innerWidth <= 768) navEl?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
   const crumb = document.querySelector('[data-crumb="section"]');
-  const SECTION_LABEL = { planner: 'Game Planner', playingtime: 'Playing Time', livegame: 'Live Game', tourplanner: 'Tournament Planner' };
+  const SECTION_LABEL = { planner: 'Game Planner', playingtime: 'Playing Time', livegame: 'Live Game', tourplanner: 'Tournament Planner', review: 'Review' };
   if (crumb) crumb.textContent = SECTION_LABEL[section] || (section.charAt(0).toUpperCase() + section.slice(1));
   window.scrollTo(0, 0);
   if (section === 'dashboard') { renderDashboard(); loadUniformOrders(); }
   if (section === 'planner') { ensureGameLoaded(); renderPlanner(); }
   if (section === 'playingtime') renderPlayingTimeSection();
   if (section === 'tourplanner') renderTourPlanner();
+  if (section === 'review') renderReview();
   if (section === 'pitching') renderPitching();
   if (section === 'livegame') renderLive();
   if (section === 'roster') renderRoster();
@@ -5054,6 +5160,308 @@ function exportPlayingTime() {
   a.click();
   URL.revokeObjectURL(a.href);
   toast('Exported');
+}
+
+// ============================================================
+// REVIEW
+// ============================================================
+// A tournament or season assessment built from recorded stats, with the
+// coach's own commentary saved beside each section. The numbers are computed
+// facts; every judgement is a text box the coach fills in.
+let RV_UI = { scope: '' };
+let RV_NOTES = {};
+let RV_NOTES_KEY = '';
+let RV_SAVE_TIMER = null;
+
+function reviewScopes() {
+  const finals = GAMES.filter(g => g.status === 'final');
+  const scopes = [];
+  TM_STATE.tournaments.forEach(t => {
+    const gs = finals.filter(g => g.tournament_id === t.id);
+    if (gs.length) scopes.push({ key: 'tournament:' + t.id, label: t.name || 'Tournament', games: gs, tournament: t });
+  });
+  if (finals.length) scopes.push({ key: 'season', label: `Season · ${finals.length} games`, games: finals });
+  return scopes;
+}
+function reviewScope() {
+  const all = reviewScopes();
+  return all.find(s => s.key === RV_UI.scope) || all[0] || null;
+}
+
+const sumKeys = (rows, keys) => keys.reduce((acc, k) => (acc[k] = rows.reduce((s, r) => s + (Number(r?.[k]) || 0), 0), acc), {});
+const div = (a, b) => (b ? a / b : 0);
+const avg3 = v => (v ? v.toFixed(3).replace(/^0/, '') : '.000');
+const pct1 = v => `${(v * 100).toFixed(1)}%`;
+const ipStr = o => fmtOuts(o);
+
+function aggregateReview(games) {
+  const withStats = games.filter(g => hasRecordedFielding(g) || hasRecordedPitching(g) || Object.keys(g.batting_stats || {}).length);
+  const BAT = ['pa','ab','h','1b','2b','3b','hr','rbi','r','bb','so','k_l','hbp','sac','sf','roe','fc','sb','cs','qab','tb','xbh','hhb','lob'];
+  const PIT = ['outs','pitches','strikes','first_pitch_strikes','bf','h','r','er','bb','so','hbp','wp','bbs','lobb','lobbs','123inn','loo','1st2out'];
+  const FLD = ['tc','a','po','e','dp','pb','cs','sb_allowed','sb_att','c_outs'];
+
+  const per = {};
+  const touch = pid => (per[pid] = per[pid] || { pid, bat: {}, pit: {}, fld: {}, pos: {}, games: 0, pitched: 0 });
+
+  withStats.forEach(g => {
+    Object.keys(g.batting_stats || {}).forEach(pid => {
+      const b = g.batting_stats[pid]; const p = touch(pid);
+      if ((b.gp || 0) > 0 || (b.pa || 0) > 0) p.games++;
+      BAT.forEach(k => p.bat[k] = (p.bat[k] || 0) + (Number(b[k]) || 0));
+    });
+    Object.keys(g.pitching_stats || {}).forEach(pid => {
+      const x = g.pitching_stats[pid]; const p = touch(pid);
+      p.pitched++;
+      PIT.forEach(k => p.pit[k] = (p.pit[k] || 0) + (Number(x[k]) || 0));
+    });
+    Object.keys(g.fielding_stats || {}).forEach(pid => {
+      const f = g.fielding_stats[pid]; const p = touch(pid);
+      FLD.forEach(k => p.fld[k] = (p.fld[k] || 0) + (Number(f[k]) || 0));
+    });
+    Object.keys(g.fielding || {}).forEach(pid => {
+      const p = touch(pid);
+      Object.keys(g.fielding[pid]).forEach(pos => p.pos[pos] = (p.pos[pos] || 0) + (Number(g.fielding[pid][pos]) || 0));
+    });
+  });
+
+  const rows = Object.values(per);
+  const bat = sumKeys(rows.map(r => r.bat), BAT);
+  const pit = sumKeys(rows.map(r => r.pit), PIT);
+  const fld = sumKeys(rows.map(r => r.fld), FLD);
+
+  const rec = { W: 0, L: 0, T: 0, rs: 0, ra: 0 };
+  games.forEach(g => {
+    const o = g.result?.outcome; if (o && rec[o] !== undefined) rec[o]++;
+    rec.rs += Number(g.result?.rs) || 0; rec.ra += Number(g.result?.ra) || 0;
+  });
+
+  const perGame = games.map(g => {
+    const b = sumKeys(Object.values(g.batting_stats || {}), BAT);
+    const p = sumKeys(Object.values(g.pitching_stats || {}), PIT);
+    const f = sumKeys(Object.values(g.fielding_stats || {}), FLD);
+    return { g, b, p, f, hasStats: withStats.includes(g) };
+  });
+
+  return { games, withStats, per: rows, bat, pit, fld, rec, perGame };
+}
+
+// ---- notes ----
+async function loadReviewNotes(scopeKey) {
+  RV_NOTES_KEY = scopeKey; RV_NOTES = {};
+  const rows = await supa('team_reviews', 'GET', null, `?scope_key=eq.${encodeURIComponent(scopeKey)}&select=notes`);
+  if (Array.isArray(rows) && rows[0]?.notes) RV_NOTES = rows[0].notes;
+  // refill any boxes already on screen
+  document.querySelectorAll('[data-rv-note]').forEach(ta => { ta.value = RV_NOTES[ta.dataset.rvNote] || ''; });
+}
+function setReviewNote(key, val) {
+  RV_NOTES[key] = val;
+  clearTimeout(RV_SAVE_TIMER);
+  const s = document.querySelector(`[data-rv-saved="${key}"]`); if (s) s.textContent = 'saving…';
+  RV_SAVE_TIMER = setTimeout(saveReviewNotes, 900);
+}
+async function saveReviewNotes() {
+  if (!RV_NOTES_KEY) return;
+  const scope = reviewScope();
+  await supa('team_reviews', 'POST', [{ scope_key: RV_NOTES_KEY, title: scope?.label || '', notes: RV_NOTES, updated_at: new Date().toISOString() }],
+    '?on_conflict=scope_key', 'resolution=merge-duplicates');
+  document.querySelectorAll('[data-rv-saved]').forEach(s => { s.textContent = 'saved'; setTimeout(() => { if (s.textContent === 'saved') s.textContent = ''; }, 1500); });
+}
+function noteBox(key, placeholder) {
+  return `<div class="rv-note noprint-keep">
+    <div class="rv-note-l">Coach thoughts</div>
+    <textarea data-rv-note="${key}" placeholder="${esc(placeholder || 'Thoughts on this section…')}"
+      oninput="setReviewNote('${key}', this.value)">${esc(RV_NOTES[key] || '')}</textarea>
+    <div class="rv-saved" data-rv-saved="${key}"></div>
+  </div>`;
+}
+const stat = (v, l, s) => `<div class="rv-stat"><div class="rv-stat-v">${v}</div><div class="rv-stat-l">${l}</div>${s ? `<div class="rv-stat-s">${s}</div>` : ''}</div>`;
+
+// ---- render ----
+function renderReview() {
+  const sel = document.getElementById('rv-scope');
+  const body = document.getElementById('rv-body');
+  if (!body) return;
+  const scopes = reviewScopes();
+  if (sel) sel.innerHTML = scopes.map(s => `<option value="${s.key}" ${RV_UI.scope === s.key ? 'selected' : ''}>${esc(s.label)}</option>`).join('') || '<option>No games yet</option>';
+  const scope = reviewScope();
+  if (!scope) { body.innerHTML = `<div class="card"><div class="card-empty" style="padding:40px">No final games to review yet.</div></div>`; return; }
+  if (!RV_UI.scope) RV_UI.scope = scope.key;
+  if (RV_NOTES_KEY !== scope.key) loadReviewNotes(scope.key);
+
+  const A = aggregateReview([...scope.games].sort((a, b) => (a.game_date || '').localeCompare(b.game_date || '') || (a.game_number || 0) - (b.game_number || 0)));
+  const { bat, pit, fld, rec } = A;
+  const n = A.games.length, ns = A.withStats.length;
+  const dates = A.games.map(g => g.game_date).filter(Boolean).sort();
+  const when = dates.length ? (dates[0] === dates[dates.length - 1] ? fmtShortDate(dates[0]) : `${fmtShortDate(dates[0])} – ${fmtShortDate(dates[dates.length - 1])}`) : '';
+  const scoreOnly = n - ns;
+
+  const unearned = pit.r - pit.er;
+  const stealPct = div(bat.sb, bat.sb + bat.cs);
+  const obp = div(bat.h + bat.bb + bat.hbp, bat.ab + bat.bb + bat.hbp + bat.sf);
+  const slg = div(bat.tb, bat.ab);
+  const strikePct = div(pit.strikes, pit.pitches);
+  const fpsPct = div(pit.first_pitch_strikes, pit.bf);
+  const bbPerInn = div(pit.bb, pit.outs / 3);
+  const fpct = div(fld.tc - fld.e, fld.tc);
+
+  const recStr = `${rec.W}-${rec.L}${rec.T ? '-' + rec.T : ''}`;
+
+  body.innerHTML = `
+    <div class="card" style="margin-bottom:14px">
+      <div class="rv-kicker">${esc(TEAM_SETTINGS.team_name || 'Team')} · ${esc(scope.tournament ? 'Tournament review' : 'Season review')}</div>
+      <div class="rv-h" style="font-size:22px">${esc(scope.label.replace(/ · \d+ games$/, ''))}</div>
+      <div class="rv-lead">${esc(when)} · ${n} game${n === 1 ? '' : 's'}${scoreOnly ? ` · <span style="color:var(--warn)">${scoreOnly} score-only (stats not imported)</span>` : ''}</div>
+      <div class="rv-stats">
+        ${stat(recStr, 'Record', `${rec.rs} scored, ${rec.ra} allowed`)}
+        ${stat((rec.rs - rec.ra >= 0 ? '+' : '') + (rec.rs - rec.ra), 'Run differential', `${(rec.rs / Math.max(1, n)).toFixed(1)} for / ${(rec.ra / Math.max(1, n)).toFixed(1)} against per game`)}
+        ${stat((bat.bb - pit.bb >= 0 ? '+' : '') + (bat.bb - pit.bb), 'Walk differential', `${bat.bb} taken, ${pit.bb} allowed`)}
+        ${stat(fld.e, 'Errors', `${fld.tc} chances · ${avg3(fpct)} fielding`)}
+        ${stat(unearned, 'Unearned runs allowed', pit.r ? `${pct1(div(unearned, pit.r))} of runs allowed` : '')}
+        ${stat(pct1(stealPct), 'Steal success', `${bat.sb} of ${bat.sb + bat.cs} attempts`)}
+      </div>
+      ${pit.bb ? `<div class="rv-fact"><strong>${pit.bbs} of ${pit.bb} walks scored.</strong>${pit.lobb ? ` ${pit.lobbs} of ${pit.lobb} leadoff walks scored.` : ''} ${bat.roe ? `We reached on error ${bat.roe} times.` : ''}</div>` : ''}
+      ${noteBox('overview', 'What I took away from these games…')}
+    </div>
+
+    <div class="card rv-section">
+      <div class="rv-kicker">Game review</div>
+      <div class="rv-h">Game by game</div>
+      <div class="rv-games">
+        ${A.perGame.map(({ g, b, p, f, hasStats }) => {
+          const o = (g.result?.outcome || '').toLowerCase();
+          return `<div class="rv-game">
+            <div class="rv-game-d">${g.game_date ? fmtShortDate(g.game_date) : ''}${g.game_time ? ' · ' + esc(g.game_time) : ''}${g.game_number ? ' · G' + g.game_number : ''}</div>
+            <div class="rv-game-o">${esc(g.opponent || 'Untitled')}</div>
+            <div class="rv-game-r ${o}">${esc((g.result?.outcome || '?') + ' ' + (g.result?.rs ?? '') + '–' + (g.result?.ra ?? ''))}</div>
+            ${hasStats ? `<div class="rv-mini">
+              <div><div class="rv-mini-v">${b.h} / ${p.h}</div><div class="rv-mini-l">Hits for / against</div></div>
+              <div><div class="rv-mini-v">${b.bb} / ${p.bb}</div><div class="rv-mini-l">Walks for / against</div></div>
+              <div><div class="rv-mini-v">${b.so} / ${p.so}</div><div class="rv-mini-l">K for / against</div></div>
+              <div><div class="rv-mini-v">${f.e}</div><div class="rv-mini-l">Our errors</div></div>
+              <div><div class="rv-mini-v">${b.roe}</div><div class="rv-mini-l">Reached on error</div></div>
+              <div><div class="rv-mini-v">${p.r - p.er}</div><div class="rv-mini-l">Unearned allowed</div></div>
+            </div>` : `<div class="rv-stat-s" style="margin-top:8px;color:var(--warn)">Stats not imported for this game</div>`}
+          </div>`;
+        }).join('')}
+      </div>
+      ${noteBox('games', 'Which games taught us the most, and why…')}
+    </div>
+
+    <div class="card rv-section">
+      <div class="rv-kicker">Hitting and baserunning</div>
+      <div class="rv-h">At the plate and on the bases</div>
+      <div class="rv-stats">
+        ${stat(avg3(div(bat.h, bat.ab)), 'Team AVG', `${bat.h} hits in ${bat.ab} at bats`)}
+        ${stat(avg3(obp), 'Team OBP', `${bat.bb} walks, ${bat.hbp} HBP`)}
+        ${stat(avg3(slg), 'Team SLG', `${bat.xbh} extra-base hit${bat.xbh === 1 ? '' : 's'}`)}
+        ${stat(pct1(div(bat.qab, bat.pa)), 'Quality at-bats', `${bat.qab} of ${bat.pa} PA`)}
+        ${stat(pct1(div(bat.so, bat.pa)), 'Strikeout rate', `${bat.so} K in ${bat.pa} PA`)}
+        ${stat((rec.rs / Math.max(1, n)).toFixed(1), 'Runs per game', `${bat.sb} stolen bases`)}
+      </div>
+      ${noteBox('hitting', 'What worked, what I want to improve, the message for hitters…')}
+    </div>
+
+    <div class="card rv-section">
+      <div class="rv-kicker">Pitching</div>
+      <div class="rv-h">On the mound</div>
+      <div class="rv-stats">
+        ${stat(pct1(strikePct), 'Strike rate', `${pit.strikes} of ${pit.pitches} pitches`)}
+        ${stat(pct1(fpsPct), 'First-pitch strikes', `${pit.first_pitch_strikes} of ${pit.bf} batters`)}
+        ${stat(pit.bb, 'Walks', `${bbPerInn.toFixed(1)} per inning`)}
+        ${stat(pit.bbs, 'Walks that scored', pit.bb ? `${pct1(div(pit.bbs, pit.bb))} of walks` : '')}
+        ${stat(pit.so, 'Strikeouts', `${pct1(div(pit.so, pit.bf))} of batters faced`)}
+        ${stat(pit['123inn'], '1-2-3 innings', `of ${Math.floor(pit.outs / 3)} complete`)}
+      </div>
+      <div class="table-wrap" style="margin-top:4px"><div class="table-scroll"><table class="data">
+        <thead><tr><th>Pitcher</th><th class="right">IP</th><th class="right">Pitches</th><th class="right">Strike %</th><th class="right">FPS %</th><th class="right">BB</th><th class="right">K</th><th class="right">BB % BF</th><th class="right">K % BF</th><th class="right">ER</th></tr></thead>
+        <tbody>${A.per.filter(r => r.pit.outs > 0 || r.pit.pitches > 0).sort((a, b) => div(b.pit.strikes, b.pit.pitches) - div(a.pit.strikes, a.pit.pitches)).map(r => `
+          <tr>
+            <td>${esc(playerShort(playerById(r.pid)))}</td>
+            <td class="right mono">${ipStr(r.pit.outs)}</td>
+            <td class="right mono">${r.pit.pitches}</td>
+            <td class="right mono">${pct1(div(r.pit.strikes, r.pit.pitches))}</td>
+            <td class="right mono">${pct1(div(r.pit.first_pitch_strikes, r.pit.bf))}</td>
+            <td class="right mono">${r.pit.bb}</td>
+            <td class="right mono">${r.pit.so}</td>
+            <td class="right mono">${pct1(div(r.pit.bb, r.pit.bf))}</td>
+            <td class="right mono">${pct1(div(r.pit.so, r.pit.bf))}</td>
+            <td class="right mono">${r.pit.er}</td>
+          </tr>`).join('')}</tbody>
+      </table></div></div>
+      ${noteBox('pitching', 'What I saw on the mound, and how I want us talking to pitchers…')}
+    </div>
+
+    <div class="card rv-section">
+      <div class="rv-kicker">Defense and catching</div>
+      <div class="rv-h">In the field</div>
+      <div class="rv-stats">
+        ${stat(fld.e, 'Team errors', `${fld.tc} total chances`)}
+        ${stat(avg3(fpct), 'Fielding %', 'Direction, not a grade')}
+        ${stat(unearned, 'Unearned runs', pit.r ? `${pct1(div(unearned, pit.r))} of runs allowed` : '')}
+        ${stat(fld.pb, 'Passed balls', `across ${ipStr(fld.c_outs)} caught innings`)}
+        ${stat(fld.sb_allowed, 'Steals allowed', `${fld.sb_att} attempts`)}
+        ${stat(pct1(div(fld.cs, fld.sb_att)), 'Caught stealing', `${fld.cs} of ${fld.sb_att}`)}
+      </div>
+      ${(() => {
+        const catchers = A.per.filter(r => (r.fld.c_outs || 0) > 0).sort((a, b) => b.fld.c_outs - a.fld.c_outs);
+        return catchers.length ? `<div class="rv-fact"><strong>Catching:</strong> ${catchers.map(r =>
+          `${playerShort(playerById(r.pid))} caught ${ipStr(r.fld.c_outs)}, ${r.fld.pb} PB, threw out ${r.fld.cs} of ${r.fld.sb_att}`).join(' · ')}.</div>` : '';
+      })()}
+      ${noteBox('defense', 'Outfield, middle infield, pitcher and catcher — what needs work…')}
+    </div>
+
+    <div class="card rv-section">
+      <div class="rv-kicker">Player notes</div>
+      <div class="rv-h">What the numbers say about each player</div>
+      <div class="rv-lead">Tap a player to expand. Innings by position, the batting line, and a pitching line where there is one. Your note sits under each.</div>
+      ${A.per
+        .filter(r => r.games > 0 || Object.keys(r.pos).length)
+        .sort((a, b) => (playerById(a.pid)?.name || '').localeCompare(playerById(b.pid)?.name || ''))
+        .map(r => {
+          const p = playerById(r.pid); if (!p) return '';
+          const posStr = POSITIONS.filter(x => r.pos[x]).sort((x, y) => r.pos[y] - r.pos[x]).map(x => `${x} ${ipStr(r.pos[x])}`).join(', ');
+          const b = r.bat;
+          const o = div(b.h + b.bb + b.hbp, b.ab + b.bb + b.hbp + b.sf);
+          return `<details class="rv-player">
+            <summary>
+              <span class="rv-player-n">#${esc(p.num || '')} ${esc(p.name || '')}</span>
+              <span class="rv-player-p">${esc(posStr || 'no innings recorded')}</span>
+              <span class="card-link">Details</span>
+            </summary>
+            <div class="rv-player-line">
+              <span><b>${avg3(div(b.h, b.ab))}</b> AVG</span><span><b>${avg3(o)}</b> OBP</span><span><b>${b.pa}</b> PA</span>
+              <span><b>${b.h}</b> H</span><span><b>${b.r}</b> R</span><span><b>${b.rbi}</b> RBI</span><span><b>${b.bb}</b> BB</span>
+              <span><b>${b.so}</b> K</span><span><b>${b.sb}</b> SB</span><span><b>${pct1(div(b.qab, b.pa))}</b> QAB</span>
+            </div>
+            ${r.pit.outs || r.pit.pitches ? `<div class="rv-player-line" style="margin-top:6px">
+              <span>Pitching:</span><span><b>${ipStr(r.pit.outs)}</b> IP</span><span><b>${r.pit.pitches}</b> pitches</span>
+              <span><b>${pct1(div(r.pit.strikes, r.pit.pitches))}</b> strikes</span><span><b>${r.pit.bb}</b> BB</span><span><b>${r.pit.so}</b> K</span><span><b>${r.pit.er}</b> ER</span>
+            </div>` : ''}
+            ${r.fld.tc ? `<div class="rv-player-line" style="margin-top:6px">
+              <span>Fielding:</span><span><b>${r.fld.tc}</b> chances</span><span><b>${r.fld.e}</b> E</span>
+              ${r.fld.c_outs ? `<span><b>${ipStr(r.fld.c_outs)}</b> caught</span><span><b>${r.fld.pb}</b> PB</span>` : ''}
+            </div>` : ''}
+            ${noteBox('player:' + r.pid, `Notes on ${firstName(p)}…`)}
+          </details>`;
+        }).join('')}
+    </div>
+
+    <div class="card rv-section">
+      <div class="rv-kicker">Looking ahead</div>
+      <div class="rv-h">Practice plan and next tournament</div>
+      ${noteBox('practice', 'What we work on at practice, and the targets I want to hit next time out…')}
+      ${noteBox('next', 'Pitching usage, lineup approach, what I want us watching in the next tournament…')}
+      <div class="rv-h" style="margin-top:16px;font-size:14px">Final coach thoughts</div>
+      ${noteBox('final', 'Overall take — what I liked, what concerned me, what surprised me…')}
+    </div>
+
+    <div class="card rv-section">
+      <div class="rv-kicker">What this used</div>
+      <div class="rv-srcs">
+        ${A.games.map(g => `${g.game_date ? fmtShortDate(g.game_date) : ''} · ${esc(g.opponent || '')} · ${esc((g.result?.outcome || '') + ' ' + (g.result?.rs ?? '') + '–' + (g.result?.ra ?? ''))}${A.withStats.includes(g) ? '' : ' · <em>score only</em>'}`).join('<br>')}
+        <br>GameChanger exports (batting, pitching, fielding, innings by position). Youth scorekeeping is imperfect — read the numbers alongside what you saw.
+      </div>
+    </div>`;
 }
 
 // ============================================================
@@ -8907,6 +9315,7 @@ document.addEventListener('keydown', (e) => {
     if (UI.section === 'planner') { ensureGameLoaded(); renderPlanner(); }
     if (UI.section === 'playingtime') renderPlayingTimeSection();
     if (UI.section === 'tourplanner') renderTourPlanner();
+    if (UI.section === 'review') renderReview();
     if (UI.section === 'pitching') renderPitching();
     if (UI.section === 'livegame') renderLive();
     if (UI.section === 'roster') renderRoster();
