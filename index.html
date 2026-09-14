@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-14.3">
+<meta name="build" content="2026-09-14.4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -5196,8 +5196,8 @@ const ipStr = o => fmtOuts(o);
 
 function aggregateReview(games) {
   const withStats = games.filter(g => hasRecordedFielding(g) || hasRecordedPitching(g) || Object.keys(g.batting_stats || {}).length);
-  const BAT = ['pa','ab','h','1b','2b','3b','hr','rbi','r','bb','so','k_l','hbp','sac','sf','roe','fc','sb','cs','qab','tb','xbh','hhb','lob'];
-  const PIT = ['outs','pitches','strikes','first_pitch_strikes','bf','h','r','er','bb','so','hbp','wp','bbs','lobb','lobbs','123inn','loo','1st2out'];
+  const BAT = ['pa','ab','h','1b','2b','3b','hr','rbi','r','bb','so','k_l','hbp','sac','sf','roe','fc','sb','cs','qab','tb','xbh','hhb','lob','2outrbi','ps','bip','ld','fb','gb','2splus3','6plus','gidp'];
+  const PIT = ['outs','pitches','strikes','first_pitch_strikes','fpso','fpsw','fpsh','bf','h','r','er','bb','so','hbp','wp','hr','bbs','lobb','lobbs','123inn','loo','1st2out','lt3','lt13','0bbinn','swing_miss','bip','weak','hhb','ld','fb','gb'];
   const FLD = ['tc','a','po','e','dp','pb','cs','sb_allowed','sb_att','c_outs'];
 
   const per = {};
@@ -5358,6 +5358,15 @@ function renderReview() {
         ${stat(pct1(div(bat.so, bat.pa)), 'Strikeout rate', `${bat.so} K in ${bat.pa} PA`)}
         ${stat((rec.rs / Math.max(1, n)).toFixed(1), 'Runs per game', `${bat.sb} stolen bases`)}
       </div>
+      <div class="rv-stats">
+        ${stat(bat.hhb, 'Hard-hit balls', `${pct1(div(bat.hhb, bat.bip))} of ${bat.bip} balls in play`)}
+        ${stat(pct1(div(bat.ab - bat.so, bat.ab)), 'Contact rate', `${bat.ab - bat.so} of ${bat.ab} at bats in play`)}
+        ${stat(div(bat.ps, bat.pa).toFixed(2), 'Pitches per PA', `${bat.ps} pitches seen`)}
+        ${stat(pct1(div(bat['2splus3'], bat.pa)), '2-strike battles', `${bat['2splus3']} PA saw 3+ pitches after 2 strikes`)}
+        ${stat(bat['6plus'], '6+ pitch at-bats', `${pct1(div(bat['6plus'], bat.pa))} of PA`)}
+        ${stat(avg3(div(bat.h - bat.hr, bat.ab - bat.so - bat.hr + bat.sf)), 'BABIP', `${bat.lob} left on base · ${bat['2outrbi']} two-out RBI`)}
+      </div>
+      ${bat.bip ? `<div class="rv-fact"><strong>Contact profile:</strong> ${pct1(div(bat.ld, bat.bip))} line drives · ${pct1(div(bat.fb, bat.bip))} fly balls · ${pct1(div(bat.gb, bat.bip))} ground balls, on ${bat.bip} balls in play.</div>` : ''}
       ${noteBox('hitting', 'What worked, what I want to improve, the message for hitters…')}
     </div>
 
@@ -5372,17 +5381,29 @@ function renderReview() {
         ${stat(pit.so, 'Strikeouts', `${pct1(div(pit.so, pit.bf))} of batters faced`)}
         ${stat(pit['123inn'], '1-2-3 innings', `of ${Math.floor(pit.outs / 3)} complete`)}
       </div>
+      <div class="rv-stats">
+        ${stat(div(pit.pitches, pit.outs / 3).toFixed(1), 'Pitches per inning', `${div(pit.pitches, pit.bf).toFixed(2)} per batter`)}
+        ${stat(pct1(div(pit.swing_miss, pit.pitches)), 'Swing-and-miss', `${pit.swing_miss} of ${pit.pitches} pitches`)}
+        ${stat(pct1(div(pit.lt3, pit.bf)), 'Batters done in ≤3 pitches', `${pit.lt3} of ${pit.bf}`)}
+        ${stat(pit.lt13, 'Economical innings', `13 pitches or fewer · ${pit['0bbinn']} zero-walk innings`)}
+        ${stat(pit.bb ? div(pit.so, pit.bb).toFixed(2) : '∞', 'K per BB', `${pit.so} K · ${pit.bb} BB`)}
+        ${stat(pct1(div(pit.weak, pit.bip)), 'Weak contact allowed', `${pit.hhb} hard-hit of ${pit.bip} in play · BABIP ${avg3(div(pit.h - pit.hr, pit.bip - pit.hr))}`)}
+      </div>
+      ${pit.first_pitch_strikes ? `<div class="rv-fact"><strong>After a first-pitch strike:</strong> ${pct1(div(pit.fpso, pit.first_pitch_strikes))} of those at-bats ended in an out, ${pct1(div(pit.fpsw, pit.first_pitch_strikes))} in a walk, ${pct1(div(pit.fpsh, pit.first_pitch_strikes))} in a hit.</div>` : ''}
       <div class="table-wrap" style="margin-top:4px"><div class="table-scroll"><table class="data">
-        <thead><tr><th>Pitcher</th><th class="right">IP</th><th class="right">Pitches</th><th class="right">Strike %</th><th class="right">FPS %</th><th class="right">BB</th><th class="right">K</th><th class="right">BB % BF</th><th class="right">K % BF</th><th class="right">ER</th></tr></thead>
+        <thead><tr><th>Pitcher</th><th class="right">IP</th><th class="right">Pitches</th><th class="right">P/IP</th><th class="right">Strike %</th><th class="right">FPS %</th><th class="right">SM %</th><th class="right">BB</th><th class="right">K</th><th class="right">K/BB</th><th class="right">BB % BF</th><th class="right">K % BF</th><th class="right">ER</th></tr></thead>
         <tbody>${A.per.filter(r => r.pit.outs > 0 || r.pit.pitches > 0).sort((a, b) => div(b.pit.strikes, b.pit.pitches) - div(a.pit.strikes, a.pit.pitches)).map(r => `
           <tr>
             <td>${esc(playerShort(playerById(r.pid)))}</td>
             <td class="right mono">${ipStr(r.pit.outs)}</td>
             <td class="right mono">${r.pit.pitches}</td>
+            <td class="right mono">${div(r.pit.pitches, r.pit.outs / 3).toFixed(1)}</td>
             <td class="right mono">${pct1(div(r.pit.strikes, r.pit.pitches))}</td>
             <td class="right mono">${pct1(div(r.pit.first_pitch_strikes, r.pit.bf))}</td>
+            <td class="right mono">${pct1(div(r.pit.swing_miss, r.pit.pitches))}</td>
             <td class="right mono">${r.pit.bb}</td>
             <td class="right mono">${r.pit.so}</td>
+            <td class="right mono">${r.pit.bb ? div(r.pit.so, r.pit.bb).toFixed(1) : '—'}</td>
             <td class="right mono">${pct1(div(r.pit.bb, r.pit.bf))}</td>
             <td class="right mono">${pct1(div(r.pit.so, r.pit.bf))}</td>
             <td class="right mono">${r.pit.er}</td>
@@ -5433,9 +5454,15 @@ function renderReview() {
               <span><b>${b.h}</b> H</span><span><b>${b.r}</b> R</span><span><b>${b.rbi}</b> RBI</span><span><b>${b.bb}</b> BB</span>
               <span><b>${b.so}</b> K</span><span><b>${b.sb}</b> SB</span><span><b>${pct1(div(b.qab, b.pa))}</b> QAB</span>
             </div>
+            <div class="rv-player-line" style="margin-top:6px">
+              <span>Contact:</span><span><b>${b.hhb}</b> hard-hit</span><span><b>${div(b.ps, b.pa).toFixed(1)}</b> pitches/PA</span>
+              ${b.bip ? `<span><b>${pct1(div(b.ld, b.bip))}</b> LD</span><span><b>${pct1(div(b.gb, b.bip))}</b> GB</span><span><b>${pct1(div(b.fb, b.bip))}</b> FB</span>` : ''}
+              <span><b>${b['2splus3']}</b> 2-strike battles</span>
+            </div>
             ${r.pit.outs || r.pit.pitches ? `<div class="rv-player-line" style="margin-top:6px">
               <span>Pitching:</span><span><b>${ipStr(r.pit.outs)}</b> IP</span><span><b>${r.pit.pitches}</b> pitches</span>
-              <span><b>${pct1(div(r.pit.strikes, r.pit.pitches))}</b> strikes</span><span><b>${r.pit.bb}</b> BB</span><span><b>${r.pit.so}</b> K</span><span><b>${r.pit.er}</b> ER</span>
+              <span><b>${pct1(div(r.pit.strikes, r.pit.pitches))}</b> strikes</span><span><b>${pct1(div(r.pit.first_pitch_strikes, r.pit.bf))}</b> FPS</span>
+              <span><b>${pct1(div(r.pit.swing_miss, r.pit.pitches))}</b> swing-miss</span><span><b>${r.pit.bb}</b> BB</span><span><b>${r.pit.so}</b> K</span><span><b>${r.pit.er}</b> ER</span>
             </div>` : ''}
             ${r.fld.tc ? `<div class="rv-player-line" style="margin-top:6px">
               <span>Fielding:</span><span><b>${r.fld.tc}</b> chances</span><span><b>${r.fld.e}</b> E</span>
