@@ -15,6 +15,10 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="manifest" href="manifest.json">
+<!-- Bumped on every deploy, alongside version.txt. The installed app compares
+     the two and offers a reload when they differ, because iOS holds a
+     home-screen app's HTML long after the server has moved on. -->
+<meta name="build" content="2026-09-14.1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1070,6 +1074,38 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .tp-card-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+
+  /* ===== UPDATE BANNER ===== */
+  #update-banner {
+    position: fixed;
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--warn);
+    color: #1a1200;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px 12px 10px 14px;
+    border-radius: 8px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.45);
+    max-width: calc(100vw - 24px);
+  }
+  #update-banner button {
+    border: none;
+    background: #1a1200;
+    color: var(--warn);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
 
   /* ===== LIVE GAME ===== */
   .live-bar {
@@ -8554,6 +8590,45 @@ async function deleteCoach() {
   await supa('team_config', 'POST', [{ key: 'team_settings', value: TEAM_SETTINGS }], '?on_conflict=key', 'resolution=merge-duplicates');
   toast('Deleted');
 }
+
+// ============================================================
+// UPDATE CHECK
+// ============================================================
+// The installed app can be a day behind the server. Compare the build stamped
+// into this page with version.txt on the server, and offer a reload when they
+// differ. Checks on load, whenever the app comes back to the foreground, and
+// every few minutes while it's open.
+const BUILD = document.querySelector('meta[name="build"]')?.content || '';
+let UPDATE_OFFERED = false;
+
+async function checkForUpdate() {
+  if (!BUILD || UPDATE_OFFERED) return;
+  try {
+    const res = await fetch('version.txt?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const latest = (await res.text()).trim();
+    if (latest && latest !== BUILD) showUpdateBanner(latest);
+  } catch (e) { /* offline — try again later */ }
+}
+
+function showUpdateBanner(latest) {
+  UPDATE_OFFERED = true;
+  const b = document.createElement('div');
+  b.id = 'update-banner';
+  b.innerHTML = `
+    <span>A newer version is ready <span class="mono" style="opacity:.6">(${esc(latest)})</span></span>
+    <button onclick="applyUpdate()">Update now</button>`;
+  document.body.appendChild(b);
+}
+
+function applyUpdate() {
+  // A query string defeats the cached copy in an installed app.
+  location.href = location.pathname + '?v=' + Date.now();
+}
+
+setTimeout(checkForUpdate, 2500);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkForUpdate(); });
+setInterval(checkForUpdate, 5 * 60 * 1000);
 
 // ============================================================
 // KEYBOARD SHORTCUTS
