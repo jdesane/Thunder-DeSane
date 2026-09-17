@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-17.15">
+<meta name="build" content="2026-09-17.16">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -5564,7 +5564,7 @@ function submitCoachNote(key, coach) {
   entries[coach] = { text: sent, at: new Date().toISOString() };
   RV_NOTES[key] = entries;
   clearTimeout(RV_PENDING[key + '|' + coach]);
-  saveCoachNote(key, coach);
+  saveCoachNote(key, coach).then(() => notifyManager(key, coach), () => {});
   const ta = document.querySelector(`textarea[data-rv-note="${key}"][data-rv-coach="${coach}"]`);
   const box = ta?.closest('.rv-coach');
   if (box) {
@@ -5575,6 +5575,21 @@ function submitCoachNote(key, coach) {
   }
   renderCoachStatus();
   toast(`${coach.split(/\s+/)[0]}'s note sent`);
+}
+// The manager gets an email for each submitted note, through the
+// review-notify Edge Function, which reads the note back from the table
+// before sending. Best effort — a failure here never touches the note.
+const NOTIFY_FN = SUPA_URL.replace(/\/$/, '') + '/functions/v1/review-notify';
+function sectionLabel(key) {
+  if (RV_LABELS[key]) return RV_LABELS[key];
+  if (key.startsWith('player:')) return playerById(key.slice(7))?.name || 'a player';
+  return { overview: 'Weekend overview', final: 'Final coach thoughts' }[key] || key;
+}
+function notifyManager(key, coach) {
+  if (!RV_NOTES_KEY) return;
+  const scope = reviewScope();
+  const body = { scope_key: RV_NOTES_KEY, key, coach, label: sectionLabel(key), scope: (scope?.label || '').replace(/ · \d+ games$/, ''), link: reviewLink('coach') };
+  fetch(NOTIFY_FN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {});
 }
 // Reading submitted notes is the manager's view. It's a per-device switch,
 // behind the review PIN from team settings when one is set.

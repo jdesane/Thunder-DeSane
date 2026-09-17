@@ -105,6 +105,12 @@ system prompt forbids inventing stats or observations — keep it that way.
   never select; the function reads it with the service role). Rotating it:
   delete the row by SQL, then a plain POST insert with the anon key — an
   upsert fails because anon can't SELECT. `claude-opus-5`, ~1–2¢ a draft.
+- **Submit notifications**: each coach Submit calls
+  `supabase/functions/review-notify`, which reads the note back from
+  `team_reviews`, emails it to `team_settings.review_notify_email` through
+  Resend (`team_secrets.resend_api_key`, from `onboarding@resend.dev` — only
+  the Resend account's own address can receive until a domain is verified),
+  and stamps `notified` on the entry so the same submission isn't mailed twice.
 - **Standalone review URLs** (vercel.json rewrites `/review/*` to
   index.html): `/review/<tournament-slug>` is the assessment on its own
   for the staff, `/review/<slug>/reports` all player reports,
