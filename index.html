@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-17.1">
+<meta name="build" content="2026-09-17.2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -5375,7 +5375,7 @@ function noteEntries(key) {
 }
 function noteEntry(key, coach) { return noteEntries(key)[coach] || { text: '', at: null }; }
 // Report fields (the parent-facing copy) are single strings written by the manager.
-function reportField(key) { const v = RV_NOTES[key]; return typeof v === 'string' ? v : (v && typeof v === 'object' ? (v[managerName()]?.text || '') : ''); }
+function reportField(key) { const v = RV_NOTES[key]; return typeof v === 'string' ? v : ''; }
 
 async function loadReviewNotes(scopeKey) {
   RV_NOTES_KEY = scopeKey; RV_NOTES = {};
@@ -5386,8 +5386,7 @@ async function loadReviewNotes(scopeKey) {
   if (RV_UI.mode === 'reports' && UI.section === 'review') { renderReview(); return; }
   document.querySelectorAll('[data-rv-note]').forEach(ta => {
     if (!ta.dataset.rvCoach) { ta.value = reportField(ta.dataset.rvNote); return; }
-    const e = noteEntry(ta.dataset.rvNote, ta.dataset.rvCoach);
-    ta.value = ta.dataset.rvCoach === managerName() ? (e.text || '') : (e.draft || '');
+    ta.value = noteEntry(ta.dataset.rvNote, ta.dataset.rvCoach).draft || '';
   });
   if (showSubmitted()) { renderReview(); return; }   // submitted notes are part of the markup
   renderReview_stampBoxes();
@@ -5400,31 +5399,30 @@ function renderReview_stampBoxes() {
     const box = ta.closest('.rv-coach'); const r = box?.querySelector('.rv-coach-r');
     if (!box || !r) return;
     box.classList.toggle('done', !!e.at);
-    r.textContent = e.at ? 'Submitted ' + fmtStamp(e.at) : ((ta.dataset.rvCoach === managerName() ? e.text : e.draft) ? 'Draft' : '');
+    r.textContent = e.at ? 'Submitted ' + fmtStamp(e.at) : (e.draft ? 'Draft' : '');
   });
 }
 const RV_PENDING = {};   // key|coach -> timer
 function setReviewNote(key, coach, val) {
   const entries = noteEntries(key);
   const cur = entries[coach] || { text: '', at: null };
-  // Manager edits the note itself; other coaches build a draft that Submit sends
-  entries[coach] = coach === managerName() ? { ...cur, text: val } : { ...cur, draft: val };
+  entries[coach] = { ...cur, draft: val };   // a draft until Submit sends it
   RV_NOTES[key] = entries;
   const id = key + '|' + coach;
   clearTimeout(RV_PENDING[id]);
   const s = document.querySelector(`[data-rv-saved="${id}"]`); if (s) s.textContent = 'saving…';
   RV_PENDING[id] = setTimeout(() => saveCoachNote(key, coach), 900);
 }
-// A coach's box holds a draft until Submit. Submitting appends the draft to
-// whatever that coach already sent on this section and clears the box — the
-// note goes to the manager, not to the other coaches' screens. The manager's
-// own box behaves like a normal note: it keeps its text.
+// Every box — the manager's included — holds a draft until Submit. Submitting
+// appends the draft to whatever that coach already sent on this section and
+// clears the box. Nothing sent is shown back on the page; the manager reads
+// it with "Show submitted notes".
 function submitCoachNote(key, coach) {
   const entries = noteEntries(key);
   const cur = entries[coach] || { text: '', at: null };
-  const draft = (cur.draft ?? (coach === managerName() ? cur.text : '')).trim();
+  const draft = (cur.draft || '').trim();
   if (!draft) { toast('Nothing to submit yet'); return; }
-  const sent = coach === managerName() ? draft : [cur.at ? cur.text : '', draft].filter(Boolean).join('\n\n');
+  const sent = [cur.text, draft].filter(x => x && x.trim()).join('\n\n');
   entries[coach] = { text: sent, at: new Date().toISOString() };
   RV_NOTES[key] = entries;
   clearTimeout(RV_PENDING[key + '|' + coach]);
@@ -5434,13 +5432,30 @@ function submitCoachNote(key, coach) {
   if (box) {
     box.classList.add('done');
     const r = box.querySelector('.rv-coach-r'); if (r) r.textContent = 'Submitted ' + fmtStamp(entries[coach].at);
-    if (coach !== managerName()) { ta.value = ''; ta.placeholder = 'Sent — thanks. Anything else you want to add goes here.'; }
+    ta.value = ''; ta.placeholder = 'Sent — thanks. Anything else you want to add goes here.';
+    if (showSubmitted()) renderReview();
   }
   renderCoachStatus();
-  toast(`${coach.split(/\s+/)[0]}'s note sent to ${managerName().split(/\s+/)[0]}`);
+  toast(`${coach.split(/\s+/)[0]}'s note sent`);
 }
+// Reading submitted notes is the manager's view. It's a per-device switch,
+// behind the review PIN from team settings when one is set.
 function showSubmitted() { try { return localStorage.getItem('thunder_rv_show_notes') === '1'; } catch { return false; } }
-function toggleShowSubmitted(on) { try { localStorage.setItem('thunder_rv_show_notes', on ? '1' : '0'); } catch {} renderReview(); }
+function toggleShowSubmitted(on) {
+  if (on) {
+    const pin = String(TEAM_SETTINGS.review_pin || '').trim();
+    let ok = !pin;
+    try { ok = ok || localStorage.getItem('thunder_rv_pin_ok') === pin; } catch {}
+    if (!ok) {
+      const entered = prompt('Submitted notes are private to the manager. Enter the review PIN:');
+      if (entered === null) { renderReview(); return; }
+      if (entered.trim() !== pin) { toast('Wrong PIN'); renderReview(); return; }
+      try { localStorage.setItem('thunder_rv_pin_ok', pin); } catch {}
+    }
+  }
+  try { localStorage.setItem('thunder_rv_show_notes', on ? '1' : '0'); } catch {}
+  renderReview();
+}
 function setReportField(key, val) {
   RV_NOTES[key] = val;
   clearTimeout(RV_PENDING[key]);
@@ -5476,7 +5491,6 @@ function fmtStamp(iso) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 function noteBox(key, placeholder) {
-  const mgr = managerName(), mgrFirst = mgr.split(/\s+/)[0];
   const reveal = showSubmitted();
   return `<details class="rv-note" open>
     <summary class="rv-note-s"><span class="rv-note-l">Coach thoughts on this section</span><span class="card-link"></span></summary>
@@ -5485,13 +5499,12 @@ function noteBox(key, placeholder) {
       ${reviewCoaches().map(c => {
         const e = noteEntry(key, c.name);
         const first = c.name.split(/\s+/)[0];
-        const isMgr = c.name === mgr;
-        const boxText = isMgr ? (e.text || '') : (e.draft || '');
+        const boxText = e.draft || '';
         const stamp = e.at ? 'Submitted ' + fmtStamp(e.at) : (boxText ? 'Draft' : '');
         return `<div class="rv-coach ${e.at ? 'done' : ''}">
           <div class="rv-coach-h"><span class="rv-coach-n">${esc(first)}</span><span class="rv-coach-r">${stamp}</span></div>
-          ${!isMgr && reveal && e.text ? `<div class="rv-coach-sent">${esc(e.text)}</div>` : ''}
-          <textarea data-rv-note="${key}" data-rv-coach="${esc(c.name)}" placeholder="${esc(isMgr ? (placeholder || 'Thoughts on this section…') : (e.at ? 'Sent — anything else you want to add goes here.' : 'Thoughts on this section…'))}"
+          ${reveal && e.text ? `<div class="rv-coach-sent">${esc(e.text)}</div>` : ''}
+          <textarea data-rv-note="${key}" data-rv-coach="${esc(c.name)}" placeholder="${esc(e.at ? 'Sent — anything else you want to add goes here.' : 'Thoughts on this section…')}"
             oninput="setReviewNote('${key}', this.dataset.rvCoach, this.value)">${esc(boxText)}</textarea>
           <div class="rv-coach-f">
             <span class="rv-saved" data-rv-saved="${key}|${esc(c.name)}"></span>
@@ -5500,7 +5513,7 @@ function noteBox(key, placeholder) {
         </div>`;
       }).join('')}
     </div>
-    <div class="rv-note-i">After you submit, the box clears. Your note goes to ${esc(mgrFirst)} and is not shown to the other coaches on this page.</div>
+    <div class="rv-note-i"><b>Coach feedback:</b> Coach notes are submitted privately. After a note is sent, the box clears and the note is not shown back on this page.</div>
   </details>`;
 }
 function fieldBox(key, label, placeholder) {
@@ -5514,7 +5527,7 @@ function coachStatus() {
   const keys = Object.keys(RV_NOTES).filter(k => !k.startsWith('report:'));
   return coaches.map(c => {
     let submitted = 0, drafts = 0;
-    keys.forEach(k => { const e = noteEntries(k)[c.name]; if (!e) return; if (e.at) submitted++; else if ((c.name === managerName() ? e.text : e.draft)?.trim()) drafts++; });
+    keys.forEach(k => { const e = noteEntries(k)[c.name]; if (!e) return; if (e.at) submitted++; else if (e.draft?.trim()) drafts++; });
     return { name: c.name, first: c.name.split(/\s+/)[0], submitted, drafts };
   });
 }

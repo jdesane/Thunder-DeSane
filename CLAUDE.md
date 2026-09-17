@@ -69,12 +69,12 @@ coach's. If data is missing, say so in the UI rather than fill it in.
   a fresh export; import with the script below.
 - `team_reviews` — notes per review scope (`scope_key` → `notes` jsonb).
   Each section key (`overview`, `hitting`, `player:<pid>`, …) holds
-  `{ "<coach name>": { text, at, draft? } }`. The manager's box edits
-  `text` directly; every other coach types a `draft`, and Submit appends
-  it to `text`, stamps `at`, and clears the box — other coaches never see
-  each other's notes on screen; the manager reads them with "Show
-  submitted notes". Coach order comes from `team_settings.coaches`,
-  manager first. `report:<pid>:{why,plan,message,home}` and
+  `{ "<coach name>": { text, at, draft? } }`. Every coach — the manager
+  included — types a `draft`; Submit appends it to `text`, stamps `at`,
+  and clears the box. Nothing sent is ever shown back on the page; the
+  manager reads it with "Show submitted notes", a per-device switch gated
+  by `team_settings.review_pin` when set. Coach order comes from
+  `team_settings.coaches`, manager first. `report:<pid>:{why,plan,message,home}` and
   `report:team:focus` are plain strings — the parent-facing Player
   Report copy. A bare string under a section key is a legacy manager note.
   Reports print one page per player; empty report fields are omitted, never
