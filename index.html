@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-17.13">
+<meta name="build" content="2026-09-17.14">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -5691,6 +5691,11 @@ function unlockManager() {
   renderReview(); return true;
 }
 function pubText(key) { return reportField('pub:' + key).trim(); }
+// The other players' write-ups, so a player's draft doesn't recycle their lines
+function pubOthers(key) {
+  if (!key.startsWith('player:')) return '';
+  return Object.keys(RV_LABELS).filter(k => k.startsWith('player:') && k !== key && pubText(k)).map(k => `${RV_LABELS[k]}:\n${pubText(k)}`).join('\n\n');
+}
 function pubSent() { return reportField('pub:_sent'); }
 function pubBlock(key, label) {
   RV_LABELS[key] = label;
@@ -5723,7 +5728,7 @@ async function draftPub(key, label, btn) {
   if (!managerUnlocked() && !unlockManager()) return;
   const wrap = btn.closest('.rv-pub-wrap');
   const instr = wrap.querySelector('[data-pub-instr]')?.value || '';
-  const body = { pin: reviewPin(), section: label, data: RV_DATA[key] || '', notes: noteEntry(key, managerName()).text || '', current: pubText(key), instruction: instr };
+  const body = { pin: reviewPin(), section: label, data: RV_DATA[key] || '', notes: noteEntry(key, managerName()).text || '', current: pubText(key), instruction: instr, others: pubOthers(key) };
   const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Writing…';
   wrap.querySelectorAll('button').forEach(b => b.disabled = true);
   try {
@@ -5740,9 +5745,10 @@ async function draftPub(key, label, btn) {
   }
 }
 // Every section at once. Sections that already have a write-up are left
-// alone unless none are missing — then it offers to rewrite them all. Calls
-// run three at a time; saves go one after another because each save
-// rewrites the whole notes row.
+// alone unless none are missing — then it offers to rewrite them all. Team
+// sections run two at a time; players go one after another so each draft
+// can see the ones before it and not recycle their lines. Saves are
+// serialised because each save rewrites the whole notes row.
 async function draftAllPub() {
   if (!managerUnlocked() && !unlockManager()) return;
   if (RV_UI.draftAll) return;
@@ -5759,13 +5765,13 @@ async function draftAllPub() {
   document.querySelectorAll('.rv-pub-tools button').forEach(b => b.disabled = true);
   renderPubStatus();
   let saving = Promise.resolve();
-  const queue = [...todo];
-  const worker = async () => {
+  const teamQ = todo.filter(k => !k.startsWith('player:')), playerQ = todo.filter(k => k.startsWith('player:'));
+  const worker = async (queue) => {
     while (queue.length) {
       const key = queue.shift(); const label = RV_LABELS[key];
       RV_UI.draftAll.current = label; renderPubStatus();
       try {
-        const body = { pin: reviewPin(), section: label, data: RV_DATA[key] || '', notes: noteEntry(key, managerName()).text || '', current: empty.length ? '' : pubText(key), instruction: '' };
+        const body = { pin: reviewPin(), section: label, data: RV_DATA[key] || '', notes: noteEntry(key, managerName()).text || '', current: empty.length ? '' : pubText(key), instruction: '', others: pubOthers(key) };
         const res = await fetch(DRAFT_FN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const out = await res.json().catch(() => ({}));
         if (!res.ok || !out.text) throw new Error(out.error || `HTTP ${res.status}`);
@@ -5777,7 +5783,7 @@ async function draftAllPub() {
       RV_UI.draftAll.done++; renderPubStatus();
     }
   };
-  await Promise.all([worker(), worker(), worker()]);
+  await Promise.all([worker(teamQ), worker(teamQ), worker(playerQ)]);
   await saving.catch(() => {});
   const { failed, total } = RV_UI.draftAll; RV_UI.draftAll = null;
   renderReview();

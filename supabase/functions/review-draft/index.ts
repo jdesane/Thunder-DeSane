@@ -8,6 +8,8 @@
 //   notes       the manager's own private note on the section (may be empty)
 //   current     the existing write-up, when rewriting (may be empty)
 //   instruction what the manager wants changed or added (may be empty)
+//   others      for a player section: the other players' write-ups already in
+//               this review, so phrasing is not recycled (may be empty)
 // → { text }
 //
 // The Anthropic key lives in team_secrets (service role only) or the
@@ -32,7 +34,9 @@ Voice: plain, direct, warm, like a coach talking — not a report, not corporate
 Ground rules:
 - Use only the numbers you are given. Never invent a statistic, a play, a quote, or something a coach saw. Youth scorekeeping is imperfect; treat numbers as direction, not verdicts.
 - The coach's notes are the source of any observation about what happened on the field. If there are no notes, stay with what the numbers show and say plainly that the staff's observations will fill in the rest — do not make up what was seen.
-- Kids are 8 and 9. Everything is teaching. Frame weaknesses as what we work on next, never as labels. Never rank or bury a player.
+- Everything is teaching. Frame weaknesses as what we work on next, never as labels. Never rank or bury a player.
+- Never mention age. Everyone reading knows how old the players are, so no "at nine", "for nine-year-olds", "at this age", or anything like it, and never grade a result against age.
+- Every player's write-up is his own. Say what his numbers and the notes say about him, and don't reach for stock lines. If other players' write-ups are supplied, do not repeat their phrasing, openings, compliments, or framing.
 - When rewriting, keep what the coach did not ask to change. Apply his instruction faithfully, in his voice, even if it means cutting.
 - Output the write-up only. No preamble, no title, no sign-off.`;
 
@@ -42,7 +46,7 @@ Deno.serve(async (req: Request) => {
 
   let body: Record<string, string>;
   try { body = await req.json(); } catch { return json({ error: "bad json" }, 400); }
-  const { pin = "", section = "", data = "", notes = "", current = "", instruction = "" } = body;
+  const { pin = "", section = "", data = "", notes = "", current = "", instruction = "", others = "" } = body;
 
   const supa = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
@@ -63,6 +67,7 @@ Deno.serve(async (req: Request) => {
   parts.push(`\nThe numbers:\n${data.trim() || "(none provided)"}`);
   parts.push(`\nCoach's private notes on this section:\n${notes.trim() || "(none yet)"}`);
   if (current.trim()) parts.push(`\nCurrent write-up:\n${current.trim()}`);
+  if (others.trim()) parts.push(`\nOther players' write-ups already in this review (do not reuse their phrasing):\n${others.trim()}`);
   if (instruction.trim()) parts.push(`\nWhat the coach wants changed or added:\n${instruction.trim()}`);
   else if (current.trim()) parts.push(`\nTighten and improve the current write-up without changing its meaning.`);
   else parts.push(`\nWrite the first draft.`);
