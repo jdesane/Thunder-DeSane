@@ -11,32 +11,35 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Thunder">
 <meta name="application-name" content="Thunder">
-<meta name="theme-color" content="#0b0d10">
+<meta name="theme-color" content="#0a0a0a">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
 <link rel="manifest" href="/manifest.json">
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-17.6">
+<meta name="build" content="2026-09-17.7">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:            #0b0d10;
-    --bg-elev:       #14171c;
-    --bg-elev-2:     #1a1e24;
-    --bg-hover:      #1e2229;
-    --border:        rgba(255,255,255,0.06);
-    --border-strong: rgba(255,255,255,0.12);
-    --text:          #e8ecf0;
-    --text-muted:    #8b929c;
-    --text-subtle:   #5a6068;
+    /* Team colours: black and Steeltown gold (#FFB612). Green and red stay for
+       good/bad signals — a pitching violation has to read as red. */
+    --gold:          #FFB612;
+    --bg:            #0a0a0a;
+    --bg-elev:       #141414;
+    --bg-elev-2:     #1c1c1c;
+    --bg-hover:      #222222;
+    --border:        rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.14);
+    --text:          #f0f0f0;
+    --text-muted:    #9a9a9a;
+    --text-subtle:   #616161;
     --pos:           #22c55e;
     --neg:           #ef4444;
-    --warn:          #f59e0b;
-    --info:          #60a5fa;
+    --warn:          #FFB612;
+    --info:          #FFB612;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -79,7 +82,9 @@
     padding: 6px 10px 14px;
     border-bottom: 1px solid var(--border);
     margin-bottom: 8px;
+    display: flex; align-items: center; gap: 10px;
   }
+  .sidebar-logo { width: 34px; height: 34px; flex-shrink: 0; object-fit: contain; object-position: center; }
   .sidebar-brand-name {
     font-weight: 600;
     font-size: 13px;
@@ -113,7 +118,7 @@
     user-select: none;
   }
   .nav-item:hover { background: var(--bg-hover); color: var(--text); }
-  .nav-item.active { background: var(--bg-elev-2); color: var(--text); }
+  .nav-item.active { background: var(--bg-elev-2); color: var(--gold); box-shadow: inset 3px 0 0 var(--gold); }
   .nav-item .nav-icon {
     width: 16px;
     height: 16px;
@@ -238,11 +243,11 @@
   }
   .btn:hover { background: var(--bg-hover); }
   .btn-primary {
-    background: var(--text);
-    color: var(--bg);
-    border-color: var(--text);
+    background: var(--gold);
+    color: #000;
+    border-color: var(--gold);
   }
-  .btn-primary:hover { background: #fff; color: var(--bg); }
+  .btn-primary:hover { background: #ffc63d; border-color: #ffc63d; color: #000; }
   .btn-secondary {
     background: var(--bg-elev);
     border-color: var(--border-strong);
@@ -414,8 +419,8 @@
   }
   .pill-pos { background: rgba(34,197,94,0.12); color: var(--pos); }
   .pill-neg { background: rgba(239,68,68,0.12); color: var(--neg); }
-  .pill-warn { background: rgba(245,158,11,0.12); color: var(--warn); }
-  .pill-info { background: rgba(96,165,250,0.12); color: var(--info); }
+  .pill-warn { background: rgba(255,182,18,0.12); color: var(--warn); }
+  .pill-info { background: rgba(255,182,18,0.12); color: var(--info); }
   .pill-muted { background: rgba(255,255,255,0.04); color: var(--text-muted); }
 
   /* ===== TABS ===== */
@@ -477,7 +482,7 @@
     position: relative;
     overflow: hidden;
     background:
-      radial-gradient(120% 140% at 100% 0%, rgba(245,158,11,0.14) 0%, rgba(245,158,11,0) 55%),
+      radial-gradient(120% 140% at 100% 0%, rgba(255,182,18,0.14) 0%, rgba(255,182,18,0) 55%),
       var(--bg-elev);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -564,7 +569,7 @@
     font-weight: 700;
   }
   .check-mark.done    { background: rgba(34,197,94,0.14);  color: var(--pos); }
-  .check-mark.partial { background: rgba(245,158,11,0.14); color: var(--warn); }
+  .check-mark.partial { background: rgba(255,182,18,0.14); color: var(--warn); }
   .check-mark.todo    { background: rgba(255,255,255,0.05); color: var(--text-subtle); }
   .check-label { flex: 1; color: var(--text); }
   .check-value { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
@@ -623,7 +628,7 @@
   /* Card link in title */
   .card-link {
     font-size: 11px;
-    color: var(--text-muted);
+    color: var(--gold);
     cursor: pointer;
     font-weight: 500;
     white-space: nowrap;
@@ -816,7 +821,7 @@
   .cell-select:hover { border-color: var(--border-strong); }
   .cell-select.empty { color: var(--text-subtle); }
   .cell-select.dup { border-color: var(--neg); color: var(--neg); }
-  .cell-select.pitch { background: rgba(245,158,11,0.10); }
+  .cell-select.pitch { background: rgba(255,182,18,0.10); }
 
   /* Rule check */
   .rule-row {
@@ -836,7 +841,7 @@
     margin-top: 1px;
   }
   .rule-icon.pass { background: rgba(34,197,94,0.14);  color: var(--pos); }
-  .rule-icon.warn { background: rgba(245,158,11,0.14); color: var(--warn); }
+  .rule-icon.warn { background: rgba(255,182,18,0.14); color: var(--warn); }
   .rule-icon.fail { background: rgba(239,68,68,0.14);  color: var(--neg); }
   .rule-body { flex: 1; min-width: 0; }
   .rule-label { color: var(--text); }
@@ -986,7 +991,7 @@
     background: rgba(255,255,255,0.07);
   }
   .cap-pip.on   { background: var(--pos); }
-  .cap-pip.used { background: rgba(245,158,11,0.55); }
+  .cap-pip.used { background: rgba(255,182,18,0.55); }
   .arm-right { text-align: right; white-space: nowrap; }
   .arm-num { font-size: 11px; color: var(--text-subtle); margin-top: 4px; }
 
@@ -1032,7 +1037,7 @@
   }
   table.forecast td.who { text-align: left; color: var(--text); font-size: 12px; background: transparent !important; }
   td.st-pos { background: rgba(34,197,94,0.12);  color: var(--pos); }
-  td.st-warn{ background: rgba(245,158,11,0.12); color: var(--warn); }
+  td.st-warn{ background: rgba(255,182,18,0.12); color: var(--warn); }
   td.st-neg { background: rgba(239,68,68,0.12);  color: var(--neg); }
 
   .rule-note {
@@ -1067,7 +1072,7 @@
     display: grid; place-items: center;
     margin-bottom: 8px;
   }
-  .tp-card.is-set .tp-card-n { background: rgba(245,158,11,0.16); color: var(--warn); }
+  .tp-card.is-set .tp-card-n { background: rgba(255,182,18,0.16); color: var(--warn); }
   .tp-card-name {
     font-size: 13px; font-weight: 500; color: var(--text);
     line-height: 1.3; margin-bottom: 3px;
@@ -1077,6 +1082,7 @@
 
   /* ===== REVIEW ===== */
   .rv-section { margin-bottom: 22px; }
+  .rv-logo { width: 22px; height: 22px; vertical-align: middle; margin: -4px 6px 0 0; }
   .rv-kicker {
     font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
     color: var(--warn); font-weight: 600; margin-bottom: 4px;
@@ -1102,7 +1108,7 @@
   .rv-fact {
     border-left: 3px solid var(--warn);
     padding: 8px 12px;
-    background: rgba(245,158,11,0.06);
+    background: rgba(255,182,18,0.06);
     border-radius: 0 6px 6px 0;
     font-size: 13px; line-height: 1.5;
     margin: 10px 0;
@@ -1149,7 +1155,7 @@
   .rv-pub p:last-child { margin-bottom: 0; }
   .rv-pub-none { color: var(--text-subtle); font-style: italic; font-size: 13px; }
   .rv-pub-edit { width: 100%; min-height: 160px; resize: vertical; background: var(--bg); border: 1px solid var(--warn); border-radius: 6px; color: var(--text); font-family: inherit; font-size: 13.5px; line-height: 1.6; padding: 10px 12px; margin: 10px 0; }
-  .rv-pub-tools { border: 1px dashed var(--border-strong); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; background: rgba(245,158,11,0.03); }
+  .rv-pub-tools { border: 1px dashed var(--border-strong); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; background: rgba(255,182,18,0.03); }
   .rv-pub-tools textarea { width: 100%; min-height: 44px; resize: vertical; background: var(--bg); border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text); font-family: inherit; font-size: 13px; line-height: 1.5; padding: 8px 10px; }
   .rv-pub-tools textarea:focus { outline: none; border-color: var(--warn); }
   .rv-pub-btns { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
@@ -1184,18 +1190,20 @@
     box-shadow: 0 2px 14px rgba(0,0,0,0.45); font-size: 12px; line-height: 1.45;
   }
   .pr-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; border-bottom: 4px solid #111; padding-bottom: 12px; }
+  .pr-brand { display: flex; align-items: flex-start; gap: 14px; }
+  .pr-logo { width: 56px; height: 56px; flex-shrink: 0; }
   .pr-team { font-size: 22px; font-weight: 800; letter-spacing: 0.02em; line-height: 1.1; color: #111; }
-  .pr-team small { display: block; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; color: #b45309; margin-top: 4px; }
+  .pr-team small { display: block; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; color: #b07a00; margin-top: 4px; }
   .pr-meta { font-size: 11px; color: #555; margin-top: 6px; }
-  .pr-card { border: 2px solid #f59e0b; border-radius: 8px; padding: 8px 14px; min-width: 220px; }
+  .pr-card { border: 2px solid #FFB612; border-radius: 8px; padding: 8px 14px; min-width: 220px; }
   .pr-card-n { font-size: 16px; font-weight: 700; color: #111; }
   .pr-card-n span { color: #b45309; margin-right: 8px; }
   .pr-card-s { font-size: 11px; color: #555; margin-top: 2px; }
   .pr-means { background: #f4f4f5; border-radius: 6px; padding: 8px 12px; margin: 12px 0; font-size: 11px; color: #333; }
   .pr-means b { color: #111; margin-right: 8px; }
-  .pr-bar { background: #111; color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 5px 10px; border-left: 5px solid #f59e0b; margin: 14px 0 8px; }
+  .pr-bar { background: #111; color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 5px 10px; border-left: 5px solid #FFB612; margin: 14px 0 8px; }
   .pr-tiles { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
-  .pr-tile { border: 1px solid #ddd; border-top: 3px solid #f59e0b; border-radius: 6px; padding: 8px 6px; text-align: center; }
+  .pr-tile { border: 1px solid #ddd; border-top: 3px solid #FFB612; border-radius: 6px; padding: 8px 6px; text-align: center; }
   .pr-tile-l { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: #666; }
   .pr-tile-v { font-size: 18px; font-weight: 700; color: #111; margin-top: 2px; }
   table.pr-cmp { width: 100%; border-collapse: collapse; font-size: 11px; }
@@ -1204,7 +1212,7 @@
   table.pr-cmp td.dim { color: #555; }
   .pr-key { font-size: 10px; color: #666; background: #f4f4f5; border-radius: 6px; padding: 6px 10px; margin-top: 8px; }
   .pr-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
-  .pr-box { border: 1px solid #ddd; border-top: 3px solid #f59e0b; border-radius: 6px; padding: 8px 10px; }
+  .pr-box { border: 1px solid #ddd; border-top: 3px solid #FFB612; border-radius: 6px; padding: 8px 10px; }
   .pr-box-k { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: #666; }
   .pr-box-h { font-size: 13px; font-weight: 700; color: #111; margin: 2px 0 4px; }
   .pr-box-t { font-size: 11px; color: #333; white-space: pre-line; }
@@ -1212,9 +1220,9 @@
   .pr-plan { display: grid; grid-template-columns: 1.6fr 1fr; gap: 10px; }
   .pr-steps { border: 1px solid #ddd; border-radius: 6px; padding: 8px 10px; }
   .pr-step { display: flex; gap: 8px; align-items: flex-start; padding: 3px 0; font-size: 11px; color: #333; }
-  .pr-step i { flex: 0 0 18px; height: 18px; border-radius: 50%; background: #f59e0b; color: #111; font-style: normal; font-weight: 700; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; }
+  .pr-step i { flex: 0 0 18px; height: 18px; border-radius: 50%; background: #FFB612; color: #111; font-style: normal; font-weight: 700; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; }
   .pr-msg { background: #111; color: #eee; border-radius: 6px; padding: 10px 12px; font-size: 11px; white-space: pre-line; }
-  .pr-msg-k { color: #f59e0b; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 4px; }
+  .pr-msg-k { color: #FFB612; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 4px; }
   .pr-foot { display: flex; justify-content: space-between; font-size: 9px; color: #777; border-top: 1px solid #ddd; padding-top: 8px; margin-top: 16px; }
   .pr-focus { font-size: 10px; color: #444; margin-top: 12px; font-style: italic; }
   .pr-empty { color: #999; font-style: italic; }
@@ -1262,6 +1270,8 @@
     .rv-stat, .rv-game, .rv-player { background: #fafafa; border-color: #ddd; break-inside: avoid; }
     .rv-stat-v, .rv-h, .rv-player-n, .rv-fact strong { color: #111; }
     .rv-stat-l, .rv-lead, .rv-note-l, .rv-player-p, .rv-srcs, .rv-mini-l, .rv-game-d { color: #555; }
+    .rv-kicker, .card-link { color: #b07a00; }
+    .btn-primary { background: #FFB612; color: #000; }
     .rv-fact { background: #fff7e6; border-left-color: #d98b00; }
     .rv-note textarea { border: 1px solid #ccc; background: #fff; color: #111; min-height: 0; }
     .rv-note textarea:placeholder-shown { display: none; }
@@ -1389,9 +1399,9 @@
     position: relative;
   }
   .fld-row:hover { background: var(--bg-hover); }
-  .fld-row.is-p:hover { background: rgba(245,158,11,0.10); }
+  .fld-row.is-p:hover { background: rgba(255,182,18,0.10); }
   .fld-row:last-child { border-bottom: none; }
-  .fld-row.is-p { background: rgba(245,158,11,0.06); }
+  .fld-row.is-p { background: rgba(255,182,18,0.06); }
   .fld-pos {
     width: 34px; flex: 0 0 34px;
     font-size: 11px; font-weight: 600;
@@ -1790,8 +1800,11 @@
   <!-- ================================ SIDEBAR ================================ -->
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <div class="sidebar-brand-name" data-team-field="team_name">SFL Thunder Black</div>
-      <div class="sidebar-brand-sub" data-team-field="topbar_sub">8U · Spring 2026</div>
+      <img class="sidebar-logo" src="/logo.svg" alt="">
+      <div>
+        <div class="sidebar-brand-name" data-team-field="team_name">SFL Thunder Black</div>
+        <div class="sidebar-brand-sub" data-team-field="topbar_sub">8U · Spring 2026</div>
+      </div>
     </div>
 
     <div class="nav-group-label">Coaching</div>
@@ -4346,7 +4359,7 @@ function renderPlanner() {
       </div>
       <div id="gp-dictate-preview"></div>
       ${plannerUndoLabel() ? `
-      <button class="pc-btn" style="width:100%;margin-top:10px;padding:11px 0;font-weight:500;color:var(--warn);border-color:rgba(245,158,11,0.35)"
+      <button class="pc-btn" style="width:100%;margin-top:10px;padding:11px 0;font-weight:500;color:var(--warn);border-color:rgba(255,182,18,0.35)"
               onclick="undoPlanner()">↩ Undo — ${esc(plannerUndoLabel())}</button>` : ''}
       <div style="font-size:11px;color:var(--text-subtle);line-height:1.5;margin-top:10px">
         Name all nine and it's a full lineup card — whoever isn't named is on the bench. Name one or two and it's a swap.
@@ -5087,9 +5100,9 @@ function renderPlayingTimeSection() {
       <div class="matrix-wrap"><table class="matrix" id="pt-matrix"></table></div>
       <div class="legend">
         <span>Fewer</span>
-        ${[0.08, 0.16, 0.24, 0.32, 0.38].map(a => `<span class="legend-swatch" style="background:rgba(34,197,94,${a})"></span>`).join('')}
+        ${[0.08, 0.16, 0.24, 0.32, 0.38].map(a => `<span class="legend-swatch" style="background:rgba(255,182,18,${a})"></span>`).join('')}
         <span>More innings</span>
-        <span style="margin-left:10px"><span class="legend-swatch" style="background:rgba(245,158,11,0.28);display:inline-block;vertical-align:middle"></span> Bench</span>
+        <span style="margin-left:10px"><span class="legend-swatch" style="background:rgba(255,255,255,0.16);display:inline-block;vertical-align:middle"></span> Bench</span>
         <span style="margin-left:10px">Click a row for that player's game log</span>
       </div>
     </div>
@@ -5127,7 +5140,7 @@ function renderPlayingTimeSection() {
 function heatStyle(v, max, hue) {
   if (!v) return '';
   const a = 0.08 + 0.30 * (v / Math.max(1, max));
-  return `background:${hue === 'warn' ? `rgba(245,158,11,${a.toFixed(3)})` : `rgba(34,197,94,${a.toFixed(3)})`}`;
+  return `background:${hue === 'warn' ? `rgba(255,255,255,${(a * 0.55).toFixed(3)})` : `rgba(255,182,18,${a.toFixed(3)})`}`;
 }
 
 function renderMatrix(data, avg) {
@@ -5186,9 +5199,9 @@ function matrixHTML(data, avg, { clickable = false } = {}) {
 function matrixLegendHTML() {
   return `<div class="legend">
     <span>Fewer</span>
-    ${[0.08, 0.16, 0.24, 0.32, 0.38].map(a => `<span class="legend-swatch" style="background:rgba(34,197,94,${a})"></span>`).join('')}
+    ${[0.08, 0.16, 0.24, 0.32, 0.38].map(a => `<span class="legend-swatch" style="background:rgba(255,182,18,${a})"></span>`).join('')}
     <span>More innings</span>
-    <span style="margin-left:10px"><span class="legend-swatch" style="background:rgba(245,158,11,0.28);display:inline-block;vertical-align:middle"></span> Bench</span>
+    <span style="margin-left:10px"><span class="legend-swatch" style="background:rgba(255,255,255,0.16);display:inline-block;vertical-align:middle"></span> Bench</span>
   </div>`;
 }
 
@@ -5825,7 +5838,7 @@ function renderReview() {
 
   body.innerHTML = `
     <div class="card" style="margin-bottom:14px">
-      <div class="rv-kicker">${esc(TEAM_SETTINGS.team_name || 'Team')} · ${esc(scope.tournament ? 'Tournament review' : 'Season review')}</div>
+      <div class="rv-kicker"><img class="rv-logo" src="/logo.svg" alt="">${esc(TEAM_SETTINGS.team_name || 'Team')} · ${esc(scope.tournament ? 'Tournament review' : 'Season review')}</div>
       <div class="rv-h" style="font-size:22px">${esc(scope.label.replace(/ · \d+ games$/, ''))}</div>
       <div class="rv-lead">${esc(when)} · ${n} game${n === 1 ? '' : 's'}${scoreOnly ? ` · <span style="color:var(--warn)">${scoreOnly} score-only (stats not imported)</span>` : ''}</div>
       <div class="rv-pub-status noprint" id="rv-pub-status"></div>
@@ -6076,9 +6089,12 @@ function reportPage(r, p, T, scope, when) {
 
   return `<div class="pr-page">
     <div class="pr-head">
-      <div>
+      <div class="pr-brand">
+        <img class="pr-logo" src="/logo.svg" alt="">
+        <div>
         <div class="pr-team">${esc((TEAM_SETTINGS.display_name || TEAM_SETTINGS.team_name || 'Team').toUpperCase())}<br>TOURNAMENT PLAYER REVIEW<small>${esc((TEAM_SETTINGS.team_name || '').toUpperCase())}</small></div>
         <div class="pr-meta">${esc(when)} · ${esc(scope.label.replace(/ · \d+ games$/, ''))}</div>
+        </div>
       </div>
       <div class="pr-card">
         <div class="pr-card-n"><span>#${esc(p.num || '')}</span>${esc(p.name || '')}</div>
@@ -6249,7 +6265,7 @@ function renderPitching() {
       </div>` : ''}
     </div>
 
-    ${scnOn ? `<div class="card" style="margin-bottom:12px;border-color:rgba(245,158,11,0.35)">
+    ${scnOn ? `<div class="card" style="margin-bottom:12px;border-color:rgba(255,182,18,0.35)">
       <div style="font-size:12px;color:var(--warn)">
         What-if mode — showing availability as if ${scenarioTotal()} hypothetical inning${scenarioTotal() === 1 ? '' : 's'} had been thrown. Nothing here is saved.
       </div>
@@ -6520,7 +6536,7 @@ function renderPitchForecast(tourney, byDate, rules, pool) {
     ${singleDay}
     <div class="legend">
       <span class="legend-swatch" style="background:rgba(34,197,94,0.2)"></span><span>Available</span>
-      <span class="legend-swatch" style="background:rgba(245,158,11,0.2);margin-left:8px"></span><span>Limited</span>
+      <span class="legend-swatch" style="background:rgba(255,182,18,0.2);margin-left:8px"></span><span>Limited</span>
       <span class="legend-swatch" style="background:rgba(239,68,68,0.2);margin-left:8px"></span><span>Rest required</span>
       <span style="margin-left:10px">Cells show innings still <em>available</em> that day; Weekend IP is what's already planned. Hover for the reason.</span>
     </div>`;
@@ -7153,7 +7169,7 @@ function renderLive() {
       </div>
       <div id="live-dictate-preview"></div>
       ${liveUndoLabel() ? `
-      <button class="pc-btn" style="width:100%;margin-top:10px;padding:11px 0;font-weight:500;color:var(--warn);border-color:rgba(245,158,11,0.35)"
+      <button class="pc-btn" style="width:100%;margin-top:10px;padding:11px 0;font-weight:500;color:var(--warn);border-color:rgba(255,182,18,0.35)"
               onclick="undoLive()">↩ Undo — ${esc(liveUndoLabel())}</button>` : ''}
       <div style="font-size:11px;color:var(--text-subtle);line-height:1.5;margin-top:10px">
         Names or jersey numbers, any position, "bench", "swap", "in for". Say an inning or it applies to the current one.

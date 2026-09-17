@@ -17,6 +17,14 @@ installed to an iPhone home screen; `coach.html` and `scout.html` are legacy.
    extract `<script>…</script>` and run `node --check` on it.
 3. Push to `main`. Vercel deploys in about a minute.
 
+## Look
+
+Team colours: black and Steeltown gold `#FFB612` (`--gold`, also `--warn`
+and `--info`). Green/red stay for good/bad signals. The mark is `logo.svg`
+(a vector redraw of the team logo); `scripts/make_icons.py` rasterises it
+onto black tiles for the home-screen icons and favicon — rerun it if the
+mark changes. Printed pages stay white with gold accents.
+
 ## Where things are in index.html
 
 CSS at the top, one `<section id="section-…">` per screen, then the script

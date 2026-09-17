@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1920">
+  <!-- SFL Thunder Black — the T with the bolt stem. Black outline, Steeltown gold. -->
+  <g stroke-linejoin="miter" stroke-miterlimit="6">
+    <!-- crossbar -->
+    <rect x="385" y="100" width="1175" height="510" fill="#0f1114"/>
+    <rect x="440" y="150" width="1070" height="405" fill="#FFB612"/>
+    <!-- bolt: black stroke first, then the gold fill over it -->
+    <polygon points="745,465 1170,465 1090,735 1290,735 565,1745 525,1770 500,1735 805,945 690,945"
+             fill="none" stroke="#0f1114" stroke-width="110"/>
+    <polygon points="745,465 1170,465 1090,735 1290,735 565,1745 525,1770 500,1735 805,945 690,945"
+             fill="#FFB612"/>
+    <!-- reopen the stem into the crossbar, leaving the two black ticks at the shoulders -->
+    <rect x="800" y="405" width="360" height="65" fill="#FFB612"/>
+  </g>
+</svg>
