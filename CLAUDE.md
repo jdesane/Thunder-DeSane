@@ -55,9 +55,14 @@ happened once (`renderPitching`); grep before naming.
 
 ## Judgement stays with the coach
 
-Never invent position ratings, tiers, opponent quality, or review
-narrative. The Position Chart and every "Coach thoughts" box are the
-coach's. If data is missing, say so in the UI rather than fill it in.
+Never invent position ratings, tiers, opponent quality, or coach notes.
+The Position Chart and every "Coach thoughts" box are the coach's. If data
+is missing, say so in the UI rather than fill it in. The one place text is
+generated is the Review's **published write-up** (`pub:<section>`), and
+only through the `review-draft` Edge Function on the manager's request:
+it drafts from the numbers plus his own private note, he revises it in the
+app, and nothing goes to the staff until he presses Send. The function's
+system prompt forbids inventing stats or observations — keep it that way.
 
 ## Data notes
 
@@ -79,6 +84,19 @@ coach's. If data is missing, say so in the UI rather than fill it in.
   Report copy. A bare string under a section key is a legacy manager note.
   Reports print one page per player; empty report fields are omitted, never
   filled in. `#review` and `#reports` in the URL open straight to those views.
+- **Published write-ups and drafting**: `pub:<section>` (overview, games,
+  hitting, pitching, defense, player:<pid>, practice, next) are plain
+  strings everyone reads; `pub:_sent` is the ISO time the manager sent the
+  review — the coach URL shows "still working on it" until then. Manager
+  controls (draft / rewrite / edit / send, the coach-status strip, and
+  "Show submitted notes") appear only on a device unlocked with the review
+  PIN (`localStorage.thunder_rv_pin_ok`). Drafting calls
+  `supabase/functions/review-draft` (source in the repo; deploy with the
+  Supabase MCP `deploy_edge_function`, `verify_jwt: false` — the PIN is the
+  auth). The Anthropic key sits in `team_secrets` (RLS: anon can insert,
+  never select; the function reads it with the service role). Rotating it:
+  delete the row by SQL, then a plain POST insert with the anon key — an
+  upsert fails because anon can't SELECT. `claude-opus-5`, ~1–2¢ a draft.
 - **Standalone review URLs** (vercel.json rewrites `/review/*` to
   index.html): `/review/<tournament-slug>` is the assessment on its own
   for the staff, `/review/<slug>/reports` all player reports,

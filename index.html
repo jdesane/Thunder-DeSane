@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-17.3">
+<meta name="build" content="2026-09-17.4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1140,6 +1140,19 @@
   .rv-status { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--text-muted); margin-top: 10px; }
   .rv-status b { color: var(--text); font-weight: 600; }
   .rv-status .ok { color: var(--pos); }
+  .rv-pub { margin: 10px 0 14px; font-size: 14px; line-height: 1.65; color: var(--text); max-width: 760px; }
+  .rv-pub p { margin: 0 0 10px; }
+  .rv-pub p:last-child { margin-bottom: 0; }
+  .rv-pub-none { color: var(--text-subtle); font-style: italic; font-size: 13px; }
+  .rv-pub-edit { width: 100%; min-height: 160px; resize: vertical; background: var(--bg); border: 1px solid var(--warn); border-radius: 6px; color: var(--text); font-family: inherit; font-size: 13.5px; line-height: 1.6; padding: 10px 12px; margin: 10px 0; }
+  .rv-pub-tools { border: 1px dashed var(--border-strong); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; background: rgba(245,158,11,0.03); }
+  .rv-pub-tools textarea { width: 100%; min-height: 44px; resize: vertical; background: var(--bg); border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text); font-family: inherit; font-size: 13px; line-height: 1.5; padding: 8px 10px; }
+  .rv-pub-tools textarea:focus { outline: none; border-color: var(--warn); }
+  .rv-pub-btns { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .rv-pub-btns .rv-saved { height: auto; margin: 0; }
+  .rv-pub-status { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 10px; }
+  .rv-pub-state { font-size: 12px; color: var(--warn); }
+  .rv-pub-state.ok { color: var(--pos); }
   .rv-reveal { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer; white-space: nowrap; }
   .rv-reveal input { accent-color: var(--warn); }
   .rv-mode { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 6px; overflow: hidden; }
@@ -1254,7 +1267,8 @@
     .rv-coach:has(.rv-coach-sent) textarea { display: none; }
     .rv-coach-sent { background: #f4faf5; border-left-color: #4caf50; color: #111; }
     .rv-coach-n, .rv-note-s .rv-note-l { color: #111; }
-    .rv-note-i, .rv-note-s .card-link, .rv-reveal { display: none; }
+    .rv-note-i, .rv-note-s .card-link, .rv-reveal, .rv-pub-tools, .rv-pub-edit, .rv-pub-none { display: none !important; }
+    .rv-pub { color: #111; }
     details.rv-note { border-color: #ddd; }
     details.rv-note:not(:has(.rv-coach-sent)):not(:has(textarea:not(:placeholder-shown))) { display: none; }
     /* Player reports: one page per player, nothing else */
@@ -2006,7 +2020,8 @@
           </div>
           <select class="input" id="rv-scope" style="width:auto;min-width:200px" onchange="RV_UI.scope=this.value; renderReview()"></select>
           <select class="input" id="rv-player" style="width:auto;min-width:150px;display:none" onchange="RV_UI.player=this.value; renderReview()"></select>
-          <label class="rv-reveal" title="Read what the other coaches have submitted (remembered on this device)"><input type="checkbox" id="rv-reveal" onchange="toggleShowSubmitted(this.checked)"> Show submitted notes</label>
+          <label class="rv-reveal" id="rv-reveal-wrap" title="Read what the other coaches have submitted (remembered on this device)"><input type="checkbox" id="rv-reveal" onchange="toggleShowSubmitted(this.checked)"> Show submitted notes</label>
+          <button class="btn btn-secondary btn-sm" id="rv-unlock" onclick="unlockManager()" title="Unlock the manager's controls on this device">Manager</button>
           <button class="btn btn-secondary btn-sm" id="rv-link-coach" onclick="copyReviewLink('coach')" title="A link that opens this review on its own, for the staff">Coach link</button>
           <button class="btn btn-secondary btn-sm" id="rv-link-report" style="display:none" onclick="copyReviewLink(RV_UI.player === 'all' ? 'reports' : 'player')" title="A link that opens just this report, for the family">Parent link</button>
           <button class="btn btn-secondary btn-sm" onclick="window.print()">Print / PDF</button>
@@ -5552,6 +5567,7 @@ function coachStatus() {
 }
 function renderCoachStatus() {
   const el = document.getElementById('rv-coach-status'); if (!el) return;
+  if (!managerUnlocked()) { el.innerHTML = ''; return; }
   el.innerHTML = coachStatus().map(s => s.submitted
     ? `<span><b>${esc(s.first)}</b> <span class="ok">✓</span> ${s.submitted} note${s.submitted === 1 ? '' : 's'}${s.drafts ? ` · ${s.drafts} draft${s.drafts === 1 ? '' : 's'}` : ''}</span>`
     : `<span><b>${esc(s.first)}</b> ${s.drafts ? `${s.drafts} draft${s.drafts === 1 ? '' : 's'}, nothing submitted` : 'waiting'}</span>`).join('');
@@ -5565,6 +5581,95 @@ function setReviewMode(mode) {
   const lr = document.getElementById('rv-link-report'); if (lr) { lr.style.display = mode === 'reports' ? '' : 'none'; }
   renderReview();
 }
+// ---- the published voice ----
+// Each section carries a write-up everyone reads (`pub:<section>`). The app
+// drafts it from the numbers and the manager's own private note through the
+// review-draft Edge Function, and the manager revises it — "what to change"
+// → rewrite — until he sends the review to the staff. Only the manager's
+// unlocked device sees the controls; coaches see the text.
+const DRAFT_FN = SUPA_URL.replace(/\/$/, '') + '/functions/v1/review-draft';
+let RV_DATA = {};   // section key -> the numbers, as text lines, for drafting
+function reviewPin() { return String(TEAM_SETTINGS.review_pin || '').trim(); }
+function managerUnlocked() {
+  const pin = reviewPin(); if (!pin) return true;
+  try { return localStorage.getItem('thunder_rv_pin_ok') === pin; } catch { return false; }
+}
+function unlockManager() {
+  const pin = reviewPin();
+  if (!pin) { renderReview(); return true; }
+  const entered = prompt('Manager only. Enter the review PIN:');
+  if (entered === null) return false;
+  if (entered.trim() !== pin) { toast('Wrong PIN'); return false; }
+  try { localStorage.setItem('thunder_rv_pin_ok', pin); } catch {}
+  renderReview(); return true;
+}
+function pubText(key) { return reportField('pub:' + key).trim(); }
+function pubSent() { return reportField('pub:_sent'); }
+function pubBlock(key, label) {
+  const text = pubText(key);
+  const mgr = managerUnlocked();
+  const paras = text ? text.split(/\n\s*\n/).map(p => `<p>${esc(p.trim()).replace(/\n/g, '<br>')}</p>`).join('') : '';
+  if (!mgr) return text ? `<div class="rv-pub">${paras}</div>` : '';
+  return `<div class="rv-pub-wrap" data-pub="${key}">
+    <div class="rv-pub ${text ? '' : 'empty'}" data-pub-view>${paras || `<p class="rv-pub-none">No write-up yet for ${esc(label)}. Draft one from the numbers${noteEntry(key, managerName()).text ? ' and your note' : ''}, then shape it.</p>`}</div>
+    <textarea class="rv-pub-edit" data-pub-edit style="display:none" oninput="setReportField('pub:${key}', this.value)">${esc(text)}</textarea>
+    <div class="rv-pub-tools noprint">
+      <textarea data-pub-instr placeholder="${esc(text ? 'What to change or add — e.g. “shorter, and mention the steal numbers”' : 'Anything you want in the draft — optional')}"></textarea>
+      <div class="rv-pub-btns">
+        <button class="btn btn-primary btn-sm" onclick="draftPub('${key}', ${JSON.stringify(label).replace(/"/g, '&quot;')}, this)">${text ? 'Rewrite' : 'Draft from data'}</button>
+        <button class="btn btn-secondary btn-sm" onclick="togglePubEdit(this)">Edit text</button>
+        ${text ? `<button class="btn btn-secondary btn-sm" onclick="if(confirm('Clear this write-up?')){setReportField('pub:${key}','');renderReview();}">Clear</button>` : ''}
+        <span class="rv-saved" data-rv-saved="pub:${key}"></span>
+      </div>
+    </div>
+  </div>`;
+}
+function togglePubEdit(btn) {
+  const wrap = btn.closest('.rv-pub-wrap');
+  const view = wrap.querySelector('[data-pub-view]'), ta = wrap.querySelector('[data-pub-edit]');
+  const editing = ta.style.display !== 'none';
+  if (editing) { renderReview(); return; }   // re-render shows the saved text
+  view.style.display = 'none'; ta.style.display = ''; ta.focus(); btn.textContent = 'Done';
+}
+async function draftPub(key, label, btn) {
+  if (!managerUnlocked() && !unlockManager()) return;
+  const wrap = btn.closest('.rv-pub-wrap');
+  const instr = wrap.querySelector('[data-pub-instr]')?.value || '';
+  const body = { pin: reviewPin(), section: label, data: RV_DATA[key] || '', notes: noteEntry(key, managerName()).text || '', current: pubText(key), instruction: instr };
+  const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Writing…';
+  wrap.querySelectorAll('button').forEach(b => b.disabled = true);
+  try {
+    const res = await fetch(DRAFT_FN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok || !out.text) throw new Error(out.error || `HTTP ${res.status}`);
+    RV_NOTES['pub:' + key] = out.text;
+    await saveCoachNote('pub:' + key, null);
+    renderReview();
+    toast(pubText(key) ? 'Write-up updated' : 'Drafted');
+  } catch (e) {
+    toast('Could not draft: ' + e.message);
+    btn.disabled = false; btn.textContent = orig; wrap.querySelectorAll('button').forEach(b => b.disabled = false);
+  }
+}
+async function sendReviewToCoaches() {
+  if (!managerUnlocked() && !unlockManager()) return;
+  const empty = Object.keys(RV_DATA).filter(k => !pubText(k) && !k.startsWith('player:')).length;
+  if (empty && !confirm(`${empty} section${empty === 1 ? ' has' : 's have'} no write-up yet. Send anyway?`)) return;
+  RV_NOTES['pub:_sent'] = new Date().toISOString();
+  await saveCoachNote('pub:_sent', null);
+  copyReviewLink('coach');
+  renderReview();
+}
+function renderPubStatus() {
+  const el = document.getElementById('rv-pub-status'); if (!el) return;
+  const sent = pubSent();
+  const mgr = managerUnlocked();
+  el.innerHTML = mgr
+    ? `<span class="rv-pub-state ${sent ? 'ok' : ''}">${sent ? 'Sent to coaches ' + fmtStamp(sent) : 'Draft — not sent to coaches'}</span>
+       <button class="btn ${sent ? 'btn-secondary' : 'btn-primary'} btn-sm" onclick="sendReviewToCoaches()">${sent ? 'Re-send link' : 'Send to coaches'}</button>`
+    : (sent ? '' : `<span class="rv-pub-state">Coach is still working on this review.</span>`);
+}
+
 // ---- standalone links: /review/<tournament>[/<player>|/reports] ----
 const slugify = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 function scopeSlug(scope) { return scope.key === 'season' ? 'season' : slugify(scope.tournament?.name || scope.label); }
@@ -5630,6 +5735,16 @@ function renderReview() {
 
   if (RV_UI.mode === 'reports') { renderPlayerReports(A, scope, when); return; }
   const ps = document.getElementById('rv-player'); if (ps) ps.style.display = 'none';
+  const ub = document.getElementById('rv-unlock'); if (ub) ub.style.display = managerUnlocked() ? 'none' : '';
+  const rw = document.getElementById('rv-reveal-wrap'); if (rw) rw.style.display = managerUnlocked() ? '' : 'none';
+
+  // The coach-facing page stays closed until the manager sends it
+  if (document.body.classList.contains('standalone') && !pubSent() && !managerUnlocked()) {
+    body.innerHTML = `<div class="card" style="max-width:640px;margin:40px auto"><div class="rv-kicker">${esc(TEAM_SETTINGS.team_name || 'Team')}</div>
+      <div class="rv-h">${esc(scope.label.replace(/ · \d+ games$/, ''))}</div>
+      <div class="rv-lead">Coach is still working on this review. You'll get the link again when it's ready for your thoughts.</div></div>`;
+    return;
+  }
 
   const unearned = pit.r - pit.er;
   const stealPct = div(bat.sb, bat.sb + bat.cs);
@@ -5642,11 +5757,43 @@ function renderReview() {
 
   const recStr = `${rec.W}-${rec.L}${rec.T ? '-' + rec.T : ''}`;
 
+  // The numbers each write-up is drafted from — the same ones shown on screen
+  RV_DATA = {};
+  const gameLine = g => `${g.game_date ? fmtShortDate(g.game_date) : ''} vs ${g.opponent || '?'}: ${(g.result?.outcome || '?')} ${g.result?.rs ?? ''}-${g.result?.ra ?? ''}`;
+  RV_DATA.overview = [`${scope.label.replace(/ · \d+ games$/, '')}, ${when}, ${n} games, record ${recStr}, ${rec.rs} runs scored, ${rec.ra} allowed.`,
+    ...A.perGame.map(({ g, b, p, f, hasStats }) => gameLine(g) + (hasStats ? ` (hits ${b.h}-${p.h}, walks ${b.bb}-${p.bb}, our errors ${f.e})` : ' (stats not imported)')),
+    `Walks: ${bat.bb} taken, ${pit.bb} allowed; ${pit.bbs} of the walks we allowed scored.`, `Errors ${fld.e} on ${fld.tc} chances; ${unearned} unearned runs allowed of ${pit.r}.`,
+    `Steals ${bat.sb} of ${bat.sb + bat.cs}. Reached on error ${bat.roe} times.`].join('\n');
+  RV_DATA.games = A.perGame.map(({ g, b, p, f, hasStats }) => gameLine(g) + (hasStats ? ` — hits ${b.h} for / ${p.h} against, walks ${b.bb} / ${p.bb}, K ${b.so} / ${p.so}, our errors ${f.e}, reached on error ${b.roe}, unearned allowed ${p.r - p.er}` : ' — stats not imported')).join('\n');
+  RV_DATA.hitting = [`Team AVG ${avg3(div(bat.h, bat.ab))} (${bat.h} hits in ${bat.ab} AB), OBP ${avg3(obp)}, SLG ${avg3(slg)}, ${bat.xbh} extra-base hits.`,
+    `Quality at-bats ${pct1(div(bat.qab, bat.pa))} of ${bat.pa} PA. Strikeouts ${bat.so} (${pct1(div(bat.so, bat.pa))}). Walks ${bat.bb}, HBP ${bat.hbp}.`,
+    `Runs per game ${(rec.rs / Math.max(1, n)).toFixed(1)}. Stolen bases ${bat.sb} of ${bat.sb + bat.cs}.`,
+    `Hard-hit balls ${bat.hhb} of ${bat.bip} in play (${pct1(div(bat.hhb, bat.bip))}). Contact rate ${pct1(div(bat.ab - bat.so, bat.ab))}. Pitches per PA ${div(bat.ps, bat.pa).toFixed(2)}. ${bat['2splus3']} two-strike battles, ${bat['6plus']} at-bats of 6+ pitches.`,
+    bat.bip ? `Contact profile: ${pct1(div(bat.ld, bat.bip))} line drives, ${pct1(div(bat.fb, bat.bip))} fly balls, ${pct1(div(bat.gb, bat.bip))} ground balls.` : ''].filter(Boolean).join('\n');
+  RV_DATA.pitching = [`Strike rate ${pct1(strikePct)} (${pit.strikes} of ${pit.pitches}). First-pitch strikes ${pct1(fpsPct)}. Walks ${pit.bb} (${bbPerInn.toFixed(1)} per inning), ${pit.bbs} scored. Strikeouts ${pit.so} (${pct1(div(pit.so, pit.bf))} of batters). 1-2-3 innings ${pit['123inn']} of ${Math.floor(pit.outs / 3)}.`,
+    `Pitches per inning ${div(pit.pitches, pit.outs / 3).toFixed(1)}. Swing-and-miss ${pct1(div(pit.swing_miss, pit.pitches))}. Weak contact allowed ${pct1(div(pit.weak, pit.bip))}. Earned runs ${pit.er} of ${pit.r}.`,
+    'By pitcher:', ...A.per.filter(r => r.pit.outs > 0 || r.pit.pitches > 0).map(r => `  ${playerShort(playerById(r.pid))}: ${ipStr(r.pit.outs)} IP, ${r.pit.pitches} pitches, ${pct1(div(r.pit.strikes, r.pit.pitches))} strikes, FPS ${pct1(div(r.pit.first_pitch_strikes, r.pit.bf))}, ${r.pit.bb} BB, ${r.pit.so} K, ${r.pit.er} ER`)].join('\n');
+  RV_DATA.defense = [`Team errors ${fld.e} on ${fld.tc} chances, fielding ${avg3(fpct)}. Unearned runs ${unearned} of ${pit.r} allowed.`,
+    `Passed balls ${fld.pb} across ${ipStr(fld.c_outs)} caught innings. Steals allowed ${fld.sb_allowed} of ${fld.sb_att} attempts, caught stealing ${fld.cs}.`,
+    ...A.per.filter(r => (r.fld.c_outs || 0) > 0).map(r => `Catching: ${playerShort(playerById(r.pid))} caught ${ipStr(r.fld.c_outs)}, ${r.fld.pb} PB, threw out ${r.fld.cs} of ${r.fld.sb_att}.`)].join('\n');
+  A.per.forEach(r => {
+    const p = playerById(r.pid); if (!p) return; const b = r.bat;
+    const lines = [`${p.name} (#${p.num}), ${r.games} games. Innings by position: ${POSITIONS.filter(x => r.pos[x]).map(x => `${x} ${ipStr(r.pos[x])}`).join(', ') || 'none recorded'}.`,
+      `Batting: ${b.pa} PA, AVG ${avg3(div(b.h, b.ab))}, OBP ${avg3(div(b.h + b.bb + b.hbp, b.ab + b.bb + b.hbp + b.sf))}, ${b.h} H, ${b.r} R, ${b.rbi} RBI, ${b.bb} BB, ${b.so} K, ${b.sb} SB, QAB ${pct1(div(b.qab, b.pa))}, ${b.hhb} hard-hit, ${div(b.ps, b.pa).toFixed(1)} pitches/PA.`];
+    if (r.pit.outs || r.pit.pitches) lines.push(`Pitching: ${ipStr(r.pit.outs)} IP, ${r.pit.pitches} pitches, ${pct1(div(r.pit.strikes, r.pit.pitches))} strikes, FPS ${pct1(div(r.pit.first_pitch_strikes, r.pit.bf))}, ${r.pit.bb} BB, ${r.pit.so} K, ${r.pit.er} ER.`);
+    if (r.fld.tc) lines.push(`Fielding: ${r.fld.tc} chances, ${r.fld.e} errors${r.fld.c_outs ? `, caught ${ipStr(r.fld.c_outs)} with ${r.fld.pb} PB` : ''}.`);
+    RV_DATA['player:' + r.pid] = lines.join('\n');
+  });
+  RV_DATA.practice = `Season/tournament context: ${recStr}. Team weaknesses by the numbers: walks allowed ${pit.bb}, errors ${fld.e}, passed balls ${fld.pb}, strikeouts at the plate ${bat.so} of ${bat.pa} PA, hard-hit rate ${pct1(div(bat.hhb, bat.bip))}.`;
+  RV_DATA.next = RV_DATA.practice + `\nPitching usage this event: ${A.per.filter(r => r.pit.outs > 0).map(r => `${playerShort(playerById(r.pid))} ${ipStr(r.pit.outs)} IP`).join(', ')}.`;
+
   body.innerHTML = `
     <div class="card" style="margin-bottom:14px">
       <div class="rv-kicker">${esc(TEAM_SETTINGS.team_name || 'Team')} · ${esc(scope.tournament ? 'Tournament review' : 'Season review')}</div>
       <div class="rv-h" style="font-size:22px">${esc(scope.label.replace(/ · \d+ games$/, ''))}</div>
       <div class="rv-lead">${esc(when)} · ${n} game${n === 1 ? '' : 's'}${scoreOnly ? ` · <span style="color:var(--warn)">${scoreOnly} score-only (stats not imported)</span>` : ''}</div>
+      <div class="rv-pub-status noprint" id="rv-pub-status"></div>
+      ${pubBlock('overview', 'Weekend overview')}
       <div class="rv-stats">
         ${stat(recStr, 'Record', `${rec.rs} scored, ${rec.ra} allowed`)}
         ${stat((rec.rs - rec.ra >= 0 ? '+' : '') + (rec.rs - rec.ra), 'Run differential', `${(rec.rs / Math.max(1, n)).toFixed(1)} for / ${(rec.ra / Math.max(1, n)).toFixed(1)} against per game`)}
@@ -5663,6 +5810,7 @@ function renderReview() {
     <div class="card rv-section">
       <div class="rv-kicker">Game review</div>
       <div class="rv-h">Game by game</div>
+      ${pubBlock('games', 'Game by game')}
       <div class="rv-games">
         ${A.perGame.map(({ g, b, p, f, hasStats }) => {
           const o = (g.result?.outcome || '').toLowerCase();
@@ -5687,6 +5835,7 @@ function renderReview() {
     <div class="card rv-section">
       <div class="rv-kicker">Hitting and baserunning</div>
       <div class="rv-h">At the plate and on the bases</div>
+      ${pubBlock('hitting', 'Hitting and baserunning')}
       <div class="rv-stats">
         ${stat(avg3(div(bat.h, bat.ab)), 'Team AVG', `${bat.h} hits in ${bat.ab} at bats`)}
         ${stat(avg3(obp), 'Team OBP', `${bat.bb} walks, ${bat.hbp} HBP`)}
@@ -5710,6 +5859,7 @@ function renderReview() {
     <div class="card rv-section">
       <div class="rv-kicker">Pitching</div>
       <div class="rv-h">On the mound</div>
+      ${pubBlock('pitching', 'Pitching')}
       <div class="rv-stats">
         ${stat(pct1(strikePct), 'Strike rate', `${pit.strikes} of ${pit.pitches} pitches`)}
         ${stat(pct1(fpsPct), 'First-pitch strikes', `${pit.first_pitch_strikes} of ${pit.bf} batters`)}
@@ -5752,6 +5902,7 @@ function renderReview() {
     <div class="card rv-section">
       <div class="rv-kicker">Defense and catching</div>
       <div class="rv-h">In the field</div>
+      ${pubBlock('defense', 'Defense and catching')}
       <div class="rv-stats">
         ${stat(fld.e, 'Team errors', `${fld.tc} total chances`)}
         ${stat(avg3(fpct), 'Fielding %', 'Direction, not a grade')}
@@ -5805,6 +5956,7 @@ function renderReview() {
               <span>Fielding:</span><span><b>${r.fld.tc}</b> chances</span><span><b>${r.fld.e}</b> E</span>
               ${r.fld.c_outs ? `<span><b>${ipStr(r.fld.c_outs)}</b> caught</span><span><b>${r.fld.pb}</b> PB</span>` : ''}
             </div>` : ''}
+            ${pubBlock('player:' + r.pid, p.name)}
             ${noteBox('player:' + r.pid, `Notes on ${firstName(p)}…`)}
           </details>`;
         }).join('')}
@@ -5813,7 +5965,11 @@ function renderReview() {
     <div class="card rv-section">
       <div class="rv-kicker">Looking ahead</div>
       <div class="rv-h">Practice plan and next tournament</div>
+      <div class="rv-kicker" style="margin-top:8px">Practice plan</div>
+      ${pubBlock('practice', 'Practice plan')}
       ${noteBox('practice', 'What we work on at practice, and the targets I want to hit next time out…')}
+      <div class="rv-kicker" style="margin-top:16px">Next tournament</div>
+      ${pubBlock('next', 'Next tournament')}
       ${noteBox('next', 'Pitching usage, lineup approach, what I want us watching in the next tournament…')}
       <div class="rv-h" style="margin-top:16px;font-size:14px">Final coach thoughts</div>
       ${noteBox('final', 'Overall take — what I liked, what concerned me, what surprised me…')}
@@ -5827,6 +5983,7 @@ function renderReview() {
       </div>
     </div>`;
   renderCoachStatus();
+  renderPubStatus();
 }
 
 // ---- player reports ----
