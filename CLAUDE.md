@@ -67,8 +67,18 @@ coach's. If data is missing, say so in the UI rather than fill it in.
   **Game 8 (Sep 6, WBT Cobras Blue, W 19-10) is score-only**: the export
   supplied for it was a byte-identical copy of the Billygoats file. Ask for
   a fresh export; import with the script below.
-- `team_reviews` — coach notes per review scope (`scope_key` →
-  `notes` jsonb).
+- `team_reviews` — notes per review scope (`scope_key` → `notes` jsonb).
+  Each section key (`overview`, `hitting`, `player:<pid>`, …) holds
+  `{ "<coach name>": { text, at, draft? } }`. The manager's box edits
+  `text` directly; every other coach types a `draft`, and Submit appends
+  it to `text`, stamps `at`, and clears the box — other coaches never see
+  each other's notes on screen; the manager reads them with "Show
+  submitted notes". Coach order comes from `team_settings.coaches`,
+  manager first. `report:<pid>:{why,plan,message,home}` and
+  `report:team:focus` are plain strings — the parent-facing Player
+  Report copy. A bare string under a section key is a legacy manager note.
+  Reports print one page per player; empty report fields are omitted, never
+  filled in. `#review` and `#reports` in the URL open straight to those views.
 - Importing a game: `python3 scripts/import_gamechanger.py <export.csv>
   --game-number N` updates that game; `--create` inserts one. The script
   fingerprints the file and refuses one already imported under another

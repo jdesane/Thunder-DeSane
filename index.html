@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-14.5">
+<meta name="build" content="2026-09-17.1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1117,6 +1117,87 @@
   }
   .rv-note textarea:focus { outline: none; border-color: var(--warn); }
   .rv-saved { font-size: 10px; color: var(--text-subtle); margin-top: 3px; height: 12px; }
+  /* One box per coach under every section */
+  .rv-coaches { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+  .rv-coach { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .rv-coach-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .rv-coach-n { font-size: 12px; font-weight: 600; }
+  .rv-coach-r { font-size: 10px; color: var(--text-subtle); }
+  .rv-coach textarea { min-height: 88px; }
+  .rv-coach-f { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+  .rv-coach-f .rv-saved { margin: 0; height: 12px; order: 2; }
+  .rv-coach-b { width: 100%; }
+  .rv-coach.done { border-color: rgba(34,197,94,0.45); }
+  .rv-coach-sent { font-size: 12px; line-height: 1.5; white-space: pre-line; color: var(--text); background: rgba(34,197,94,0.06); border-left: 3px solid rgba(34,197,94,0.6); border-radius: 0 6px 6px 0; padding: 8px 10px; margin-bottom: 8px; }
+  details.rv-note { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  details.rv-note > summary .card-link::before { content: 'Close'; }
+  details.rv-note:not([open]) > summary .card-link::before { content: 'Open'; }
+  .rv-note-s { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+  .rv-note-s::-webkit-details-marker { display: none; }
+  .rv-note-s .rv-note-l { font-size: 14px; font-weight: 600; color: var(--text); margin: 0; }
+  .rv-note-i { font-size: 12px; color: var(--text-muted); margin: 8px 0 10px; }
+  .rv-coaches + .rv-note-i { margin: 10px 0 0; }
+  .rv-status { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--text-muted); margin-top: 10px; }
+  .rv-status b { color: var(--text); font-weight: 600; }
+  .rv-status .ok { color: var(--pos); }
+  .rv-reveal { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer; white-space: nowrap; }
+  .rv-reveal input { accent-color: var(--warn); }
+  .rv-mode { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 6px; overflow: hidden; }
+  .rv-mode button { background: none; border: 0; color: var(--text-muted); font: inherit; font-size: 12px; padding: 6px 12px; cursor: pointer; }
+  .rv-mode button.on { background: var(--surface-2, rgba(255,255,255,0.06)); color: var(--text); }
+
+  /* Player report — a printed page previewed inside the app */
+  .pr-page {
+    background: #fff; color: #111; border-radius: 6px;
+    padding: 26px 30px 22px; max-width: 880px; margin: 0 auto 22px;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.45); font-size: 12px; line-height: 1.45;
+  }
+  .pr-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; border-bottom: 4px solid #111; padding-bottom: 12px; }
+  .pr-team { font-size: 22px; font-weight: 800; letter-spacing: 0.02em; line-height: 1.1; color: #111; }
+  .pr-team small { display: block; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; color: #b45309; margin-top: 4px; }
+  .pr-meta { font-size: 11px; color: #555; margin-top: 6px; }
+  .pr-card { border: 2px solid #f59e0b; border-radius: 8px; padding: 8px 14px; min-width: 220px; }
+  .pr-card-n { font-size: 16px; font-weight: 700; color: #111; }
+  .pr-card-n span { color: #b45309; margin-right: 8px; }
+  .pr-card-s { font-size: 11px; color: #555; margin-top: 2px; }
+  .pr-means { background: #f4f4f5; border-radius: 6px; padding: 8px 12px; margin: 12px 0; font-size: 11px; color: #333; }
+  .pr-means b { color: #111; margin-right: 8px; }
+  .pr-bar { background: #111; color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 5px 10px; border-left: 5px solid #f59e0b; margin: 14px 0 8px; }
+  .pr-tiles { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  .pr-tile { border: 1px solid #ddd; border-top: 3px solid #f59e0b; border-radius: 6px; padding: 8px 6px; text-align: center; }
+  .pr-tile-l { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: #666; }
+  .pr-tile-v { font-size: 18px; font-weight: 700; color: #111; margin-top: 2px; }
+  table.pr-cmp { width: 100%; border-collapse: collapse; font-size: 11px; }
+  table.pr-cmp th { background: #111; color: #fff; text-align: left; padding: 5px 8px; font-weight: 600; font-size: 10px; }
+  table.pr-cmp td { padding: 5px 8px; border-bottom: 1px solid #e5e5e5; color: #111; }
+  table.pr-cmp td.dim { color: #555; }
+  .pr-key { font-size: 10px; color: #666; background: #f4f4f5; border-radius: 6px; padding: 6px 10px; margin-top: 8px; }
+  .pr-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .pr-box { border: 1px solid #ddd; border-top: 3px solid #f59e0b; border-radius: 6px; padding: 8px 10px; }
+  .pr-box-k { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: #666; }
+  .pr-box-h { font-size: 13px; font-weight: 700; color: #111; margin: 2px 0 4px; }
+  .pr-box-t { font-size: 11px; color: #333; white-space: pre-line; }
+  .pr-para { font-size: 11px; color: #333; white-space: pre-line; }
+  .pr-plan { display: grid; grid-template-columns: 1.6fr 1fr; gap: 10px; }
+  .pr-steps { border: 1px solid #ddd; border-radius: 6px; padding: 8px 10px; }
+  .pr-step { display: flex; gap: 8px; align-items: flex-start; padding: 3px 0; font-size: 11px; color: #333; }
+  .pr-step i { flex: 0 0 18px; height: 18px; border-radius: 50%; background: #f59e0b; color: #111; font-style: normal; font-weight: 700; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; }
+  .pr-msg { background: #111; color: #eee; border-radius: 6px; padding: 10px 12px; font-size: 11px; white-space: pre-line; }
+  .pr-msg-k { color: #f59e0b; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 4px; }
+  .pr-foot { display: flex; justify-content: space-between; font-size: 9px; color: #777; border-top: 1px solid #ddd; padding-top: 8px; margin-top: 16px; }
+  .pr-focus { font-size: 10px; color: #444; margin-top: 12px; font-style: italic; }
+  .pr-empty { color: #999; font-style: italic; }
+  .pr-edit { max-width: 880px; margin: -10px auto 26px; }
+  .pr-edit .card { padding: 12px 16px; }
+  .pr-edit-l { font-size: 11px; color: var(--text-muted); font-weight: 500; margin: 8px 0 4px; }
+  .pr-edit textarea { width: 100%; min-height: 56px; resize: vertical; background: var(--bg); border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text); font-family: inherit; font-size: 13px; line-height: 1.5; padding: 8px 10px; }
+  .pr-edit textarea:focus { outline: none; border-color: var(--warn); }
+  @media (max-width: 720px) {
+    .pr-page { padding: 16px; }
+    .pr-head { flex-direction: column; }
+    .pr-tiles { grid-template-columns: repeat(3, 1fr); }
+    .pr-cols, .pr-plan { grid-template-columns: 1fr; }
+  }
 
   .rv-games { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
   .rv-game { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
@@ -1141,7 +1222,7 @@
 
   @media print {
     body { background: #fff; color: #111; font-size: 12px; }
-    .sidebar, .topbar, .noprint, #update-banner, .nav-item { display: none !important; }
+    .sidebar, .topbar, .noprint, #update-banner, .nav-item, .drawer, .drawer-backdrop, #toast { display: none !important; }
     .app { display: block; }
     .main { padding: 0; }
     .section { display: none !important; }
@@ -1153,7 +1234,20 @@
     .rv-fact { background: #fff7e6; border-left-color: #d98b00; }
     .rv-note textarea { border: 1px solid #ccc; background: #fff; color: #111; min-height: 0; }
     .rv-note textarea:placeholder-shown { display: none; }
-    .rv-saved { display: none; }
+    .rv-saved, .rv-coach-f, .rv-status { display: none; }
+    .rv-coach { background: #fafafa; border-color: #ddd; break-inside: avoid; }
+    .rv-coach:has(textarea:placeholder-shown):not(:has(.rv-coach-sent)) { display: none; }
+    .rv-coach:has(.rv-coach-sent) textarea { display: none; }
+    .rv-coach-sent { background: #f4faf5; border-left-color: #4caf50; color: #111; }
+    .rv-coach-n, .rv-note-s .rv-note-l { color: #111; }
+    .rv-note-i, .rv-note-s .card-link, .rv-reveal { display: none; }
+    details.rv-note { border-color: #ddd; }
+    details.rv-note:not(:has(.rv-coach-sent)):not(:has(textarea:not(:placeholder-shown))) { display: none; }
+    /* Player reports: one page per player, nothing else */
+    .pr-page { box-shadow: none; border-radius: 0; max-width: none; margin: 0; padding: 0; }
+    .pr-page ~ .pr-page { break-before: page; page-break-before: always; }
+    .pr-edit { display: none !important; }
+    @page { margin: 12mm; }
     .rv-player { break-inside: avoid; }
     details.rv-player > *:not(summary) { display: block; }
     table.data th { color: #444; background: #f3f3f3; }
@@ -1888,7 +1982,14 @@
           <div class="section-sub">What the numbers say about a tournament or the season — with your notes alongside.</div>
         </div>
         <div class="section-actions">
+          <div class="rv-mode">
+            <button id="rv-mode-assess" class="on" onclick="setReviewMode('assess')">Assessment</button>
+            <button id="rv-mode-reports" onclick="setReviewMode('reports')">Player reports</button>
+          </div>
           <select class="input" id="rv-scope" style="width:auto;min-width:200px" onchange="RV_UI.scope=this.value; renderReview()"></select>
+          <select class="input" id="rv-player" style="width:auto;min-width:150px;display:none" onchange="RV_UI.player=this.value; renderReview()"></select>
+          <label class="rv-reveal" title="Read what the other coaches have submitted (remembered on this device)"><input type="checkbox" id="rv-reveal" onchange="toggleShowSubmitted(this.checked)"> Show submitted notes</label>
+          <button class="btn btn-secondary btn-sm" onclick="copyCoachLink()" title="Link that opens straight to this review for the other coaches">Coach link</button>
           <button class="btn btn-secondary btn-sm" onclick="window.print()">Print / PDF</button>
         </div>
       </div>
@@ -5176,7 +5277,7 @@ function exportPlayingTime() {
 // A tournament or season assessment built from recorded stats, with the
 // coach's own commentary saved beside each section. The numbers are computed
 // facts; every judgement is a text box the coach fills in.
-let RV_UI = { scope: '' };
+let RV_UI = { scope: '', mode: 'assess', player: 'all' };
 let RV_NOTES = {};
 let RV_NOTES_KEY = '';
 let RV_SAVE_TIMER = null;
@@ -5254,33 +5355,185 @@ function aggregateReview(games) {
 }
 
 // ---- notes ----
+// Every section carries one box per coach. A section's notes are stored as
+// { coachName: { text, at } }; `at` is set when the coach hits Submit, which is
+// what "responded" means. Older rows stored a bare string — that was the
+// manager's note, and reads back as such.
+function reviewCoaches() {
+  const list = (TEAM_SETTINGS.coaches || []).filter(c => c && c.name);
+  const mgr = list.find(c => c.isMgr) || list.find(c => c.name === TEAM_SETTINGS.manager);
+  const rest = list.filter(c => c !== mgr);
+  const out = mgr ? [mgr, ...rest] : rest;
+  return out.length ? out : [{ name: TEAM_SETTINGS.manager || 'Coach', isMgr: true }];
+}
+function managerName() { return reviewCoaches()[0].name; }
+function noteEntries(key) {
+  const v = RV_NOTES[key];
+  if (!v) return {};
+  if (typeof v === 'string') return v.trim() ? { [managerName()]: { text: v, at: null } } : {};
+  return v;
+}
+function noteEntry(key, coach) { return noteEntries(key)[coach] || { text: '', at: null }; }
+// Report fields (the parent-facing copy) are single strings written by the manager.
+function reportField(key) { const v = RV_NOTES[key]; return typeof v === 'string' ? v : (v && typeof v === 'object' ? (v[managerName()]?.text || '') : ''); }
+
 async function loadReviewNotes(scopeKey) {
   RV_NOTES_KEY = scopeKey; RV_NOTES = {};
   const rows = await supa('team_reviews', 'GET', null, `?scope_key=eq.${encodeURIComponent(scopeKey)}&select=notes`);
   if (Array.isArray(rows) && rows[0]?.notes) RV_NOTES = rows[0].notes;
-  // refill any boxes already on screen
-  document.querySelectorAll('[data-rv-note]').forEach(ta => { ta.value = RV_NOTES[ta.dataset.rvNote] || ''; });
+  if (RV_NOTES_KEY !== scopeKey) return;   // scope changed while loading
+  // Report pages are built from the notes, so rebuild them; assessment boxes just refill
+  if (RV_UI.mode === 'reports' && UI.section === 'review') { renderReview(); return; }
+  document.querySelectorAll('[data-rv-note]').forEach(ta => {
+    if (!ta.dataset.rvCoach) { ta.value = reportField(ta.dataset.rvNote); return; }
+    const e = noteEntry(ta.dataset.rvNote, ta.dataset.rvCoach);
+    ta.value = ta.dataset.rvCoach === managerName() ? (e.text || '') : (e.draft || '');
+  });
+  if (showSubmitted()) { renderReview(); return; }   // submitted notes are part of the markup
+  renderReview_stampBoxes();
+  renderCoachStatus();
 }
-function setReviewNote(key, val) {
+// After a load, show Submitted stamps on boxes that already have one
+function renderReview_stampBoxes() {
+  document.querySelectorAll('.rv-coach textarea[data-rv-coach]').forEach(ta => {
+    const e = noteEntry(ta.dataset.rvNote, ta.dataset.rvCoach);
+    const box = ta.closest('.rv-coach'); const r = box?.querySelector('.rv-coach-r');
+    if (!box || !r) return;
+    box.classList.toggle('done', !!e.at);
+    r.textContent = e.at ? 'Submitted ' + fmtStamp(e.at) : ((ta.dataset.rvCoach === managerName() ? e.text : e.draft) ? 'Draft' : '');
+  });
+}
+const RV_PENDING = {};   // key|coach -> timer
+function setReviewNote(key, coach, val) {
+  const entries = noteEntries(key);
+  const cur = entries[coach] || { text: '', at: null };
+  // Manager edits the note itself; other coaches build a draft that Submit sends
+  entries[coach] = coach === managerName() ? { ...cur, text: val } : { ...cur, draft: val };
+  RV_NOTES[key] = entries;
+  const id = key + '|' + coach;
+  clearTimeout(RV_PENDING[id]);
+  const s = document.querySelector(`[data-rv-saved="${id}"]`); if (s) s.textContent = 'saving…';
+  RV_PENDING[id] = setTimeout(() => saveCoachNote(key, coach), 900);
+}
+// A coach's box holds a draft until Submit. Submitting appends the draft to
+// whatever that coach already sent on this section and clears the box — the
+// note goes to the manager, not to the other coaches' screens. The manager's
+// own box behaves like a normal note: it keeps its text.
+function submitCoachNote(key, coach) {
+  const entries = noteEntries(key);
+  const cur = entries[coach] || { text: '', at: null };
+  const draft = (cur.draft ?? (coach === managerName() ? cur.text : '')).trim();
+  if (!draft) { toast('Nothing to submit yet'); return; }
+  const sent = coach === managerName() ? draft : [cur.at ? cur.text : '', draft].filter(Boolean).join('\n\n');
+  entries[coach] = { text: sent, at: new Date().toISOString() };
+  RV_NOTES[key] = entries;
+  clearTimeout(RV_PENDING[key + '|' + coach]);
+  saveCoachNote(key, coach);
+  const ta = document.querySelector(`textarea[data-rv-note="${key}"][data-rv-coach="${coach}"]`);
+  const box = ta?.closest('.rv-coach');
+  if (box) {
+    box.classList.add('done');
+    const r = box.querySelector('.rv-coach-r'); if (r) r.textContent = 'Submitted ' + fmtStamp(entries[coach].at);
+    if (coach !== managerName()) { ta.value = ''; ta.placeholder = 'Sent — thanks. Anything else you want to add goes here.'; }
+  }
+  renderCoachStatus();
+  toast(`${coach.split(/\s+/)[0]}'s note sent to ${managerName().split(/\s+/)[0]}`);
+}
+function showSubmitted() { try { return localStorage.getItem('thunder_rv_show_notes') === '1'; } catch { return false; } }
+function toggleShowSubmitted(on) { try { localStorage.setItem('thunder_rv_show_notes', on ? '1' : '0'); } catch {} renderReview(); }
+function setReportField(key, val) {
   RV_NOTES[key] = val;
-  clearTimeout(RV_SAVE_TIMER);
+  clearTimeout(RV_PENDING[key]);
   const s = document.querySelector(`[data-rv-saved="${key}"]`); if (s) s.textContent = 'saving…';
-  RV_SAVE_TIMER = setTimeout(saveReviewNotes, 900);
+  RV_PENDING[key] = setTimeout(() => saveCoachNote(key, null), 900);
 }
-async function saveReviewNotes() {
+// Write one entry into the stored row rather than the whole notes object, so a
+// coach submitting on his phone doesn't wipe what another coach typed a minute ago.
+async function saveCoachNote(key, coach) {
   if (!RV_NOTES_KEY) return;
   const scope = reviewScope();
-  await supa('team_reviews', 'POST', [{ scope_key: RV_NOTES_KEY, title: scope?.label || '', notes: RV_NOTES, updated_at: new Date().toISOString() }],
+  const rows = await supa('team_reviews', 'GET', null, `?scope_key=eq.${encodeURIComponent(RV_NOTES_KEY)}&select=notes`);
+  const server = (Array.isArray(rows) && rows[0]?.notes) || {};
+  if (coach) {
+    const sv = server[key];
+    const merged = (sv && typeof sv === 'object') ? { ...sv } : (typeof sv === 'string' && sv.trim() ? { [managerName()]: { text: sv, at: null } } : {});
+    merged[coach] = noteEntries(key)[coach];
+    server[key] = merged;
+  } else {
+    server[key] = RV_NOTES[key];
+  }
+  // keep anything that arrived from other coaches since we loaded
+  Object.keys(server).forEach(k => { if (k !== key) RV_NOTES[k] = server[k]; });
+  await supa('team_reviews', 'POST', [{ scope_key: RV_NOTES_KEY, title: scope?.label || '', notes: server, updated_at: new Date().toISOString() }],
     '?on_conflict=scope_key', 'resolution=merge-duplicates');
-  document.querySelectorAll('[data-rv-saved]').forEach(s => { s.textContent = 'saved'; setTimeout(() => { if (s.textContent === 'saved') s.textContent = ''; }, 1500); });
+  const id = coach ? key + '|' + coach : key;
+  const s = document.querySelector(`[data-rv-saved="${id}"]`);
+  if (s) { s.textContent = 'saved'; setTimeout(() => { if (s.textContent === 'saved') s.textContent = ''; }, 1500); }
+}
+function fmtStamp(iso) {
+  if (!iso) return '';
+  const d = new Date(iso); if (isNaN(d)) return '';
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 function noteBox(key, placeholder) {
-  return `<div class="rv-note noprint-keep">
-    <div class="rv-note-l">Coach thoughts</div>
-    <textarea data-rv-note="${key}" placeholder="${esc(placeholder || 'Thoughts on this section…')}"
-      oninput="setReviewNote('${key}', this.value)">${esc(RV_NOTES[key] || '')}</textarea>
-    <div class="rv-saved" data-rv-saved="${key}"></div>
-  </div>`;
+  const mgr = managerName(), mgrFirst = mgr.split(/\s+/)[0];
+  const reveal = showSubmitted();
+  return `<details class="rv-note" open>
+    <summary class="rv-note-s"><span class="rv-note-l">Coach thoughts on this section</span><span class="card-link"></span></summary>
+    <div class="rv-note-i">Add anything you saw differently, anything you want to add, or anything you think we need to work on.</div>
+    <div class="rv-coaches">
+      ${reviewCoaches().map(c => {
+        const e = noteEntry(key, c.name);
+        const first = c.name.split(/\s+/)[0];
+        const isMgr = c.name === mgr;
+        const boxText = isMgr ? (e.text || '') : (e.draft || '');
+        const stamp = e.at ? 'Submitted ' + fmtStamp(e.at) : (boxText ? 'Draft' : '');
+        return `<div class="rv-coach ${e.at ? 'done' : ''}">
+          <div class="rv-coach-h"><span class="rv-coach-n">${esc(first)}</span><span class="rv-coach-r">${stamp}</span></div>
+          ${!isMgr && reveal && e.text ? `<div class="rv-coach-sent">${esc(e.text)}</div>` : ''}
+          <textarea data-rv-note="${key}" data-rv-coach="${esc(c.name)}" placeholder="${esc(isMgr ? (placeholder || 'Thoughts on this section…') : (e.at ? 'Sent — anything else you want to add goes here.' : 'Thoughts on this section…'))}"
+            oninput="setReviewNote('${key}', this.dataset.rvCoach, this.value)">${esc(boxText)}</textarea>
+          <div class="rv-coach-f">
+            <span class="rv-saved" data-rv-saved="${key}|${esc(c.name)}"></span>
+            <button class="btn btn-primary btn-sm rv-coach-b" onclick="submitCoachNote('${key}', this.closest('.rv-coach').querySelector('textarea').dataset.rvCoach)">Submit ${esc(first)}'s note</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="rv-note-i">After you submit, the box clears. Your note goes to ${esc(mgrFirst)} and is not shown to the other coaches on this page.</div>
+  </details>`;
+}
+function fieldBox(key, label, placeholder) {
+  return `<div class="pr-edit-l">${esc(label)}</div>
+    <textarea data-rv-note="${key}" placeholder="${esc(placeholder || '')}" oninput="setReportField('${key}', this.value)">${esc(reportField(key))}</textarea>
+    <div class="rv-saved" data-rv-saved="${key}"></div>`;
+}
+// Who has responded, across every box in this scope
+function coachStatus() {
+  const coaches = reviewCoaches();
+  const keys = Object.keys(RV_NOTES).filter(k => !k.startsWith('report:'));
+  return coaches.map(c => {
+    let submitted = 0, drafts = 0;
+    keys.forEach(k => { const e = noteEntries(k)[c.name]; if (!e) return; if (e.at) submitted++; else if ((c.name === managerName() ? e.text : e.draft)?.trim()) drafts++; });
+    return { name: c.name, first: c.name.split(/\s+/)[0], submitted, drafts };
+  });
+}
+function renderCoachStatus() {
+  const el = document.getElementById('rv-coach-status'); if (!el) return;
+  el.innerHTML = coachStatus().map(s => s.submitted
+    ? `<span><b>${esc(s.first)}</b> <span class="ok">✓</span> ${s.submitted} note${s.submitted === 1 ? '' : 's'}${s.drafts ? ` · ${s.drafts} draft${s.drafts === 1 ? '' : 's'}` : ''}</span>`
+    : `<span><b>${esc(s.first)}</b> ${s.drafts ? `${s.drafts} draft${s.drafts === 1 ? '' : 's'}, nothing submitted` : 'waiting'}</span>`).join('');
+}
+function setReviewMode(mode) {
+  RV_UI.mode = mode;
+  document.getElementById('rv-mode-assess')?.classList.toggle('on', mode === 'assess');
+  document.getElementById('rv-mode-reports')?.classList.toggle('on', mode === 'reports');
+  const ps = document.getElementById('rv-player'); if (ps) ps.style.display = mode === 'reports' ? '' : 'none';
+  renderReview();
+}
+function copyCoachLink() {
+  const url = location.origin + location.pathname + '#review';
+  (navigator.clipboard?.writeText(url) || Promise.reject()).then(() => toast('Coach link copied — send it to the staff'), () => prompt('Copy this link for the coaches:', url));
 }
 const stat = (v, l, s) => `<div class="rv-stat"><div class="rv-stat-v">${v}</div><div class="rv-stat-l">${l}</div>${s ? `<div class="rv-stat-s">${s}</div>` : ''}</div>`;
 
@@ -5290,6 +5543,7 @@ function renderReview() {
   const body = document.getElementById('rv-body');
   if (!body) return;
   const scopes = reviewScopes();
+  const rv = document.getElementById('rv-reveal'); if (rv) rv.checked = showSubmitted();
   if (sel) sel.innerHTML = scopes.map(s => `<option value="${s.key}" ${RV_UI.scope === s.key ? 'selected' : ''}>${esc(s.label)}</option>`).join('') || '<option>No games yet</option>';
   const scope = reviewScope();
   if (!scope) { body.innerHTML = `<div class="card"><div class="card-empty" style="padding:40px">No final games to review yet.</div></div>`; return; }
@@ -5302,6 +5556,9 @@ function renderReview() {
   const dates = A.games.map(g => g.game_date).filter(Boolean).sort();
   const when = dates.length ? (dates[0] === dates[dates.length - 1] ? fmtShortDate(dates[0]) : `${fmtShortDate(dates[0])} – ${fmtShortDate(dates[dates.length - 1])}`) : '';
   const scoreOnly = n - ns;
+
+  if (RV_UI.mode === 'reports') { renderPlayerReports(A, scope, when); return; }
+  const ps = document.getElementById('rv-player'); if (ps) ps.style.display = 'none';
 
   const unearned = pit.r - pit.er;
   const stealPct = div(bat.sb, bat.sb + bat.cs);
@@ -5328,6 +5585,7 @@ function renderReview() {
         ${stat(pct1(stealPct), 'Steal success', `${bat.sb} of ${bat.sb + bat.cs} attempts`)}
       </div>
       ${pit.bb ? `<div class="rv-fact"><strong>${pit.bbs} of ${pit.bb} walks scored.</strong>${pit.lobb ? ` ${pit.lobbs} of ${pit.lobb} leadoff walks scored.` : ''} ${bat.roe ? `We reached on error ${bat.roe} times.` : ''}</div>` : ''}
+      <div class="rv-status noprint" id="rv-coach-status"></div>
       ${noteBox('overview', 'What I took away from these games…')}
     </div>
 
@@ -5497,6 +5755,119 @@ function renderReview() {
         <br>GameChanger exports (batting, pitching, fielding, innings by position). Youth scorekeeping is imperfect — read the numbers alongside what you saw.
       </div>
     </div>`;
+  renderCoachStatus();
+}
+
+// ---- player reports ----
+// One printable page per player: the numbers fill themselves from GameChanger,
+// the words come from the coaches. Nothing is generated — a section with no
+// coach text is left out of the printed page rather than filled in.
+function reportPage(r, p, T, scope, when) {
+  const b = r.bat, pi = r.pit, f = r.fld;
+  const games = r.games || 0;
+  const posStr = POSITIONS.filter(x => r.pos[x]).sort((x, y) => r.pos[y] - r.pos[x]).join(', ');
+  const avg = div(b.h, b.ab), obp = div(b.h + b.bb + b.hbp, b.ab + b.bb + b.hbp + b.sf), qab = div(b.qab, b.pa);
+  const pitched = pi.pitches > 0 || pi.outs > 0, caught = (f.c_outs || 0) > 0, fielded = (f.tc || 0) > 0;
+  const strike = div(pi.strikes, pi.pitches), fpct = div(f.tc - f.e, f.tc);
+  const first = firstName(p);
+
+  const tiles = [
+    ['PA', b.pa], ['AVG', avg3(avg)], ['OBP', avg3(obp)], ['QAB%', pct1(qab)],
+    ...(pitched ? [['Strike%', pct1(strike)], ['BB allowed', pi.bb]]
+      : caught ? [['PB', f.pb], ['CS', `${f.cs} of ${f.sb_att}`]]
+      : [['Runs', b.r], ['SB', b.sb]]),
+  ];
+  const cmp = (v, t, tol, higherIsBetter = true) => {
+    const d = v - t; if (Math.abs(d) <= tol) return 'Near team';
+    return (d > 0) === higherIsBetter ? 'Above team' : 'Below team';
+  };
+  const rows = [
+    ['AVG', avg3(avg), avg3(T.avg), cmp(avg, T.avg, 0.02), 'Small sample — read it with contact quality.'],
+    ['OBP', avg3(obp), avg3(T.obp), cmp(obp, T.obp, 0.02), 'How often he reached base.'],
+    ['QAB%', pct1(qab), pct1(T.qab), cmp(qab, T.qab, 0.03), 'Productive plate appearances.'],
+    ...(fielded ? [['FPCT', avg3(fpct), avg3(T.fpct), cmp(fpct, T.fpct, 0.03), 'Scorebook stat only. Coach observation matters more.']] : []),
+    ...(pitched ? [['Strike%', pct1(strike), pct1(T.strike), cmp(strike, T.strike, 0.03), 'Command measure for pitchers.']] : []),
+  ];
+
+  const notes = noteEntries('player:' + r.pid);
+  const saw = reviewCoaches().map(c => notes[c.name]).filter(e => e && e.text?.trim());
+  const plan = reportField(`report:${r.pid}:plan`).split('\n').map(s => s.trim()).filter(Boolean);
+  const home = reportField(`report:${r.pid}:home`).split('\n').map(s => s.trim()).filter(Boolean);
+  const msg = reportField(`report:${r.pid}:message`).trim();
+  const why = reportField(`report:${r.pid}:why`).trim();
+  const focus = reportField('report:team:focus').trim();
+  const split = s => { const i = s.indexOf(' — '); const j = i < 0 ? s.indexOf(': ') : i; return j > 0 ? [s.slice(0, j), s.slice(j + (i < 0 ? 2 : 3))] : [s, '']; };
+
+  return `<div class="pr-page">
+    <div class="pr-head">
+      <div>
+        <div class="pr-team">${esc((TEAM_SETTINGS.display_name || TEAM_SETTINGS.team_name || 'Team').toUpperCase())}<br>TOURNAMENT PLAYER REVIEW<small>${esc((TEAM_SETTINGS.team_name || '').toUpperCase())}</small></div>
+        <div class="pr-meta">${esc(when)} · ${esc(scope.label.replace(/ · \d+ games$/, ''))}</div>
+      </div>
+      <div class="pr-card">
+        <div class="pr-card-n"><span>#${esc(p.num || '')}</span>${esc(p.name || '')}</div>
+        <div class="pr-card-s">Games ${games} · Positions: ${esc(posStr || '—')}</div>
+      </div>
+    </div>
+    <div class="pr-means"><b>What this review means:</b>This is a snapshot of one weekend, not a label. It pairs the scorebook with what the coaches saw, to show what went well and what we work on next.</div>
+
+    <div class="pr-bar">Weekend snapshot</div>
+    <div class="pr-tiles">${tiles.map(([l, v]) => `<div class="pr-tile"><div class="pr-tile-l">${esc(l)}</div><div class="pr-tile-v">${v}</div></div>`).join('')}</div>
+
+    <div class="pr-bar">How he compared with the team</div>
+    <div style="overflow-x:auto"><table class="pr-cmp"><thead><tr><th>Metric</th><th>${esc(first)}</th><th>Team</th><th>Compared</th><th>What it tells us</th></tr></thead>
+      <tbody>${rows.map(([m, v, t, c, d]) => `<tr><td><b>${m}</b></td><td>${v}</td><td class="dim">${t}</td><td>${c}</td><td class="dim">${d}</td></tr>`).join('')}</tbody></table></div>
+    <div class="pr-key">PA plate appearances · AVG batting average · OBP on-base percentage · QAB% quality at-bat rate · FPCT fielding percentage · Strike% pitches thrown for strikes · PB passed balls · CS caught stealing</div>
+
+    ${saw.length ? `<div class="pr-bar">What we saw</div>
+    <div class="pr-cols">${saw.map(e => { const [h, t] = split(e.text.split('\n')[0]); const rest = e.text.split('\n').slice(1).join('\n'); return `<div class="pr-box"><div class="pr-box-k">Coach</div><div class="pr-box-h">${esc(h)}</div><div class="pr-box-t">${esc((t ? t + '\n' : '') + rest)}</div></div>`; }).join('')}</div>` : `<div class="pr-bar">What we saw</div><div class="pr-empty noprint">No coach notes on ${esc(first)} yet — they come from the Assessment tab.</div>`}
+
+    ${why ? `<div class="pr-bar">Why his opportunities looked the way they did</div><div class="pr-para">${esc(why)}</div>` : ''}
+
+    ${plan.length || msg ? `<div class="pr-bar">Next tournament plan</div>
+    <div class="pr-plan">
+      <div class="pr-steps">${plan.map((s, i) => { const [h, t] = split(s); return `<div class="pr-step"><i>${i + 1}</i><div><b>${esc(h)}</b>${t ? `<div>${esc(t)}</div>` : ''}</div></div>`; }).join('') || '<span class="pr-empty">—</span>'}</div>
+      ${msg ? `<div class="pr-msg"><div class="pr-msg-k">Coaching staff message</div>${esc(msg)}</div>` : ''}
+    </div>` : ''}
+
+    ${home.length ? `<div class="pr-bar">What you can do at home</div>
+    <div class="pr-cols">${home.map(s => { const [h, t] = split(s); return `<div class="pr-box"><div class="pr-box-h">${esc(h)}</div><div class="pr-box-t">${esc(t)}</div></div>`; }).join('')}</div>` : ''}
+
+    ${focus ? `<div class="pr-focus">Team focus: ${esc(focus)}</div>` : ''}
+    <div class="pr-foot"><span>${esc(TEAM_SETTINGS.team_name || '')} · Tournament Player Review</span><span>Prepared from GameChanger stats and coaching observations</span></div>
+  </div>
+  <div class="pr-edit noprint"><div class="card">
+    <div class="rv-kicker">Report copy for ${esc(first)} — one item per line; “Headline — detail” splits into a title and a note</div>
+    ${fieldBox(`report:${r.pid}:why`, 'Why his opportunities looked the way they did', 'Where he played and pitched, and why…')}
+    ${fieldBox(`report:${r.pid}:plan`, 'Next tournament plan (up to 3 lines)', 'Keep throwing strikes — same simple mound cue, don’t chase velocity')}
+    ${fieldBox(`report:${r.pid}:message`, 'Coaching staff message', 'A few sentences straight to the family…')}
+    ${fieldBox(`report:${r.pid}:home`, 'What you can do at home (up to 3 lines)', 'Bullpen target — throw 15 pitches with a goal of 10 strikes')}
+  </div></div>`;
+}
+function renderPlayerReports(A, scope, when) {
+  const body = document.getElementById('rv-body');
+  const ps = document.getElementById('rv-player');
+  const rows = A.per.filter(r => r.games > 0 || Object.keys(r.pos).length)
+    .sort((a, b) => (playerById(a.pid)?.name || '').localeCompare(playerById(b.pid)?.name || ''));
+  if (ps) {
+    ps.style.display = '';
+    ps.innerHTML = `<option value="all" ${RV_UI.player === 'all' ? 'selected' : ''}>All players (${rows.length})</option>` +
+      rows.map(r => { const p = playerById(r.pid); return `<option value="${r.pid}" ${RV_UI.player === r.pid ? 'selected' : ''}>#${esc(p?.num || '')} ${esc(p?.name || '')}</option>`; }).join('');
+  }
+  const { bat, pit, fld } = A;
+  const T = {
+    avg: div(bat.h, bat.ab), obp: div(bat.h + bat.bb + bat.hbp, bat.ab + bat.bb + bat.hbp + bat.sf), qab: div(bat.qab, bat.pa),
+    fpct: div(fld.tc - fld.e, fld.tc), strike: div(pit.strikes, pit.pitches),
+  };
+  const shown = RV_UI.player === 'all' ? rows : rows.filter(r => r.pid === RV_UI.player);
+  if (!A.withStats.length) { body.innerHTML = `<div class="card"><div class="card-empty" style="padding:40px">No imported stats in this scope, so there is nothing to report on yet.</div></div>`; return; }
+  body.innerHTML = `
+    <div class="card noprint" style="max-width:880px;margin:0 auto 18px">
+      <div class="rv-kicker">Player reports · ${esc(scope.label.replace(/ · \d+ games$/, ''))}</div>
+      <div class="rv-lead">Numbers come from the imported games. “What we saw” is each coach's player note from the Assessment tab. The rest is written here, per player, and only prints once it's written. Print / PDF gives one page per player.</div>
+      ${fieldBox('report:team:focus', 'Team focus (printed at the foot of every report)', 'Baserunning — aggressive and smart, trust the base coaches')}
+    </div>
+    ${shown.map(r => { const p = playerById(r.pid); return p ? reportPage(r, p, T, scope, when) : ''; }).join('')}`;
 }
 
 // ============================================================
@@ -9342,6 +9713,12 @@ document.addEventListener('keydown', (e) => {
   loadCache();
   applyTeamSettings();
   renderDashboard();
+  // The coach link (…/#review) lands the staff straight on the Review
+  if (location.hash === '#review' || location.hash === '#reports') {
+    if (location.hash === '#reports') RV_UI.mode = 'reports';
+    history.replaceState(null, '', location.pathname); navigate('review');
+    setReviewMode(RV_UI.mode);
+  }
 
   const ok = await loadFromCloud();
   if (ok) {
