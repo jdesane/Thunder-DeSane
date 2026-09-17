@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-17.9">
+<meta name="build" content="2026-09-17.10">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -5511,7 +5511,12 @@ function submitCoachNote(key, coach) {
 }
 // Reading submitted notes is the manager's view. It's a per-device switch,
 // behind the review PIN from team settings when one is set.
-function showSubmitted() { try { return localStorage.getItem('thunder_rv_show_notes') === '1'; } catch { return false; } }
+// Submitted notes are only ever readable on the manager's device, and never
+// while it is previewing as a coach — the preview must match what they get.
+function showSubmitted() {
+  if (RV_UI.previewCoach || !managerDevice()) return false;
+  try { return localStorage.getItem('thunder_rv_show_notes') === '1'; } catch { return false; }
+}
 function toggleShowSubmitted(on) {
   if (on) {
     const pin = String(TEAM_SETTINGS.review_pin || '').trim();
