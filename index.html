@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-17.14">
+<meta name="build" content="2026-09-17.15">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1146,6 +1146,31 @@
   .rv-note-i { font-size: 12px; color: var(--text-muted); margin: 8px 0 10px; }
   .rv-coaches + .rv-note-i { margin: 10px 0 0; }
   .rv-status { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--text-muted); margin-top: 10px; }
+  /* review header: mark, title, pills, callout; a sticky strip of section links under it */
+  .rv-hero { display: flex; gap: 16px; align-items: flex-start; }
+  .rv-hero-mark { width: 56px; height: 56px; flex: none; background: #000; border: 1px solid var(--border-strong); border-radius: 12px; padding: 8px; margin-top: 4px; }
+  .rv-hero-mark img { width: 100%; height: 100%; display: block; }
+  .rv-title { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; margin: 2px 0 8px; color: var(--text); }
+  .rv-hero .rv-lead { font-size: 14px; max-width: 760px; }
+  .rv-pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+  .rv-pill { border: 1px solid var(--border-strong); border-radius: 20px; padding: 5px 12px; font-size: 12px; color: var(--text); background: var(--bg); white-space: nowrap; }
+  .rv-callout { border: 1px solid var(--gold); background: rgba(255,182,18,0.08); border-radius: 8px; padding: 10px 12px; font-size: 13px; line-height: 1.5; margin: 12px 0; }
+  .rv-hero-btns { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 4px; }
+  .rv-nav { position: sticky; top: 52px; z-index: 15; display: flex; gap: 2px; overflow-x: auto; background: var(--bg); border-bottom: 1px solid var(--border); margin: 0 -24px 16px; padding: 6px 24px; scrollbar-width: none; }
+  .rv-nav::-webkit-scrollbar { display: none; }
+  body.standalone .rv-nav { top: 0; }
+  .rv-nav a { padding: 7px 10px; border-radius: 6px; font-size: 13px; color: var(--text-muted); white-space: nowrap; cursor: pointer; }
+  .rv-nav a:hover { color: var(--text); background: var(--bg-hover); }
+  .rv-nav a.on { color: var(--gold); }
+  .rv-anchor { scroll-margin-top: 104px; }
+  .rv-guide { font-size: 13.5px; line-height: 1.6; max-width: 760px; }
+  .rv-guide p { margin: 0 0 10px; }
+  .rv-gloss { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 16px; margin-top: 10px; font-size: 12.5px; line-height: 1.5; }
+  .rv-gloss div { padding: 6px 0; border-top: 1px solid var(--border); }
+  .rv-gloss b { color: var(--text); font-weight: 600; }
+  .rv-pub-l { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin: 6px 0 4px; }
+  .rv-pub-tools textarea + .rv-pub-l { margin-top: 10px; }
+  @media (max-width: 720px) { .rv-title { font-size: 24px; } .rv-hero-mark { width: 44px; height: 44px; padding: 6px; } .rv-nav { margin: 0 -16px 14px; padding: 6px 16px; } }
   .rv-status b { color: var(--text); font-weight: 600; }
   .rv-status .ok { color: var(--pos); }
   .rv-pt { padding: 10px 12px; margin: 0 0 12px; }
@@ -1300,8 +1325,11 @@
     .rv-coach:has(.rv-coach-sent) textarea { display: none; }
     .rv-coach-sent { background: #f4faf5; border-left-color: #4caf50; color: #111; }
     .rv-coach-n, .rv-note-s .rv-note-l { color: #111; }
-    .rv-note-i, .rv-note-s .card-link, .rv-reveal, .rv-pub-tools, .rv-pub-edit, .rv-pub-none { display: none !important; }
+    .rv-note-i, .rv-note-s .card-link, .rv-reveal, .rv-pub-tools, .rv-pub-edit, .rv-pub-none, .rv-nav, .rv-callout, .rv-hero-btns { display: none !important; }
     .rv-pub { color: #111; }
+    .rv-title, .rv-gloss b { color: #111; }
+    .rv-pill { border-color: #ccc; color: #111; }
+    .rv-hero-mark { border-color: #000; }
     .rv-pt { break-inside: avoid; page-break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .rv-pt table.matrix th { color: #555; }
     .rv-pt table.matrix td { color: #111; }
@@ -5465,6 +5493,24 @@ function reviewCoaches() {
   return out.length ? out : [{ name: TEAM_SETTINGS.manager || 'Coach', isMgr: true }];
 }
 function managerName() { return reviewCoaches()[0].name; }
+// The staff — everyone but the manager. They get the "Coach thoughts" boxes;
+// the manager's own note lives with the write-up tools instead.
+function staffCoaches() { return reviewCoaches().filter(c => c.name !== managerName()); }
+// The manager's private note on a section (older rows may hold it as a draft)
+function managerNote(key) {
+  const e = noteEntry(key, managerName());
+  return [e.text, e.draft].filter(x => x && x.trim()).join('\n\n').trim();
+}
+function setManagerNote(key, val) {
+  const entries = noteEntries(key);
+  const cur = entries[managerName()] || { text: '', at: null };
+  entries[managerName()] = { text: val, at: cur.at || null };
+  RV_NOTES[key] = entries;
+  const id = key + '|' + managerName();
+  clearTimeout(RV_PENDING[id]);
+  const s = document.querySelector(`[data-rv-saved="${id}"]`); if (s) s.textContent = 'saving…';
+  RV_PENDING[id] = setTimeout(() => saveCoachNote(key, managerName()), 900);
+}
 function noteEntries(key) {
   const v = RV_NOTES[key];
   if (!v) return {};
@@ -5591,13 +5637,13 @@ function noteBox(key, placeholder) {
   const reveal = showSubmitted();
   // Closed by default; an unsent draft inside opens it so nothing gets lost.
   // Once a coach opens or closes a box, that choice sticks across re-renders.
-  const coaches = reviewCoaches();
+  const coaches = staffCoaches();
   const open = RV_UI.noteOpen[key] ?? coaches.some(c => !!noteEntry(key, c.name).draft);
   return `<details class="rv-note" data-note-key="${esc(key)}" ${open ? 'open' : ''}>
     <summary class="rv-note-s"><span class="rv-note-l">Coach thoughts on this section</span><span class="card-link"></span></summary>
     <div class="rv-note-i">Add anything you saw differently, anything you want to add, or anything you think we need to work on.</div>
     <div class="rv-coaches">
-      ${reviewCoaches().map(c => {
+      ${coaches.map(c => {
         const e = noteEntry(key, c.name);
         const first = c.name.split(/\s+/)[0];
         const boxText = e.draft || '';
@@ -5614,7 +5660,6 @@ function noteBox(key, placeholder) {
         </div>`;
       }).join('')}
     </div>
-    <div class="rv-note-i"><b>Coach feedback:</b> Coach notes are submitted privately. After a note is sent, the box clears and the note is not shown back on this page.</div>
   </details>`;
 }
 function fieldBox(key, label, placeholder) {
@@ -5624,7 +5669,7 @@ function fieldBox(key, label, placeholder) {
 }
 // Who has responded, across every box in this scope
 function coachStatus() {
-  const coaches = reviewCoaches();
+  const coaches = staffCoaches();
   const keys = Object.keys(RV_NOTES).filter(k => !k.startsWith('report:'));
   return coaches.map(c => {
     let submitted = 0, drafts = 0;
@@ -5663,6 +5708,14 @@ function closeAfterPrint() { PRINT_OPENED.forEach(d => { d.open = false; }); PRI
 window.addEventListener('beforeprint', openForPrint);
 window.addEventListener('afterprint', closeAfterPrint);
 function printPage() { openForPrint(); setTimeout(() => window.print(), 50); }
+// Section links in the review's sticky strip. The URL hash is routing, so
+// these scroll instead of setting it.
+function rvJump(id, a) {
+  const el = document.getElementById(id); if (!el) return;
+  const d = el.closest('details'); if (d && !d.open) d.open = true;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  a?.parentElement?.querySelectorAll('a').forEach(x => x.classList.toggle('on', x === a));
+}
 
 // ---- the published voice ----
 // Each section carries a write-up everyone reads (`pub:<section>`). The app
@@ -5704,15 +5757,19 @@ function pubBlock(key, label) {
   const paras = text ? text.split(/\n\s*\n/).map(p => `<p>${esc(p.trim()).replace(/\n/g, '<br>')}</p>`).join('') : '';
   if (!mgr) return text ? `<div class="rv-pub">${paras}</div>` : '';
   return `<div class="rv-pub-wrap" data-pub="${key}">
-    <div class="rv-pub ${text ? '' : 'empty'}" data-pub-view>${paras || `<p class="rv-pub-none">No write-up yet for ${esc(label)}. Draft one from the numbers${noteEntry(key, managerName()).text ? ' and your note' : ''}, then shape it.</p>`}</div>
+    <div class="rv-pub ${text ? '' : 'empty'}" data-pub-view>${paras || `<p class="rv-pub-none">No write-up yet for ${esc(label)}. Draft one from the numbers${managerNote(key) ? ' and your note' : ''}, then shape it.</p>`}</div>
     <textarea class="rv-pub-edit" data-pub-edit style="display:none" oninput="setReportField('pub:${key}', this.value)">${esc(text)}</textarea>
     <div class="rv-pub-tools noprint">
-      <textarea data-pub-instr placeholder="${esc(text ? 'What to change or add — e.g. “shorter, and mention the steal numbers”' : 'Anything you want in the draft — optional')}"></textarea>
+      <div class="rv-pub-l">My note — private, the draft is written from this and the numbers</div>
+      <textarea data-mgr-note placeholder="What I saw here…" oninput="setManagerNote('${key}', this.value)">${esc(managerNote(key))}</textarea>
+      ${text ? `<div class="rv-pub-l">What to change</div>
+      <textarea data-pub-instr placeholder="e.g. “shorter, and mention the steal numbers”"></textarea>` : ''}
       <div class="rv-pub-btns">
         <button class="btn btn-primary btn-sm" onclick="draftPub('${key}', ${JSON.stringify(label).replace(/"/g, '&quot;')}, this)">${text ? 'Rewrite' : 'Draft from data'}</button>
         <button class="btn btn-secondary btn-sm" onclick="togglePubEdit(this)">Edit text</button>
         ${text ? `<button class="btn btn-secondary btn-sm" onclick="if(confirm('Clear this write-up?')){setReportField('pub:${key}','');renderReview();}">Clear</button>` : ''}
         <span class="rv-saved" data-rv-saved="pub:${key}"></span>
+        <span class="rv-saved" data-rv-saved="${key}|${esc(managerName())}"></span>
       </div>
     </div>
   </div>`;
@@ -5728,7 +5785,7 @@ async function draftPub(key, label, btn) {
   if (!managerUnlocked() && !unlockManager()) return;
   const wrap = btn.closest('.rv-pub-wrap');
   const instr = wrap.querySelector('[data-pub-instr]')?.value || '';
-  const body = { pin: reviewPin(), section: label, data: RV_DATA[key] || '', notes: noteEntry(key, managerName()).text || '', current: pubText(key), instruction: instr, others: pubOthers(key) };
+  const body = { pin: reviewPin(), section: label, data: RV_DATA[key] || '', notes: managerNote(key), current: pubText(key), instruction: instr, others: pubOthers(key) };
   const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Writing…';
   wrap.querySelectorAll('button').forEach(b => b.disabled = true);
   try {
@@ -5771,7 +5828,7 @@ async function draftAllPub() {
       const key = queue.shift(); const label = RV_LABELS[key];
       RV_UI.draftAll.current = label; renderPubStatus();
       try {
-        const body = { pin: reviewPin(), section: label, data: RV_DATA[key] || '', notes: noteEntry(key, managerName()).text || '', current: empty.length ? '' : pubText(key), instruction: '', others: pubOthers(key) };
+        const body = { pin: reviewPin(), section: label, data: RV_DATA[key] || '', notes: managerNote(key), current: empty.length ? '' : pubText(key), instruction: '', others: pubOthers(key) };
         const res = await fetch(DRAFT_FN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const out = await res.json().catch(() => ({}));
         if (!res.ok || !out.text) throw new Error(out.error || `HTTP ${res.status}`);
@@ -5960,11 +6017,29 @@ function renderReview() {
   RV_DATA.practice = `Season/tournament context: ${recStr}. Team weaknesses by the numbers: walks allowed ${pit.bb}, errors ${fld.e}, passed balls ${fld.pb}, strikeouts at the plate ${bat.so} of ${bat.pa} PA, hard-hit rate ${pct1(div(bat.hhb, bat.bip))}.`;
   RV_DATA.next = RV_DATA.practice + `\nPitching usage this event: ${A.per.filter(r => r.pit.outs > 0).map(r => `${playerShort(playerById(r.pid))} ${ipStr(r.pit.outs)} IP`).join(', ')}.`;
 
+  // Header pills — counts from the imported stats, nothing estimated
+  const played = A.per.filter(r => r.games > 0);
+  const arms = A.per.filter(r => r.pit.outs > 0 || r.pit.pitches > 0).length;
+  const multiPos = played.filter(r => POSITIONS.filter(x => r.pos[x]).length >= 2).length;
+  const pills = [`Record ${recStr}`, `${rec.rs} runs scored`, `${rec.ra} runs allowed`,
+    ...(ns ? [`${played.length} players evaluated`, `${arms} pitcher${arms === 1 ? '' : 's'} used`,
+      played.length && multiPos === played.length ? 'Every player at two or more positions' : `${multiPos} of ${played.length} players at two or more positions`] : [])];
+  const navItems = [['overview', 'Overview'], ['guide', 'How to read this'], ['games', 'Games'], ['hitting', 'Hitting'], ['pitching', 'Pitching'], ['defense', 'Defense'], ['players', 'Players'],
+    ...(ptList.length ? [['playingtime', 'Playing time']] : []), ['practice', 'Practice'], ['next', 'Next tournament'], ['final', 'Final thoughts'], ['sources', 'Sources']];
+
   body.innerHTML = `
-    <div class="card" style="margin-bottom:14px">
-      <div class="rv-kicker"><img class="rv-logo" src="/logo.svg" alt="">${esc(TEAM_SETTINGS.team_name || 'Team')} · ${esc(scope.tournament ? 'Tournament review' : 'Season review')}</div>
-      <div class="rv-h" style="font-size:22px">${esc(scope.label.replace(/ · \d+ games$/, ''))}</div>
-      <div class="rv-lead">${esc(when)} · ${n} game${n === 1 ? '' : 's'}${scoreOnly ? ` · <span style="color:var(--warn)">${scoreOnly} score-only (stats not imported)</span>` : ''}</div>
+    <div class="card rv-anchor" id="rv-s-overview" style="margin-bottom:14px">
+      <div class="rv-kicker">${esc(TEAM_SETTINGS.team_name || 'Team')} · ${esc(scope.tournament ? 'Tournament review' : 'Season review')}</div>
+      <div class="rv-hero">
+        <div class="rv-hero-mark"><img src="/logo.svg" alt=""></div>
+        <div style="min-width:0">
+          <div class="rv-title">${esc(scope.label.replace(/ · \d+ games$/, ''))}</div>
+          <div class="rv-lead">${esc(when)} · ${n} game${n === 1 ? '' : 's'}${scoreOnly ? ` · <span style="color:var(--warn)">${scoreOnly} score-only (stats not imported)</span>` : ''} · What we did well, what got us in trouble, what the numbers say about each player, and what we work on next.</div>
+        </div>
+      </div>
+      <div class="rv-pills">${pills.map(t => `<span class="rv-pill">${esc(t)}</span>`).join('')}</div>
+      <div class="rv-callout noprint"><b>Coach feedback:</b> every section has a Coach thoughts box. What you submit goes to me privately — the box clears and your note is not shown back on this page.</div>
+      <div class="rv-hero-btns noprint"><button class="btn btn-secondary btn-sm" onclick="printPage()">Print or save as PDF</button></div>
       <div class="rv-pub-status noprint" id="rv-pub-status"></div>
       ${pubBlock('overview', 'Weekend overview')}
       <div class="rv-stats">
@@ -5980,7 +6055,28 @@ function renderReview() {
       ${noteBox('overview', 'What I took away from these games…')}
     </div>
 
-    <div class="card rv-section">
+    <nav class="rv-nav noprint">${navItems.map(([id, t]) => `<a onclick="rvJump('rv-s-${id}', this)">${esc(t)}</a>`).join('')}</nav>
+
+    <div class="card rv-section rv-anchor" id="rv-s-guide">
+      <div class="rv-kicker">How to read this</div>
+      <div class="rv-h">Where the numbers come from, and what they can and can't tell you</div>
+      <div class="rv-guide">
+        <p>Every number on this page comes from the GameChanger scorebook for these games — batting, pitching, fielding and innings by position, imported after the weekend. A game marked <em>score only</em> counts in the record but not in any stat. Youth scorekeeping is imperfect: whether a hard ground ball is a hit or an error depends on who was holding the phone. Read the numbers as direction, not verdicts, and read them alongside what you saw.</p>
+        <p>Each section opens with the write-up, then the numbers behind it. Player notes are collapsed — tap a name to open one. Under every section is a Coach thoughts box for each of you.</p>
+        <div class="rv-gloss">
+          <div><b>PA</b> — plate appearances. <b>AVG / OBP / SLG</b> — average, on-base, slugging.</div>
+          <div><b>QAB</b> — quality at-bats as GameChanger scores them: hard-hit ball, walk, HBP, sacrifice, a 6+ pitch at-bat, or 3+ pitches after two strikes.</div>
+          <div><b>Hard-hit</b> — share of balls in play scored as hit hard. <b>ROE</b> — reached on error.</div>
+          <div><b>Strike%</b> — strikes as a share of all pitches. <b>FPS</b> — first-pitch strikes as a share of batters faced.</div>
+          <div><b>IP</b> — innings pitched; .1 and .2 are outs, so 2.1 is seven outs. A partial inning counts as a full inning for the rest rules.</div>
+          <div><b>Unearned runs</b> — runs that scored after an error, as the scorer ruled it. <b>Walk differential</b> — walks we took minus walks we allowed.</div>
+          <div><b>PB</b> — passed balls. <b>CS</b> — runners thrown out, shown against steal attempts.</div>
+          <div><b>Field share</b> — the share of available defensive innings a player was on the field.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card rv-section rv-anchor" id="rv-s-games">
       <div class="rv-kicker">Game review</div>
       <div class="rv-h">Game by game</div>
       ${pubBlock('games', 'Game by game')}
@@ -6005,7 +6101,7 @@ function renderReview() {
       ${noteBox('games', 'Which games taught us the most, and why…')}
     </div>
 
-    <div class="card rv-section">
+    <div class="card rv-section rv-anchor" id="rv-s-hitting">
       <div class="rv-kicker">Hitting and baserunning</div>
       <div class="rv-h">At the plate and on the bases</div>
       ${pubBlock('hitting', 'Hitting and baserunning')}
@@ -6029,7 +6125,7 @@ function renderReview() {
       ${noteBox('hitting', 'What worked, what I want to improve, the message for hitters…')}
     </div>
 
-    <div class="card rv-section">
+    <div class="card rv-section rv-anchor" id="rv-s-pitching">
       <div class="rv-kicker">Pitching</div>
       <div class="rv-h">On the mound</div>
       ${pubBlock('pitching', 'Pitching')}
@@ -6072,7 +6168,7 @@ function renderReview() {
       ${noteBox('pitching', 'What I saw on the mound, and how I want us talking to pitchers…')}
     </div>
 
-    <div class="card rv-section">
+    <div class="card rv-section rv-anchor" id="rv-s-defense">
       <div class="rv-kicker">Defense and catching</div>
       <div class="rv-h">In the field</div>
       ${pubBlock('defense', 'Defense and catching')}
@@ -6092,7 +6188,7 @@ function renderReview() {
       ${noteBox('defense', 'Outfield, middle infield, pitcher and catcher — what needs work…')}
     </div>
 
-    <div class="card rv-section">
+    <div class="card rv-section rv-anchor" id="rv-s-players">
       <div class="rv-kicker">Player notes</div>
       <div class="rv-h">What the numbers say about each player</div>
       <div class="rv-lead noprint">Tap a player to expand. Innings by position, the batting line, and a pitching line where there is one. Your note sits under each.</div>
@@ -6137,7 +6233,7 @@ function renderReview() {
 
     <div class="card rv-section">
       <div class="rv-kicker">Looking ahead</div>
-      ${ptList.length ? `<div class="rv-h">Playing time</div>
+      ${ptList.length ? `<div class="rv-h rv-anchor" id="rv-s-playingtime">Playing time</div>
       ${pubBlock('playingtime', 'Playing time')}
       <div class="rv-stats">
         ${stat(PT.games.filter(hasAnyFielding).length, 'Games', 'with fielding recorded')}
@@ -6151,24 +6247,24 @@ function renderReview() {
 
       <div class="rv-sub">
       <div class="rv-h">Practice plan and next tournament</div>
-      <div class="rv-sub">
+      <div class="rv-sub rv-anchor" id="rv-s-practice">
       <div class="rv-kicker" style="margin-top:8px">Practice plan</div>
       ${pubBlock('practice', 'Practice plan')}
       ${noteBox('practice', 'What we work on at practice, and the targets I want to hit next time out…')}
       </div>
-      <div class="rv-sub">
+      <div class="rv-sub rv-anchor" id="rv-s-next">
       <div class="rv-kicker" style="margin-top:16px">Next tournament</div>
       ${pubBlock('next', 'Next tournament')}
       ${noteBox('next', 'Pitching usage, lineup approach, what I want us watching in the next tournament…')}
       </div>
       </div>
-      <div class="rv-sub">
+      <div class="rv-sub rv-anchor" id="rv-s-final">
       <div class="rv-h" style="margin-top:16px;font-size:14px">Final coach thoughts</div>
       ${noteBox('final', 'Overall take — what I liked, what concerned me, what surprised me…')}
       </div>
     </div>
 
-    <div class="card rv-section">
+    <div class="card rv-section rv-anchor" id="rv-s-sources">
       <div class="rv-kicker">What this used</div>
       <div class="rv-srcs">
         ${A.games.map(g => `${g.game_date ? fmtShortDate(g.game_date) : ''} · ${esc(g.opponent || '')} · ${esc((g.result?.outcome || '') + ' ' + (g.result?.rs ?? '') + '–' + (g.result?.ra ?? ''))}${A.withStats.includes(g) ? '' : ' · <em>score only</em>'}`).join('<br>')}
