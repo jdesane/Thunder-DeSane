@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-17.12">
+<meta name="build" content="2026-09-17.13">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -5672,6 +5672,7 @@ function printPage() { openForPrint(); setTimeout(() => window.print(), 50); }
 // unlocked device sees the controls; coaches see the text.
 const DRAFT_FN = SUPA_URL.replace(/\/$/, '') + '/functions/v1/review-draft';
 let RV_DATA = {};   // section key -> the numbers, as text lines, for drafting
+let RV_LABELS = {}; // section key -> the heading shown for it, in page order
 function reviewPin() { return String(TEAM_SETTINGS.review_pin || '').trim(); }
 function managerDevice() {
   const pin = reviewPin(); if (!pin) return true;
@@ -5692,6 +5693,7 @@ function unlockManager() {
 function pubText(key) { return reportField('pub:' + key).trim(); }
 function pubSent() { return reportField('pub:_sent'); }
 function pubBlock(key, label) {
+  RV_LABELS[key] = label;
   const text = pubText(key);
   const mgr = managerUnlocked();
   const paras = text ? text.split(/\n\s*\n/).map(p => `<p>${esc(p.trim()).replace(/\n/g, '<br>')}</p>`).join('') : '';
@@ -5737,6 +5739,50 @@ async function draftPub(key, label, btn) {
     btn.disabled = false; btn.textContent = orig; wrap.querySelectorAll('button').forEach(b => b.disabled = false);
   }
 }
+// Every section at once. Sections that already have a write-up are left
+// alone unless none are missing — then it offers to rewrite them all. Calls
+// run three at a time; saves go one after another because each save
+// rewrites the whole notes row.
+async function draftAllPub() {
+  if (!managerUnlocked() && !unlockManager()) return;
+  if (RV_UI.draftAll) return;
+  const keys = Object.keys(RV_LABELS);
+  const empty = keys.filter(k => !pubText(k));
+  const todo = empty.length ? empty : keys;
+  const players = todo.filter(k => k.startsWith('player:')).length;
+  const what = `${todo.length} section${todo.length === 1 ? '' : 's'}${players ? ` (${players} player write-up${players === 1 ? '' : 's'})` : ''}`;
+  const msg = empty.length
+    ? `Draft ${what} that ${todo.length === 1 ? 'has' : 'have'} no write-up yet, from the numbers and your notes? Sections you've already written stay as they are. About 1–2¢ each.`
+    : `Every section already has a write-up. Rewrite all ${what} from the data? Your current text is replaced. About 1–2¢ each.`;
+  if (!todo.length || !confirm(msg)) return;
+  RV_UI.draftAll = { done: 0, total: todo.length, failed: [], current: '' };
+  document.querySelectorAll('.rv-pub-tools button').forEach(b => b.disabled = true);
+  renderPubStatus();
+  let saving = Promise.resolve();
+  const queue = [...todo];
+  const worker = async () => {
+    while (queue.length) {
+      const key = queue.shift(); const label = RV_LABELS[key];
+      RV_UI.draftAll.current = label; renderPubStatus();
+      try {
+        const body = { pin: reviewPin(), section: label, data: RV_DATA[key] || '', notes: noteEntry(key, managerName()).text || '', current: empty.length ? '' : pubText(key), instruction: '' };
+        const res = await fetch(DRAFT_FN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const out = await res.json().catch(() => ({}));
+        if (!res.ok || !out.text) throw new Error(out.error || `HTTP ${res.status}`);
+        saving = saving.catch(() => {}).then(async () => { RV_NOTES['pub:' + key] = out.text; await saveCoachNote('pub:' + key, null); });
+        await saving;
+      } catch (e) {
+        RV_UI.draftAll.failed.push(label);
+      }
+      RV_UI.draftAll.done++; renderPubStatus();
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  await saving.catch(() => {});
+  const { failed, total } = RV_UI.draftAll; RV_UI.draftAll = null;
+  renderReview();
+  toast(failed.length ? `Drafted ${total - failed.length} of ${total} — could not draft ${failed.join(', ')}` : `Drafted ${total} section${total === 1 ? '' : 's'}`);
+}
 async function sendReviewToCoaches() {
   if (!managerDevice() && !unlockManager()) return;
   RV_UI.previewCoach = false;
@@ -5758,6 +5804,11 @@ function renderPubStatus() {
   const el = document.getElementById('rv-pub-status'); if (!el) return;
   const sent = pubSent();
   const mgr = managerUnlocked();
+  if (RV_UI.draftAll) {
+    const d = RV_UI.draftAll;
+    el.innerHTML = `<span class="rv-pub-state">Drafting ${Math.min(d.done + 1, d.total)} of ${d.total}${d.current ? ' — ' + esc(d.current) : ''}…${d.failed.length ? ` (${d.failed.length} failed)` : ''}</span>`;
+    return;
+  }
   if (RV_UI.previewCoach) {
     el.innerHTML = `<div class="rv-preview">
       <div><b>Coach preview.</b> This is exactly what the staff gets after you send${sent ? '' : ' — right now their link still says you\'re working on it'}.</div>
@@ -5765,8 +5816,10 @@ function renderPubStatus() {
       <button class="btn btn-primary btn-sm" onclick="sendReviewToCoaches()">${sent ? 'Re-send link' : 'Send to coaches'}</button></div></div>`;
     return;
   }
+  const missing = Object.keys(RV_LABELS).filter(k => !pubText(k)).length;
   el.innerHTML = mgr
     ? `<span class="rv-pub-state ${sent ? 'ok' : ''}">${sent ? 'Sent to coaches ' + fmtStamp(sent) : 'Draft — not sent to coaches'}</span>
+       <button class="btn btn-secondary btn-sm" onclick="draftAllPub()" title="${missing ? `Draft the ${missing} section${missing === 1 ? '' : 's'} with no write-up yet` : 'Every section has a write-up — rewrite them all from the data'}">${missing ? `Draft all (${missing} to go)` : 'Rewrite all from data'}</button>
        <button class="btn btn-secondary btn-sm" onclick="previewAsCoach(true)" title="See the review exactly as the staff will">Preview as coach</button>
        <button class="btn ${sent ? 'btn-secondary' : 'btn-primary'} btn-sm" onclick="sendReviewToCoaches()">${sent ? 'Re-send link' : 'Send to coaches'}</button>
        ${sent ? `<button class="btn btn-secondary btn-sm" onclick="unsendReview()" title="Close the coach link again while you keep working">Take back</button>` : ''}`
@@ -5863,7 +5916,7 @@ function renderReview() {
   const recStr = `${rec.W}-${rec.L}${rec.T ? '-' + rec.T : ''}`;
 
   // The numbers each write-up is drafted from — the same ones shown on screen
-  RV_DATA = {};
+  RV_DATA = {}; RV_LABELS = {};
   const gameLine = g => `${g.game_date ? fmtShortDate(g.game_date) : ''} vs ${g.opponent || '?'}: ${(g.result?.outcome || '?')} ${g.result?.rs ?? ''}-${g.result?.ra ?? ''}`;
   RV_DATA.overview = [`${scope.label.replace(/ · \d+ games$/, '')}, ${when}, ${n} games, record ${recStr}, ${rec.rs} runs scored, ${rec.ra} allowed.`,
     ...A.perGame.map(({ g, b, p, f, hasStats }) => gameLine(g) + (hasStats ? ` (hits ${b.h}-${p.h}, walks ${b.bb}-${p.bb}, our errors ${f.e})` : ' (stats not imported)')),
