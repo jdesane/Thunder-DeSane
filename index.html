@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-17.5">
+<meta name="build" content="2026-09-17.6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1131,7 +1131,9 @@
   .rv-coach-sent { font-size: 12px; line-height: 1.5; white-space: pre-line; color: var(--text); background: rgba(34,197,94,0.06); border-left: 3px solid rgba(34,197,94,0.6); border-radius: 0 6px 6px 0; padding: 8px 10px; margin-bottom: 8px; }
   details.rv-note { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
   details.rv-note > summary .card-link::before { content: 'Close'; }
-  details.rv-note:not([open]) > summary .card-link::before { content: 'Open'; }
+  details.rv-note:not([open]) > summary .card-link::before { content: 'Add coach thoughts'; }
+  details.rv-note:not([open]) { padding: 10px 14px; }
+  details.rv-note:not([open]) > summary .rv-note-l { font-weight: 500; color: var(--text-muted); }
   .rv-note-s { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
   .rv-note-s::-webkit-details-marker { display: none; }
   .rv-note-s .rv-note-l { font-size: 14px; font-weight: 600; color: var(--text); margin: 0; }
@@ -5547,7 +5549,11 @@ function fmtStamp(iso) {
 }
 function noteBox(key, placeholder) {
   const reveal = showSubmitted();
-  return `<details class="rv-note" open>
+  // Closed by default; opens itself when there's an unsent draft inside, or
+  // when the manager is reading what was submitted, so nothing is hidden.
+  const coaches = reviewCoaches();
+  const open = coaches.some(c => { const e = noteEntry(key, c.name); return e.draft || (reveal && e.text); });
+  return `<details class="rv-note" ${open ? 'open' : ''}>
     <summary class="rv-note-s"><span class="rv-note-l">Coach thoughts on this section</span><span class="card-link"></span></summary>
     <div class="rv-note-i">Add anything you saw differently, anything you want to add, or anything you think we need to work on.</div>
     <div class="rv-coaches">
