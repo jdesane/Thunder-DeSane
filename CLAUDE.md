@@ -85,7 +85,7 @@ system prompt forbids inventing stats or observations — keep it that way.
   Reports print one page per player; empty report fields are omitted, never
   filled in. `#review` and `#reports` in the URL open straight to those views.
 - **Published write-ups and drafting**: `pub:<section>` (overview, games,
-  hitting, pitching, defense, player:<pid>, practice, next) are plain
+  hitting, pitching, defense, player:<pid>, playingtime, practice, next) are plain
   strings everyone reads; `pub:_sent` is the ISO time the manager sent the
   review — the coach URL shows "still working on it" until then. Manager
   controls (draft / rewrite / edit / send, the coach-status strip, and

@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-17.4">
+<meta name="build" content="2026-09-17.5">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1140,6 +1140,8 @@
   .rv-status { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--text-muted); margin-top: 10px; }
   .rv-status b { color: var(--text); font-weight: 600; }
   .rv-status .ok { color: var(--pos); }
+  .rv-pt { padding: 10px 12px; margin: 0 0 12px; }
+  .rv-pt table.matrix th.who { min-width: 120px; }
   .rv-pub { margin: 10px 0 14px; font-size: 14px; line-height: 1.65; color: var(--text); max-width: 760px; }
   .rv-pub p { margin: 0 0 10px; }
   .rv-pub p:last-child { margin-bottom: 0; }
@@ -1269,6 +1271,12 @@
     .rv-coach-n, .rv-note-s .rv-note-l { color: #111; }
     .rv-note-i, .rv-note-s .card-link, .rv-reveal, .rv-pub-tools, .rv-pub-edit, .rv-pub-none { display: none !important; }
     .rv-pub { color: #111; }
+    .rv-pt { break-inside: avoid; page-break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .rv-pt table.matrix th { color: #555; }
+    .rv-pt table.matrix td { color: #111; }
+    .rv-pt table.matrix td.zero { color: #bbb; }
+    .rv-pt table.matrix td.total-col { background: #f3f3f3 !important; }
+    .rv-pt .legend { color: #555; }
     details.rv-note { border-color: #ddd; }
     details.rv-note:not(:has(.rv-coach-sent)):not(:has(textarea:not(:placeholder-shown))) { display: none; }
     /* Player reports: one page per player, nothing else */
@@ -4841,8 +4849,7 @@ function ptGames() {
 // Innings by position for every player across the selected games.
 // A player marked unavailable for a game gets no innings AND no bench time —
 // an absence shouldn't read as being benched.
-function playingTimeData() {
-  const games = ptGames();
+function playingTimeData(games = ptGames()) {
   const rows = {};
   const touch = pid => (rows[pid] = rows[pid] || {
     pid, byPos: {}, total: 0, bench: 0, games: 0,
@@ -5124,6 +5131,11 @@ function heatStyle(v, max, hue) {
 function renderMatrix(data, avg) {
   const el = document.getElementById('pt-matrix');
   if (!el) return;
+  el.innerHTML = matrixHTML(data, avg, { clickable: true });
+}
+
+// The distribution grid as HTML — the Playing Time screen and the Review share it.
+function matrixHTML(data, avg, { clickable = false } = {}) {
   const list = PLAYERS.filter(p => p.cloudId)
     .map(p => ({ p, r: data.rows[p.cloudId] }))
     .filter(x => x.r && x.r.games > 0)
@@ -5145,7 +5157,8 @@ function renderMatrix(data, avg) {
     }).join('');
     const s = ptShare(r);
     const tone = s < avg.share - 0.12 ? 'var(--neg)' : s > avg.share + 0.14 ? 'var(--info)' : 'var(--text-muted)';
-    return `<tr class="clickable-row" onclick="PT_UI.player='${r.pid}'; document.getElementById('pt-player-select').value='${r.pid}'; renderPlayerLog(); document.getElementById('pt-log').scrollIntoView({behavior:'smooth',block:'center'})">
+    const click = clickable ? `class="clickable-row" onclick="PT_UI.player='${r.pid}'; document.getElementById('pt-player-select').value='${r.pid}'; renderPlayerLog(); document.getElementById('pt-log').scrollIntoView({behavior:'smooth',block:'center'})"` : '';
+    return `<tr ${click}>
       <td class="who">#${esc(p.num || '')} ${esc(p.name || '')}</td>
       ${cells}
       <td class="bench-col" style="${heatStyle(r.bench, maxBench, 'warn')}">${r.bench || '·'}</td>
@@ -5159,7 +5172,7 @@ function renderMatrix(data, avg) {
     return `<td>${m.toFixed(1)}</td>`;
   }).join('');
 
-  el.innerHTML = head + `<tbody>${rows}
+  return head + `<tbody>${rows}
     <tr class="avg-row">
       <td class="who">Team average</td>
       ${avgCells}
@@ -5167,6 +5180,14 @@ function renderMatrix(data, avg) {
       <td>${mean(list.map(x => x.r.total)).toFixed(1)}</td>
       <td>${pct(avg.share)}</td>
     </tr></tbody>`;
+}
+function matrixLegendHTML() {
+  return `<div class="legend">
+    <span>Fewer</span>
+    ${[0.08, 0.16, 0.24, 0.32, 0.38].map(a => `<span class="legend-swatch" style="background:rgba(34,197,94,${a})"></span>`).join('')}
+    <span>More innings</span>
+    <span style="margin-left:10px"><span class="legend-swatch" style="background:rgba(245,158,11,0.28);display:inline-block;vertical-align:middle"></span> Bench</span>
+  </div>`;
 }
 
 function renderFairness(data) {
@@ -5784,6 +5805,15 @@ function renderReview() {
     if (r.fld.tc) lines.push(`Fielding: ${r.fld.tc} chances, ${r.fld.e} errors${r.fld.c_outs ? `, caught ${ipStr(r.fld.c_outs)} with ${r.fld.pb} PB` : ''}.`);
     RV_DATA['player:' + r.pid] = lines.join('\n');
   });
+  // Playing time across this scope's games, from the recorded fielding
+  const PT = playingTimeData(scope.games.filter(isPlayedGame));
+  const ptList = Object.values(PT.rows).filter(r => r.games > 0);
+  const ptAvg = ptList.length ? ptAverages(ptList) : null;
+  const ptSpread = ptList.length ? Math.max(...ptList.map(r => r.total)) - Math.min(...ptList.map(r => r.total)) : 0;
+  const ptTotal = ptList.reduce((sum, r) => sum + r.total, 0);
+  RV_DATA.playingtime = ptList.length ? [`${PT.games.filter(hasAnyFielding).length} games with fielding recorded, ${ptTotal} defensive innings, average ${ptAvg.total.toFixed(1)} per player, field share ${pct(ptAvg.share)}, most-to-least gap ${ptSpread} innings.`,
+    'Innings by player (position: innings; bench; total; share of available innings):',
+    ...[...ptList].sort((a, b) => b.total - a.total).map(r => `  ${playerShort(playerById(r.pid))}: ${POSITIONS.filter(x => r.byPos[x]).map(x => `${x} ${r.byPos[x]}`).join(', ') || 'none'}; bench ${r.bench}; total ${r.total}; ${pct(ptShare(r))}`)].join('\n') : 'No fielding recorded for these games.';
   RV_DATA.practice = `Season/tournament context: ${recStr}. Team weaknesses by the numbers: walks allowed ${pit.bb}, errors ${fld.e}, passed balls ${fld.pb}, strikeouts at the plate ${bat.so} of ${bat.pa} PA, hard-hit rate ${pct1(div(bat.hhb, bat.bip))}.`;
   RV_DATA.next = RV_DATA.practice + `\nPitching usage this event: ${A.per.filter(r => r.pit.outs > 0).map(r => `${playerShort(playerById(r.pid))} ${ipStr(r.pit.outs)} IP`).join(', ')}.`;
 
@@ -5964,6 +5994,18 @@ function renderReview() {
 
     <div class="card rv-section">
       <div class="rv-kicker">Looking ahead</div>
+      ${ptList.length ? `<div class="rv-h">Playing time</div>
+      ${pubBlock('playingtime', 'Playing time')}
+      <div class="rv-stats">
+        ${stat(PT.games.filter(hasAnyFielding).length, 'Games', 'with fielding recorded')}
+        ${stat(ptTotal, 'Defensive innings', 'across the roster')}
+        ${stat(ptAvg.total.toFixed(1), 'Avg per player', 'innings in the field')}
+        ${stat(pct(ptAvg.share), 'Field share', 'of available innings')}
+        ${stat(`<span style="color:var(--${ptSpread > 6 ? 'warn' : 'pos'})">${ptSpread} inn</span>`, 'Most-to-least gap', ptSpread > 6 ? 'wide for a weekend' : 'tight')}
+      </div>
+      <div class="card rv-pt"><div class="matrix-wrap"><table class="matrix">${matrixHTML(PT, ptAvg)}</table></div>${matrixLegendHTML()}</div>
+      ${noteBox('playingtime', 'Anything on innings, positions or who needs reps…')}` : ''}
+
       <div class="rv-h">Practice plan and next tournament</div>
       <div class="rv-kicker" style="margin-top:8px">Practice plan</div>
       ${pubBlock('practice', 'Practice plan')}
