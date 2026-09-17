@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-17.10">
+<meta name="build" content="2026-09-17.11">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1270,7 +1270,22 @@
     .main { padding: 0; }
     .section { display: none !important; }
     #section-review { display: block !important; padding: 0 !important; }
-    .card { border: 1px solid #ddd; background: #fff; break-inside: avoid; page-break-inside: avoid; }
+    .card { border: 1px solid #ddd; background: #fff; break-inside: auto; page-break-inside: auto; }
+    .rv-stats, .rv-games, .rv-pub, .rv-h, .rv-kicker { break-inside: avoid; }
+    .rv-h, .rv-kicker { break-after: avoid; }
+    .table-wrap { background: #fff; border-color: #ddd; }
+    table.data tbody tr, table.data tbody tr:hover { background: #fff; }
+    .rv-pt table.matrix { font-size: 10px; border-spacing: 1px; }
+    .rv-pt table.matrix th { font-size: 8px; padding: 3px 2px; }
+    .rv-pt table.matrix th.who { min-width: 0; }
+    .rv-pt table.matrix td { padding: 3px 2px; min-width: 0; }
+    .rv-pt table.matrix td.bench-col { background: #ececec !important; color: #444; }
+    .rv-pt .legend-bench { background: #ececec !important; }
+    .rv-sub:not(:has(.rv-pub:not(.empty))):not(:has(.rv-coach-sent)):not(:has(textarea:not(:placeholder-shown))) { display: none; }
+    .rv-player-line b, .rv-player-line strong { color: #111; }
+    .rv-player-line span { color: #555; margin-right: 12px; }
+    .rv-player summary .card-link { display: none; }
+    .rv-stats { grid-template-columns: repeat(3, 1fr); }
     .rv-stat, .rv-game, .rv-player { background: #fafafa; border-color: #ddd; break-inside: avoid; }
     .rv-stat-v, .rv-h, .rv-player-n, .rv-fact strong { color: #111; }
     .rv-stat-l, .rv-lead, .rv-note-l, .rv-player-p, .rv-srcs, .rv-mini-l, .rv-game-d { color: #555; }
@@ -1875,7 +1890,7 @@
       <div class="sa-bar-n" id="sa-bar-title">SFL Thunder Black<small>Tournament review</small></div>
       <div class="sa-bar-a">
         <button class="btn btn-secondary btn-sm" id="sa-unlock" onclick="unlockManager()" title="Unlock the manager's controls on this device">Manager</button>
-        <button class="btn btn-secondary btn-sm" onclick="window.print()">Print / PDF</button>
+        <button class="btn btn-secondary btn-sm" onclick="printPage()">Print / PDF</button>
       </div>
     </div>
     <div class="topbar">
@@ -2054,7 +2069,7 @@
           <button class="btn btn-secondary btn-sm" id="rv-unlock" onclick="unlockManager()" title="Unlock the manager's controls on this device">Manager</button>
           <button class="btn btn-secondary btn-sm" id="rv-link-coach" onclick="copyReviewLink('coach')" title="A link that opens this review on its own, for the staff">Coach link</button>
           <button class="btn btn-secondary btn-sm" id="rv-link-report" style="display:none" onclick="copyReviewLink(RV_UI.player === 'all' ? 'reports' : 'player')" title="A link that opens just this report, for the family">Parent link</button>
-          <button class="btn btn-secondary btn-sm" onclick="window.print()">Print / PDF</button>
+          <button class="btn btn-secondary btn-sm" onclick="printPage()">Print / PDF</button>
         </div>
       </div>
       <div id="rv-body"></div>
@@ -5109,7 +5124,7 @@ function renderPlayingTimeSection() {
         <span>Fewer</span>
         ${[0.08, 0.16, 0.24, 0.32, 0.38].map(a => `<span class="legend-swatch" style="background:rgba(255,182,18,${a})"></span>`).join('')}
         <span>More innings</span>
-        <span style="margin-left:10px"><span class="legend-swatch" style="background:rgba(255,255,255,0.16);display:inline-block;vertical-align:middle"></span> Bench</span>
+        <span style="margin-left:10px"><span class="legend-swatch legend-bench" style="background:rgba(255,255,255,0.16);display:inline-block;vertical-align:middle"></span> Bench</span>
         <span style="margin-left:10px">Click a row for that player's game log</span>
       </div>
     </div>
@@ -5208,7 +5223,7 @@ function matrixLegendHTML() {
     <span>Fewer</span>
     ${[0.08, 0.16, 0.24, 0.32, 0.38].map(a => `<span class="legend-swatch" style="background:rgba(255,182,18,${a})"></span>`).join('')}
     <span>More innings</span>
-    <span style="margin-left:10px"><span class="legend-swatch" style="background:rgba(255,255,255,0.16);display:inline-block;vertical-align:middle"></span> Bench</span>
+    <span style="margin-left:10px"><span class="legend-swatch legend-bench" style="background:rgba(255,255,255,0.16);display:inline-block;vertical-align:middle"></span> Bench</span>
   </div>`;
 }
 
@@ -5627,6 +5642,22 @@ function setReviewMode(mode) {
   const lr = document.getElementById('rv-link-report'); if (lr) { lr.style.display = mode === 'reports' ? '' : 'none'; }
   renderReview();
 }
+// ---- printing ----
+// A closed <details> prints nothing but its summary, so every player (and
+// every coach box with something in it) opens for the print and closes after.
+let PRINT_OPENED = [];
+function openForPrint() {
+  PRINT_OPENED = [];
+  document.querySelectorAll('#section-review details:not([open])').forEach(d => {
+    const hasContent = d.classList.contains('rv-player') || d.querySelector('.rv-coach-sent, .rv-pub:not(.empty)') || [...d.querySelectorAll('textarea')].some(t => t.value.trim());
+    if (hasContent) { d.open = true; PRINT_OPENED.push(d); }
+  });
+}
+function closeAfterPrint() { PRINT_OPENED.forEach(d => { d.open = false; }); PRINT_OPENED = []; }
+window.addEventListener('beforeprint', openForPrint);
+window.addEventListener('afterprint', closeAfterPrint);
+function printPage() { openForPrint(); setTimeout(() => window.print(), 50); }
+
 // ---- the published voice ----
 // Each section carries a write-up everyone reads (`pub:<section>`). The app
 // drafts it from the numbers and the manager's own private note through the
@@ -5999,7 +6030,7 @@ function renderReview() {
     <div class="card rv-section">
       <div class="rv-kicker">Player notes</div>
       <div class="rv-h">What the numbers say about each player</div>
-      <div class="rv-lead">Tap a player to expand. Innings by position, the batting line, and a pitching line where there is one. Your note sits under each.</div>
+      <div class="rv-lead noprint">Tap a player to expand. Innings by position, the batting line, and a pitching line where there is one. Your note sits under each.</div>
       ${A.per
         .filter(r => r.games > 0 || Object.keys(r.pos).length)
         .sort((a, b) => (playerById(a.pid)?.name || '').localeCompare(playerById(b.pid)?.name || ''))
@@ -6053,15 +6084,23 @@ function renderReview() {
       <div class="card rv-pt"><div class="matrix-wrap"><table class="matrix">${matrixHTML(PT, ptAvg)}</table></div>${matrixLegendHTML()}</div>
       ${noteBox('playingtime', 'Anything on innings, positions or who needs reps…')}` : ''}
 
+      <div class="rv-sub">
       <div class="rv-h">Practice plan and next tournament</div>
+      <div class="rv-sub">
       <div class="rv-kicker" style="margin-top:8px">Practice plan</div>
       ${pubBlock('practice', 'Practice plan')}
       ${noteBox('practice', 'What we work on at practice, and the targets I want to hit next time out…')}
+      </div>
+      <div class="rv-sub">
       <div class="rv-kicker" style="margin-top:16px">Next tournament</div>
       ${pubBlock('next', 'Next tournament')}
       ${noteBox('next', 'Pitching usage, lineup approach, what I want us watching in the next tournament…')}
+      </div>
+      </div>
+      <div class="rv-sub">
       <div class="rv-h" style="margin-top:16px;font-size:14px">Final coach thoughts</div>
       ${noteBox('final', 'Overall take — what I liked, what concerned me, what surprised me…')}
+      </div>
     </div>
 
     <div class="card rv-section">
