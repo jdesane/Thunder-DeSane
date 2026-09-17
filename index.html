@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-17.11">
+<meta name="build" content="2026-09-17.12">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -5369,7 +5369,13 @@ function exportPlayingTime() {
 // A tournament or season assessment built from recorded stats, with the
 // coach's own commentary saved beside each section. The numbers are computed
 // facts; every judgement is a text box the coach fills in.
-let RV_UI = { scope: '', mode: 'assess', player: 'all' };
+let RV_UI = { scope: '', mode: 'assess', player: 'all', noteOpen: {}, playerOpen: {} };
+// toggle doesn't bubble, so it's caught on the way down
+document.addEventListener('toggle', e => {
+  const d = e.target; if (!(d instanceof HTMLDetailsElement) || PRINT_OPENED.includes(d)) return;
+  if (d.dataset.noteKey) RV_UI.noteOpen[d.dataset.noteKey] = d.open;
+  if (d.dataset.playerKey) RV_UI.playerOpen[d.dataset.playerKey] = d.open;
+}, true);
 let RV_NOTES = {};
 let RV_NOTES_KEY = '';
 let RV_SAVE_TIMER = null;
@@ -5583,11 +5589,11 @@ function fmtStamp(iso) {
 }
 function noteBox(key, placeholder) {
   const reveal = showSubmitted();
-  // Closed by default; opens itself when there's an unsent draft inside, or
-  // when the manager is reading what was submitted, so nothing is hidden.
+  // Closed by default; an unsent draft inside opens it so nothing gets lost.
+  // Once a coach opens or closes a box, that choice sticks across re-renders.
   const coaches = reviewCoaches();
-  const open = coaches.some(c => { const e = noteEntry(key, c.name); return e.draft || (reveal && e.text); });
-  return `<details class="rv-note" ${open ? 'open' : ''}>
+  const open = RV_UI.noteOpen[key] ?? coaches.some(c => !!noteEntry(key, c.name).draft);
+  return `<details class="rv-note" data-note-key="${esc(key)}" ${open ? 'open' : ''}>
     <summary class="rv-note-s"><span class="rv-note-l">Coach thoughts on this section</span><span class="card-link"></span></summary>
     <div class="rv-note-i">Add anything you saw differently, anything you want to add, or anything you think we need to work on.</div>
     <div class="rv-coaches">
@@ -6039,7 +6045,7 @@ function renderReview() {
           const posStr = POSITIONS.filter(x => r.pos[x]).sort((x, y) => r.pos[y] - r.pos[x]).map(x => `${x} ${ipStr(r.pos[x])}`).join(', ');
           const b = r.bat;
           const o = div(b.h + b.bb + b.hbp, b.ab + b.bb + b.hbp + b.sf);
-          return `<details class="rv-player">
+          return `<details class="rv-player" data-player-key="${r.pid}" ${RV_UI.playerOpen[r.pid] ? 'open' : ''}>
             <summary>
               <span class="rv-player-n">#${esc(p.num || '')} ${esc(p.name || '')}</span>
               <span class="rv-player-p">${esc(posStr || 'no innings recorded')}</span>
