@@ -12,13 +12,13 @@
 <meta name="apple-mobile-web-app-title" content="Thunder">
 <meta name="application-name" content="Thunder">
 <meta name="theme-color" content="#0b0d10">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="manifest" href="/manifest.json">
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-17.2">
+<meta name="build" content="2026-09-17.3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1146,6 +1146,20 @@
   .rv-mode button { background: none; border: 0; color: var(--text-muted); font: inherit; font-size: 12px; padding: 6px 12px; cursor: pointer; }
   .rv-mode button.on { background: var(--surface-2, rgba(255,255,255,0.06)); color: var(--text); }
 
+  /* Standalone review: /review/<tournament>[/<player>|/reports] — the review on
+     its own, for coaches and parents, with the rest of the app out of reach */
+  body.standalone .sidebar, body.standalone .topbar, body.standalone .drawer, body.standalone .drawer-backdrop { display: none !important; }
+  body.standalone .app { display: block; }
+  body.standalone .main { padding-bottom: 24px; }
+  body.standalone .section-header .rv-mode, body.standalone #rv-scope, body.standalone #rv-player { display: none !important; }
+  body.standalone.sa-parent .section-header, body.standalone.sa-parent .pr-edit, body.standalone.sa-parent #rv-body > .card.noprint { display: none !important; }
+  body.standalone.sa-parent #section-review { padding-top: 18px; }
+  .sa-bar { display: none; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--bg-elev); }
+  body.standalone .sa-bar { display: flex; }
+  .sa-bar-n { font-weight: 600; font-size: 14px; }
+  .sa-bar-n small { display: block; font-weight: 400; font-size: 11px; color: var(--text-muted); }
+  @media print { .sa-bar { display: none !important; } }
+
   /* Player report — a printed page previewed inside the app */
   .pr-page {
     background: #fff; color: #111; border-radius: 6px;
@@ -1816,6 +1830,10 @@
 
   <!-- ================================ MAIN ================================ -->
   <main class="main">
+    <div class="sa-bar noprint">
+      <div class="sa-bar-n" id="sa-bar-title">SFL Thunder Black<small>Tournament review</small></div>
+      <button class="btn btn-secondary btn-sm" onclick="window.print()">Print / PDF</button>
+    </div>
     <div class="topbar">
       <div class="topbar-left">
         <span data-crumb="section">Dashboard</span>
@@ -1989,7 +2007,8 @@
           <select class="input" id="rv-scope" style="width:auto;min-width:200px" onchange="RV_UI.scope=this.value; renderReview()"></select>
           <select class="input" id="rv-player" style="width:auto;min-width:150px;display:none" onchange="RV_UI.player=this.value; renderReview()"></select>
           <label class="rv-reveal" title="Read what the other coaches have submitted (remembered on this device)"><input type="checkbox" id="rv-reveal" onchange="toggleShowSubmitted(this.checked)"> Show submitted notes</label>
-          <button class="btn btn-secondary btn-sm" onclick="copyCoachLink()" title="Link that opens straight to this review for the other coaches">Coach link</button>
+          <button class="btn btn-secondary btn-sm" id="rv-link-coach" onclick="copyReviewLink('coach')" title="A link that opens this review on its own, for the staff">Coach link</button>
+          <button class="btn btn-secondary btn-sm" id="rv-link-report" style="display:none" onclick="copyReviewLink(RV_UI.player === 'all' ? 'reports' : 'player')" title="A link that opens just this report, for the family">Parent link</button>
           <button class="btn btn-secondary btn-sm" onclick="window.print()">Print / PDF</button>
         </div>
       </div>
@@ -5542,11 +5561,50 @@ function setReviewMode(mode) {
   document.getElementById('rv-mode-assess')?.classList.toggle('on', mode === 'assess');
   document.getElementById('rv-mode-reports')?.classList.toggle('on', mode === 'reports');
   const ps = document.getElementById('rv-player'); if (ps) ps.style.display = mode === 'reports' ? '' : 'none';
+  const lc = document.getElementById('rv-link-coach'); if (lc) lc.style.display = mode === 'reports' ? 'none' : '';
+  const lr = document.getElementById('rv-link-report'); if (lr) { lr.style.display = mode === 'reports' ? '' : 'none'; }
   renderReview();
 }
-function copyCoachLink() {
-  const url = location.origin + location.pathname + '#review';
-  (navigator.clipboard?.writeText(url) || Promise.reject()).then(() => toast('Coach link copied — send it to the staff'), () => prompt('Copy this link for the coaches:', url));
+// ---- standalone links: /review/<tournament>[/<player>|/reports] ----
+const slugify = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+function scopeSlug(scope) { return scope.key === 'season' ? 'season' : slugify(scope.tournament?.name || scope.label); }
+function playerSlug(p) { return slugify(p?.name); }
+function reviewLink(kind) {
+  const scope = reviewScope(); if (!scope) return '';
+  let path = '/review/' + scopeSlug(scope);
+  if (kind === 'reports') path += '/reports';
+  if (kind === 'player') { const p = playerById(RV_UI.player); if (!p) return ''; path += '/' + playerSlug(p); }
+  return location.origin + path;
+}
+function copyReviewLink(kind) {
+  const url = reviewLink(kind); if (!url) { toast('Pick a player first'); return; }
+  const what = kind === 'player' ? 'Parent link' : kind === 'reports' ? 'All-reports link' : 'Coach link';
+  (navigator.clipboard?.writeText(url) || Promise.reject()).then(() => toast(`${what} copied`), () => prompt(`Copy this ${what.toLowerCase()}:`, url));
+}
+function copyCoachLink() { copyReviewLink('coach'); }
+// Called at boot when the URL is /review/…; picks scope, mode and player once games are loaded.
+let SA_ROUTE = null;
+function parseStandaloneRoute() {
+  const m = location.pathname.match(/^\/review(?:\/([^/]+))?(?:\/([^/]+))?\/?$/);
+  if (!m) return null;
+  return { scope: m[1] || '', sub: m[2] || '' };
+}
+function applyStandaloneRoute() {
+  if (!SA_ROUTE) return;
+  const scopes = reviewScopes();
+  const scope = scopes.find(s => scopeSlug(s) === SA_ROUTE.scope) || scopes[0];
+  if (!scope) return;
+  RV_UI.scope = scope.key; RV_UI.mode = 'assess'; RV_UI.player = 'all';
+  document.body.classList.remove('sa-parent');
+  if (SA_ROUTE.sub === 'reports') { RV_UI.mode = 'reports'; }
+  else if (SA_ROUTE.sub) {
+    const p = PLAYERS.find(x => playerSlug(x) === SA_ROUTE.sub);
+    if (p) { RV_UI.mode = 'reports'; RV_UI.player = p.cloudId; document.body.classList.add('sa-parent'); }
+  }
+  const t = document.getElementById('sa-bar-title');
+  if (t) t.innerHTML = `${esc(TEAM_SETTINGS.team_name || 'Team')}<small>${esc(scope.label.replace(/ · \d+ games$/, ''))}${RV_UI.mode === 'reports' ? ' · Player report' : ' · Tournament review'}</small>`;
+  navigate('review');
+  setReviewMode(RV_UI.mode);
 }
 const stat = (v, l, s) => `<div class="rv-stat"><div class="rv-stat-v">${v}</div><div class="rv-stat-l">${l}</div>${s ? `<div class="rv-stat-s">${s}</div>` : ''}</div>`;
 
@@ -5873,6 +5931,7 @@ function renderPlayerReports(A, scope, when) {
     fpct: div(fld.tc - fld.e, fld.tc), strike: div(pit.strikes, pit.pitches),
   };
   const shown = RV_UI.player === 'all' ? rows : rows.filter(r => r.pid === RV_UI.player);
+  const lr = document.getElementById('rv-link-report'); if (lr) lr.textContent = RV_UI.player === 'all' ? 'All-reports link' : 'Parent link';
   if (!A.withStats.length) { body.innerHTML = `<div class="card"><div class="card-empty" style="padding:40px">No imported stats in this scope, so there is nothing to report on yet.</div></div>`; return; }
   body.innerHTML = `
     <div class="card noprint" style="max-width:880px;margin:0 auto 18px">
@@ -9672,7 +9731,7 @@ let UPDATE_OFFERED = false;
 async function checkForUpdate() {
   if (!BUILD || UPDATE_OFFERED) return;
   try {
-    const res = await fetch('version.txt?t=' + Date.now(), { cache: 'no-store' });
+    const res = await fetch('/version.txt?t=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) return;
     const latest = (await res.text()).trim();
     if (latest && latest !== BUILD) showUpdateBanner(latest);
@@ -9704,7 +9763,7 @@ setInterval(checkForUpdate, 5 * 60 * 1000);
 document.addEventListener('keydown', (e) => {
   const target = e.target;
   const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT');
-  if ((e.metaKey || e.ctrlKey) && e.key === 'e' && !isInput) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'e' && !isInput && !document.body.classList.contains('standalone')) {
     e.preventDefault();
     openExpenseModal();
   }
@@ -9726,8 +9785,10 @@ document.addEventListener('keydown', (e) => {
   loadCache();
   applyTeamSettings();
   renderDashboard();
-  // The coach link (…/#review) lands the staff straight on the Review
-  if (location.hash === '#review' || location.hash === '#reports') {
+  // /review/<tournament>[/<player>|/reports] is the review on its own — for coaches and parents
+  SA_ROUTE = parseStandaloneRoute();
+  if (SA_ROUTE) { document.body.classList.add('standalone'); navigate('review'); }
+  else if (location.hash === '#review' || location.hash === '#reports') {
     if (location.hash === '#reports') RV_UI.mode = 'reports';
     history.replaceState(null, '', location.pathname); navigate('review');
     setReviewMode(RV_UI.mode);
@@ -9736,6 +9797,7 @@ document.addEventListener('keydown', (e) => {
   const ok = await loadFromCloud();
   if (ok) {
     applyTeamSettings();
+    if (SA_ROUTE) { applyStandaloneRoute(); return; }
     if (UI.section === 'dashboard') { renderDashboard(); loadUniformOrders(); }
     if (UI.section === 'planner') { ensureGameLoaded(); renderPlanner(); }
     if (UI.section === 'playingtime') renderPlayingTimeSection();

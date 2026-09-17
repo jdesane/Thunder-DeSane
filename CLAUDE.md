@@ -79,6 +79,13 @@ coach's. If data is missing, say so in the UI rather than fill it in.
   Report copy. A bare string under a section key is a legacy manager note.
   Reports print one page per player; empty report fields are omitted, never
   filled in. `#review` and `#reports` in the URL open straight to those views.
+- **Standalone review URLs** (vercel.json rewrites `/review/*` to
+  index.html): `/review/<tournament-slug>` is the assessment on its own
+  for the staff, `/review/<slug>/reports` all player reports,
+  `/review/<slug>/<player-slug>` one family's report with nothing else
+  reachable (`body.standalone`, `.sa-parent`). Slugs come from `slugify()`
+  of the tournament name / player name; `season` is the season scope. The
+  Review header's Coach link / Parent link buttons copy these.
 - Importing a game: `python3 scripts/import_gamechanger.py <export.csv>
   --game-number N` updates that game; `--create` inserts one. The script
   fingerprints the file and refuses one already imported under another
