@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-17.7">
+<meta name="build" content="2026-09-17.8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1174,7 +1174,9 @@
   body.standalone .sidebar, body.standalone .topbar, body.standalone .drawer, body.standalone .drawer-backdrop { display: none !important; }
   body.standalone .app { display: block; }
   body.standalone .main { padding-bottom: 24px; }
-  body.standalone .section-header .rv-mode, body.standalone #rv-scope, body.standalone #rv-player { display: none !important; }
+  body.standalone #section-review > .section-header { display: none !important; }
+  body.standalone #section-review { padding-top: 18px; }
+  .sa-bar-a { display: flex; gap: 8px; align-items: center; }
   body.standalone.sa-parent .section-header, body.standalone.sa-parent .pr-edit, body.standalone.sa-parent #rv-body > .card.noprint { display: none !important; }
   body.standalone.sa-parent #section-review { padding-top: 18px; }
   .sa-bar { display: none; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--bg-elev); }
@@ -1869,7 +1871,10 @@
   <main class="main">
     <div class="sa-bar noprint">
       <div class="sa-bar-n" id="sa-bar-title">SFL Thunder Black<small>Tournament review</small></div>
-      <button class="btn btn-secondary btn-sm" onclick="window.print()">Print / PDF</button>
+      <div class="sa-bar-a">
+        <button class="btn btn-secondary btn-sm" id="sa-unlock" onclick="unlockManager()" title="Unlock the manager's controls on this device">Manager</button>
+        <button class="btn btn-secondary btn-sm" onclick="window.print()">Print / PDF</button>
+      </div>
     </div>
     <div class="topbar">
       <div class="topbar-left">
@@ -5776,13 +5781,15 @@ function renderReview() {
   if (RV_UI.mode === 'reports') { renderPlayerReports(A, scope, when); return; }
   const ps = document.getElementById('rv-player'); if (ps) ps.style.display = 'none';
   const ub = document.getElementById('rv-unlock'); if (ub) ub.style.display = managerUnlocked() ? 'none' : '';
+  const sb = document.getElementById('sa-unlock'); if (sb) sb.style.display = managerUnlocked() || document.body.classList.contains('sa-parent') ? 'none' : '';
   const rw = document.getElementById('rv-reveal-wrap'); if (rw) rw.style.display = managerUnlocked() ? '' : 'none';
 
   // The coach-facing page stays closed until the manager sends it
   if (document.body.classList.contains('standalone') && !pubSent() && !managerUnlocked()) {
     body.innerHTML = `<div class="card" style="max-width:640px;margin:40px auto"><div class="rv-kicker">${esc(TEAM_SETTINGS.team_name || 'Team')}</div>
       <div class="rv-h">${esc(scope.label.replace(/ · \d+ games$/, ''))}</div>
-      <div class="rv-lead">Coach is still working on this review. You'll get the link again when it's ready for your thoughts.</div></div>`;
+      <div class="rv-lead">Coach is still working on this review. You'll get the link again when it's ready for your thoughts.</div>
+      <div style="margin-top:16px"><button class="btn btn-secondary btn-sm" onclick="unlockManager()">I'm the manager — unlock</button></div></div>`;
     return;
   }
 
