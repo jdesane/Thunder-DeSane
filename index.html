@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-17.8">
+<meta name="build" content="2026-09-17.9">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1161,6 +1161,8 @@
   .rv-pub-btns { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
   .rv-pub-btns .rv-saved { height: auto; margin: 0; }
   .rv-pub-status { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 10px; }
+  .rv-preview { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; width: 100%; padding: 10px 12px; border: 1px solid var(--gold); border-radius: 8px; background: rgba(255,182,18,0.08); font-size: 13px; }
+  .rv-preview-b { display: flex; gap: 8px; }
   .rv-pub-state { font-size: 12px; color: var(--warn); }
   .rv-pub-state.ok { color: var(--pos); }
   .rv-reveal { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer; white-space: nowrap; }
@@ -5457,15 +5459,9 @@ async function loadReviewNotes(scopeKey) {
   const rows = await supa('team_reviews', 'GET', null, `?scope_key=eq.${encodeURIComponent(scopeKey)}&select=notes`);
   if (Array.isArray(rows) && rows[0]?.notes) RV_NOTES = rows[0].notes;
   if (RV_NOTES_KEY !== scopeKey) return;   // scope changed while loading
-  // Report pages are built from the notes, so rebuild them; assessment boxes just refill
-  if (RV_UI.mode === 'reports' && UI.section === 'review') { renderReview(); return; }
-  document.querySelectorAll('[data-rv-note]').forEach(ta => {
-    if (!ta.dataset.rvCoach) { ta.value = reportField(ta.dataset.rvNote); return; }
-    ta.value = noteEntry(ta.dataset.rvNote, ta.dataset.rvCoach).draft || '';
-  });
-  if (showSubmitted()) { renderReview(); return; }   // submitted notes are part of the markup
-  renderReview_stampBoxes();
-  renderCoachStatus();
+  // The write-ups, the sent status, the coach gate and the stamps are all
+  // built from the notes, so the page is rebuilt once they arrive.
+  if (UI.section === 'review') renderReview();
 }
 // After a load, show Submitted stamps on boxes that already have one
 function renderReview_stampBoxes() {
@@ -5635,10 +5631,13 @@ function setReviewMode(mode) {
 const DRAFT_FN = SUPA_URL.replace(/\/$/, '') + '/functions/v1/review-draft';
 let RV_DATA = {};   // section key -> the numbers, as text lines, for drafting
 function reviewPin() { return String(TEAM_SETTINGS.review_pin || '').trim(); }
-function managerUnlocked() {
+function managerDevice() {
   const pin = reviewPin(); if (!pin) return true;
   try { return localStorage.getItem('thunder_rv_pin_ok') === pin; } catch { return false; }
 }
+// While previewing as a coach, the manager's own device renders like theirs.
+function managerUnlocked() { return managerDevice() && !RV_UI.previewCoach; }
+function previewAsCoach(on) { RV_UI.previewCoach = !!on; renderReview(); if (on) window.scrollTo(0, 0); }
 function unlockManager() {
   const pin = reviewPin();
   if (!pin) { renderReview(); return true; }
@@ -5697,7 +5696,8 @@ async function draftPub(key, label, btn) {
   }
 }
 async function sendReviewToCoaches() {
-  if (!managerUnlocked() && !unlockManager()) return;
+  if (!managerDevice() && !unlockManager()) return;
+  RV_UI.previewCoach = false;
   const empty = Object.keys(RV_DATA).filter(k => !pubText(k) && !k.startsWith('player:')).length;
   if (empty && !confirm(`${empty} section${empty === 1 ? ' has' : 's have'} no write-up yet. Send anyway?`)) return;
   RV_NOTES['pub:_sent'] = new Date().toISOString();
@@ -5705,13 +5705,29 @@ async function sendReviewToCoaches() {
   copyReviewLink('coach');
   renderReview();
 }
+async function unsendReview() {
+  if (!managerDevice() && !unlockManager()) return;
+  if (!confirm('Close the coach link again? Their link will say you\'re still working on it until you send again. Nothing you\'ve written is lost.')) return;
+  delete RV_NOTES['pub:_sent'];
+  await saveCoachNote('pub:_sent', null);
+  renderReview(); toast('Taken back — coach link closed');
+}
 function renderPubStatus() {
   const el = document.getElementById('rv-pub-status'); if (!el) return;
   const sent = pubSent();
   const mgr = managerUnlocked();
+  if (RV_UI.previewCoach) {
+    el.innerHTML = `<div class="rv-preview">
+      <div><b>Coach preview.</b> This is exactly what the staff gets after you send${sent ? '' : ' — right now their link still says you\'re working on it'}.</div>
+      <div class="rv-preview-b"><button class="btn btn-secondary btn-sm" onclick="previewAsCoach(false)">Back to editing</button>
+      <button class="btn btn-primary btn-sm" onclick="sendReviewToCoaches()">${sent ? 'Re-send link' : 'Send to coaches'}</button></div></div>`;
+    return;
+  }
   el.innerHTML = mgr
     ? `<span class="rv-pub-state ${sent ? 'ok' : ''}">${sent ? 'Sent to coaches ' + fmtStamp(sent) : 'Draft — not sent to coaches'}</span>
-       <button class="btn ${sent ? 'btn-secondary' : 'btn-primary'} btn-sm" onclick="sendReviewToCoaches()">${sent ? 'Re-send link' : 'Send to coaches'}</button>`
+       <button class="btn btn-secondary btn-sm" onclick="previewAsCoach(true)" title="See the review exactly as the staff will">Preview as coach</button>
+       <button class="btn ${sent ? 'btn-secondary' : 'btn-primary'} btn-sm" onclick="sendReviewToCoaches()">${sent ? 'Re-send link' : 'Send to coaches'}</button>
+       ${sent ? `<button class="btn btn-secondary btn-sm" onclick="unsendReview()" title="Close the coach link again while you keep working">Take back</button>` : ''}`
     : (sent ? '' : `<span class="rv-pub-state">Coach is still working on this review.</span>`);
 }
 
@@ -5780,12 +5796,12 @@ function renderReview() {
 
   if (RV_UI.mode === 'reports') { renderPlayerReports(A, scope, when); return; }
   const ps = document.getElementById('rv-player'); if (ps) ps.style.display = 'none';
-  const ub = document.getElementById('rv-unlock'); if (ub) ub.style.display = managerUnlocked() ? 'none' : '';
-  const sb = document.getElementById('sa-unlock'); if (sb) sb.style.display = managerUnlocked() || document.body.classList.contains('sa-parent') ? 'none' : '';
+  const ub = document.getElementById('rv-unlock'); if (ub) ub.style.display = managerDevice() ? 'none' : '';
+  const sb = document.getElementById('sa-unlock'); if (sb) sb.style.display = managerDevice() || document.body.classList.contains('sa-parent') ? 'none' : '';
   const rw = document.getElementById('rv-reveal-wrap'); if (rw) rw.style.display = managerUnlocked() ? '' : 'none';
 
   // The coach-facing page stays closed until the manager sends it
-  if (document.body.classList.contains('standalone') && !pubSent() && !managerUnlocked()) {
+  if (document.body.classList.contains('standalone') && !pubSent() && !managerDevice()) {
     body.innerHTML = `<div class="card" style="max-width:640px;margin:40px auto"><div class="rv-kicker">${esc(TEAM_SETTINGS.team_name || 'Team')}</div>
       <div class="rv-h">${esc(scope.label.replace(/ · \d+ games$/, ''))}</div>
       <div class="rv-lead">Coach is still working on this review. You'll get the link again when it's ready for your thoughts.</div>
