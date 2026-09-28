@@ -81,6 +81,9 @@ system prompt forbids inventing stats or observations — keep it that way.
   supplied for it was a byte-identical copy of the Billygoats file. Ask for
   a fresh export; import with the script below.
 - `team_reviews` — notes per review scope (`scope_key` → `notes` jsonb).
+  Scopes are `tournament:<id>`, `season`, and `game:<id>` — one per final
+  game, newest first, so a standalone game gets the same review. A
+  single-game review drops the "Game by game" section and its nav entry.
   Each section key (`overview`, `hitting`, `player:<pid>`, …) holds
   `{ "<coach name>": { text, at, draft? } }`. Every coach — the manager
   included — types a `draft`; Submit appends it to `text`, stamps `at`,

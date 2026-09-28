@@ -5416,7 +5416,15 @@ function reviewScopes() {
     if (gs.length) scopes.push({ key: 'tournament:' + t.id, label: t.name || 'Tournament', games: gs, tournament: t });
   });
   if (finals.length) scopes.push({ key: 'season', label: `Season · ${finals.length} games`, games: finals });
+  // One scope per game, newest first. Same review, scoped to a single game —
+  // a standalone game has no tournament to sit inside.
+  [...finals]
+    .sort((a, b) => (b.game_date || '').localeCompare(a.game_date || '') || (b.game_number || 0) - (a.game_number || 0))
+    .forEach(g => scopes.push({ key: 'game:' + g.id, label: gameScopeLabel(g), games: [g], game: g }));
   return scopes;
+}
+function gameScopeLabel(g) {
+  return `${g.game_date ? fmtShortDate(g.game_date) : 'TBD'} · ${g.opponent || 'Untitled'}`;
 }
 function reviewScope() {
   const all = reviewScopes();
@@ -5906,7 +5914,11 @@ function renderPubStatus() {
 
 // ---- standalone links: /review/<tournament>[/<player>|/reports] ----
 const slugify = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-function scopeSlug(scope) { return scope.key === 'season' ? 'season' : slugify(scope.tournament?.name || scope.label); }
+function scopeSlug(scope) {
+  if (scope.key === 'season') return 'season';
+  if (scope.game) return slugify(`${scope.game.opponent || 'game'} ${scope.game.game_date || ''}`);
+  return slugify(scope.tournament?.name || scope.label);
+}
 function playerSlug(p) { return slugify(p?.name); }
 function reviewLink(kind) {
   const scope = reviewScope(); if (!scope) return '';
@@ -5941,10 +5953,11 @@ function applyStandaloneRoute() {
     if (p) { RV_UI.mode = 'reports'; RV_UI.player = p.cloudId; document.body.classList.add('sa-parent'); }
   }
   const t = document.getElementById('sa-bar-title');
-  if (t) t.innerHTML = `${esc(TEAM_SETTINGS.team_name || 'Team')}<small>${esc(scope.label.replace(/ · \d+ games$/, ''))}${RV_UI.mode === 'reports' ? ' · Player report' : ' · Tournament review'}</small>`;
+  if (t) t.innerHTML = `${esc(TEAM_SETTINGS.team_name || 'Team')}<small>${esc(scope.label.replace(/ · \d+ games$/, ''))}${RV_UI.mode === 'reports' ? ' · Player report' : ' · ' + reviewKind(scope)}</small>`;
   navigate('review');
   setReviewMode(RV_UI.mode);
 }
+function reviewKind(scope) { return scope?.tournament ? 'Tournament review' : scope?.game ? 'Game review' : 'Season review'; }
 const stat = (v, l, s) => `<div class="rv-stat"><div class="rv-stat-v">${v}</div><div class="rv-stat-l">${l}</div>${s ? `<div class="rv-stat-s">${s}</div>` : ''}</div>`;
 
 // ---- render ----
@@ -6036,15 +6049,15 @@ function renderReview() {
   const played = A.per.filter(r => r.games > 0);
   const arms = A.per.filter(r => r.pit.outs > 0 || r.pit.pitches > 0).length;
   const multiPos = played.filter(r => POSITIONS.filter(x => r.pos[x]).length >= 2).length;
-  const pills = [`Record ${recStr}`, `${rec.rs} runs scored`, `${rec.ra} runs allowed`,
+  const pills = [`Record ${recStr}`, `${rec.rs} run${rec.rs === 1 ? '' : 's'} scored`, `${rec.ra} run${rec.ra === 1 ? '' : 's'} allowed`,
     ...(ns ? [`${played.length} players evaluated`, `${arms} pitcher${arms === 1 ? '' : 's'} used`,
       played.length && multiPos === played.length ? 'Every player at two or more positions' : `${multiPos} of ${played.length} players at two or more positions`] : [])];
-  const navItems = [['overview', 'Overview'], ['guide', 'How to read this'], ['games', 'Games'], ['hitting', 'Hitting'], ['pitching', 'Pitching'], ['defense', 'Defense'], ['players', 'Players'],
+  const navItems = [['overview', 'Overview'], ['guide', 'How to read this'], ...(n === 1 ? [] : [['games', 'Games']]), ['hitting', 'Hitting'], ['pitching', 'Pitching'], ['defense', 'Defense'], ['players', 'Players'],
     ...(ptList.length ? [['playingtime', 'Playing time']] : []), ['practice', 'Practice'], ['next', 'Next tournament'], ['final', 'Final thoughts'], ['sources', 'Sources']];
 
   body.innerHTML = `
     <div class="card rv-anchor" id="rv-s-overview" style="margin-bottom:14px">
-      <div class="rv-kicker">${esc(TEAM_SETTINGS.team_name || 'Team')} · ${esc(scope.tournament ? 'Tournament review' : 'Season review')}</div>
+      <div class="rv-kicker">${esc(TEAM_SETTINGS.team_name || 'Team')} · ${esc(reviewKind(scope))}</div>
       <div class="rv-hero">
         <div class="rv-hero-mark"><img src="/logo.svg" alt=""></div>
         <div style="min-width:0">
@@ -6091,7 +6104,7 @@ function renderReview() {
       </div>
     </div>
 
-    <div class="card rv-section rv-anchor" id="rv-s-games">
+    ${n === 1 ? '' : `<div class="card rv-section rv-anchor" id="rv-s-games">
       <div class="rv-kicker">Game review</div>
       <div class="rv-h">Game by game</div>
       ${pubBlock('games', 'Game by game')}
@@ -6114,7 +6127,7 @@ function renderReview() {
         }).join('')}
       </div>
       ${noteBox('games', 'Which games taught us the most, and why…')}
-    </div>
+    </div>`}
 
     <div class="card rv-section rv-anchor" id="rv-s-hitting">
       <div class="rv-kicker">Hitting and baserunning</div>
