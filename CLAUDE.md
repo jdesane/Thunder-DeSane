@@ -64,6 +64,27 @@ happened once (`renderPitching`); grep before naming.
   game seen (`planningInnings()`), demand estimates use the typical length
   (`inningsProfile()`), both from Settings → Game length.
 
+## Who can see what
+
+The app is one file serving two audiences, so the boot path splits before it
+fetches anything:
+
+- **Public routes** (`/worksheet`, `/review/*`) call `loadPublicData(kind)`,
+  which selects only the columns that page renders — for a worksheet that is
+  `id, jersey_number, name`, nothing else — strips `review_pin` from the
+  settings it keeps, and **never calls `saveCache()`**. Do not make a public
+  page call `loadFromCloud()`: that pulls home addresses, dates of birth,
+  parent phone numbers and the books, and writes them to the visitor's
+  localStorage. A kid's iPad must never hold any of it.
+- **The coach app** fetches `team_config` alone, checks `appLocked()`, and
+  shows the PIN screen before loading anything else. `startApp()` is the only
+  path that calls `loadFromCloud()`.
+
+This is defence in depth, not a security boundary. The anon key is in the page
+source and RLS still lets `anon` read every table, so anyone who opens devtools
+can query the lot. Closing that properly needs real auth for the coach app plus
+restrictive RLS — not done yet.
+
 ## Judgement stays with the coach
 
 Never invent position ratings, tiers, opponent quality, or coach notes.

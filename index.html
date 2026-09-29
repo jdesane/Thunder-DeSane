@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-29.2">
+<meta name="build" content="2026-09-29.3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1431,6 +1431,21 @@
   .hw-ans-a { font-size: 14px; white-space: pre-line; margin-top: 3px; }
   .hw-ans-a.wrong { color: var(--neg); }
   .hw-ans-a.unsure { color: var(--warn); font-style: italic; }
+
+
+  /* ===== APP LOCK ===== */
+  /* The player worksheet and the review links are public. The app behind them
+     is not — a parent who backs the /worksheet off the URL gets this. */
+  body.locked .app, body.locked #update-banner { display: none !important; }
+  #app-lock { position: fixed; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--bg); }
+  .lock-card { width: 100%; max-width: 330px; text-align: center; }
+  .lock-card img { width: 58px; height: 58px; margin-bottom: 16px; }
+  .lock-t { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+  .lock-s { font-size: 12.5px; color: var(--text-muted); margin: 4px 0 20px; }
+  .lock-card .input { text-align: center; font-size: 19px; letter-spacing: 0.3em; padding: 12px; margin-bottom: 10px; }
+  .lock-card .btn { width: 100%; justify-content: center; }
+  .lock-e { font-size: 12.5px; color: var(--neg); min-height: 18px; margin-top: 10px; }
+  .lock-h { font-size: 12px; color: var(--text-subtle); line-height: 1.6; margin-top: 18px; }
 
   /* ===== UPDATE BANNER ===== */
   #update-banner {
@@ -10713,26 +10728,87 @@ function hwCopyLink(url) {
   (navigator.clipboard?.writeText(url) || Promise.reject()).then(() => toast('Player link copied'), () => prompt('Copy this link:', url));
 }
 
-(async function boot() {
+// ---- what a public page is allowed to load ----
+// The worksheet and the review links are open to anyone with the URL, so they
+// fetch only the columns that page actually renders and never write the cache.
+// A kid's iPad has no business holding the roster's home addresses, the
+// parents' phone numbers, or the team's books.
+async function loadPublicData(kind) {
+  const cols = kind === 'review'
+    ? 'id,jersey_number,name,positions,tier,sort_order'
+    : 'id,jersey_number,name,sort_order';
+  const jobs = [
+    supa('team_players', 'GET', null, '?select=' + cols + '&order=sort_order.asc'),
+    supa('team_config', 'GET', null, '?key=eq.team_settings&select=value'),
+  ];
+  if (kind === 'review') {
+    jobs.push(supa('team_games', 'GET', null, '?select=*&order=game_date.asc.nullslast'));
+    jobs.push(supa('team_tournaments', 'GET', null, '?select=*&order=start_date.asc.nullslast'));
+  }
+  const [players, config, games, tournaments] = await Promise.all(jobs);
+  if (!Array.isArray(players)) return false;
+  PLAYERS = players.map(pl => ({
+    cloudId: pl.id, num: pl.jersey_number, name: pl.name,
+    positions: pl.positions || {}, tier: pl.tier || 'middle', parents: [],
+  }));
+  if (Array.isArray(config) && config[0] && config[0].value) {
+    const v = { ...config[0].value };
+    delete v.review_pin;               // never hand the PIN to a public page
+    TEAM_SETTINGS = { ...DEFAULT_SETTINGS, ...v };
+  }
+  if (Array.isArray(games)) GAMES = games;
+  if (Array.isArray(tournaments)) TM_STATE.tournaments = tournaments;
+  return true;                          // deliberately no saveCache()
+}
+
+// ---- the front door ----
+function appLocked() {
+  const pin = String(TEAM_SETTINGS.review_pin || '').trim();
+  if (!pin) return false;
+  try { return localStorage.getItem('thunder_rv_pin_ok') !== pin; } catch { return true; }
+}
+function showAppLock() {
+  document.body.classList.add('locked');
+  let el = document.getElementById('app-lock');
+  if (!el) { el = document.createElement('div'); el.id = 'app-lock'; document.body.appendChild(el); }
+  el.innerHTML = `<div class="lock-card">
+    <img src="/logo.svg" alt="">
+    <div class="lock-t">${esc(TEAM_SETTINGS.team_name || 'Team')}</div>
+    <div class="lock-s">Team Manager — coaches only</div>
+    <input class="input" id="lock-pin" type="password" inputmode="numeric" autocomplete="off"
+           placeholder="PIN" onkeydown="if(event.key==='Enter')tryAppUnlock()">
+    <button class="btn btn-primary" onclick="tryAppUnlock()">Unlock</button>
+    <div class="lock-e" id="lock-err"></div>
+    <div class="lock-h">Looking for a worksheet or a team review? Open the link you were sent — you don't need a PIN for those.</div>
+  </div>`;
+  setTimeout(() => document.getElementById('lock-pin')?.focus(), 60);
+}
+async function tryAppUnlock() {
+  const val = (document.getElementById('lock-pin')?.value || '').trim();
+  const pin = String(TEAM_SETTINGS.review_pin || '').trim();
+  if (val !== pin) {
+    const e = document.getElementById('lock-err');
+    if (e) e.textContent = 'That PIN is not right';
+    return;
+  }
+  try { localStorage.setItem('thunder_rv_pin_ok', pin); } catch {}
+  document.getElementById('app-lock')?.remove();
+  document.body.classList.remove('locked');
+  await startApp();
+}
+
+async function startApp() {
   loadCache();
   applyTeamSettings();
   renderDashboard();
-  // /review/<tournament>[/<player>|/reports] is the review on its own — for coaches and parents
-  SA_ROUTE = parseStandaloneRoute();
-  WS_ROUTE = parseWorksheetRoute();
-  if (WS_ROUTE) { document.body.classList.add('standalone'); navigate('worksheet'); }
-  else if (SA_ROUTE) { document.body.classList.add('standalone'); navigate('review'); }
-  else if (location.hash === '#review' || location.hash === '#reports') {
+  if (location.hash === '#review' || location.hash === '#reports') {
     if (location.hash === '#reports') RV_UI.mode = 'reports';
     history.replaceState(null, '', location.pathname); navigate('review');
     setReviewMode(RV_UI.mode);
   }
-
   const ok = await loadFromCloud();
   if (ok) {
     applyTeamSettings();
-    if (WS_ROUTE) { await loadWorksheets(); renderWorksheetPage(); return; }
-    if (SA_ROUTE) { applyStandaloneRoute(); return; }
     if (UI.section === 'dashboard') { renderDashboard(); loadUniformOrders(); }
     if (UI.section === 'planner') { ensureGameLoaded(); renderPlanner(); }
     if (UI.section === 'playingtime') renderPlayingTimeSection();
@@ -10746,6 +10822,30 @@ function hwCopyLink(url) {
     if (UI.section === 'tournaments') renderTournaments();
     if (UI.section === 'settings') renderSettings();
   }
+}
+
+(async function boot() {
+  WS_ROUTE = parseWorksheetRoute();
+  SA_ROUTE = WS_ROUTE ? null : parseStandaloneRoute();
+
+  // A public page loads its own slim data and stops. It never touches the
+  // cache, the roster's private columns, or the books.
+  if (WS_ROUTE || SA_ROUTE) {
+    document.body.classList.add('standalone');
+    navigate(WS_ROUTE ? 'worksheet' : 'review');
+    if (!await loadPublicData(WS_ROUTE ? 'worksheet' : 'review')) return;
+    applyTeamSettings();
+    if (WS_ROUTE) { await loadWorksheets(); renderWorksheetPage(); }
+    else applyStandaloneRoute();
+    return;
+  }
+
+  // The coach app. Settings come first and alone, so a locked visitor never
+  // pulls the roster or the finances at all.
+  const cfg = await supa('team_config', 'GET', null, '?key=eq.team_settings&select=value');
+  if (Array.isArray(cfg) && cfg[0] && cfg[0].value) TEAM_SETTINGS = { ...DEFAULT_SETTINGS, ...cfg[0].value };
+  if (appLocked()) { showAppLock(); return; }
+  await startApp();
 })();
 </script>
 </body>
