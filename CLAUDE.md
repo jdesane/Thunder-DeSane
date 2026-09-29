@@ -9,10 +9,13 @@ installed to an iPhone home screen; `coach.html` and `scout.html` are legacy.
 
 ## Every deploy — do all three
 
-1. Bump the build stamp in **both** places to the same new value
-   (`YYYY-MM-DD.N`): the `<meta name="build">` tag in `index.html` and
-   `version.txt`. The installed app compares them and offers a reload;
-   if they drift, phones silently run stale code.
+1. Bump the build stamp with `python3 scripts/bump_build.py` — it writes
+   the same new `YYYY-MM-DD.N` to **both** the `<meta name="build">` tag in
+   `index.html` and `version.txt`, or fails. Never hand-edit them: a search
+   for a stamp another session already changed silently does nothing, and a
+   version.txt ahead of the meta tag means the update banner returns on
+   every reload and "Update now" can never clear it. Drift the other way
+   leaves phones on stale code.
 2. Syntax-check the inline script before committing:
    extract `<script>…</script>` and run `node --check` on it.
 3. Push to `main`. Vercel deploys in about a minute.
