@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-29.5">
+<meta name="build" content="2026-09-29.6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -3441,7 +3441,7 @@ function navigate(section) {
   if (section === 'playingtime') renderPlayingTimeSection();
   if (section === 'tourplanner') renderTourPlanner();
   if (section === 'review') renderReview();
-  if (section === 'homework') renderHomework();
+  if (section === 'homework') refreshHomework();
   if (section === 'worksheet') renderWorksheetPage();
   if (section === 'pitching') renderPitching();
   if (section === 'livegame') renderLive();
@@ -10606,12 +10606,22 @@ async function wsSubmit() {
 }
 
 // ---- the coach's side ----
+let HW_LOADING = false;
+// Draw whatever is in memory, then pull fresh answers and draw again.
+async function refreshHomework() {
+  HW_LOADING = !WORKSHEETS.length;
+  renderHomework();
+  HW_LOADING = false;
+  await loadWorksheets();
+  if (UI.section === 'homework') renderHomework();
+}
+
 function renderHomework() {
   const body = document.getElementById('hw-body');
   const actions = document.getElementById('hw-actions');
   if (!body) return;
   if (!WORKSHEETS.length) {
-    body.innerHTML = `<div class="card"><div class="card-empty" style="padding:40px">No worksheets yet.</div></div>`;
+    body.innerHTML = `<div class="card"><div class="card-empty" style="padding:40px">${HW_LOADING ? 'Loading…' : 'No worksheets yet.'}</div></div>`;
     if (actions) actions.innerHTML = '';
     return;
   }
@@ -10627,6 +10637,7 @@ function renderHomework() {
       ${WORKSHEETS.map(x => `<option value="${x.id}" ${x.id === w.id ? 'selected' : ''}>${esc(x.title)}</option>`).join('')}</select>` : ''}
     <button class="btn ${w.published_at ? 'btn-secondary' : 'btn-primary'} btn-sm" onclick="hwPublish(${w.published_at ? 'false' : 'true'})">${w.published_at ? 'Unpublish' : 'Publish to players'}</button>
     <button class="btn btn-secondary btn-sm" onclick="hwCopyLink('${esc(link)}')">Copy player link</button>
+    <button class="btn btn-secondary btn-sm" onclick="refreshHomework()">Refresh</button>
     <button class="btn btn-secondary btn-sm" onclick="printPage()">Print / PDF</button>`;
 
   const players = PLAYERS.filter(p => p.cloudId).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -10835,7 +10846,7 @@ async function startApp() {
     if (UI.section === 'playingtime') renderPlayingTimeSection();
     if (UI.section === 'tourplanner') renderTourPlanner();
     if (UI.section === 'review') renderReview();
-    if (UI.section === 'homework') { await loadWorksheets(); renderHomework(); }
+    if (UI.section === 'homework') await refreshHomework();
     if (UI.section === 'pitching') renderPitching();
     if (UI.section === 'livegame') renderLive();
     if (UI.section === 'roster') renderRoster();
