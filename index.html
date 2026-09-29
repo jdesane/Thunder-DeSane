@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-29.4">
+<meta name="build" content="2026-09-29.5">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -10615,9 +10615,13 @@ function renderHomework() {
     if (actions) actions.innerHTML = '';
     return;
   }
-  const w = WORKSHEETS.find(x => x.id === (HW_UI.id || WORKSHEETS[0].id)) || WORKSHEETS[0];
+  // Default to the sheet the players are actually on — the newest published
+  // one — not the newest by date, which is next week's draft.
+  const live = WORKSHEETS.find(x => x.published_at) || WORKSHEETS[0];
+  const w = WORKSHEETS.find(x => x.id === HW_UI.id) || live;
   HW_UI.id = w.id;
-  const link = location.origin + '/worksheet' + (WORKSHEETS[0].id === w.id ? '' : '/' + w.slug);
+  // The bare link resolves to the first published sheet; anything else needs its slug.
+  const link = location.origin + '/worksheet' + (live.id === w.id && w.published_at ? '' : '/' + w.slug);
   if (actions) actions.innerHTML = `
     ${WORKSHEETS.length > 1 ? `<select class="input" style="width:auto" onchange="HW_UI.id=this.value; renderHomework()">
       ${WORKSHEETS.map(x => `<option value="${x.id}" ${x.id === w.id ? 'selected' : ''}>${esc(x.title)}</option>`).join('')}</select>` : ''}
