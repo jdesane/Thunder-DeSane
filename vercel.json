@@ -1,6 +1,20 @@
 {
   "rewrites": [
-    { "source": "/review", "destination": "/index.html" },
-    { "source": "/review/:path*", "destination": "/index.html" }
+    {
+      "source": "/review",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/review/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/worksheet",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/worksheet/:path*",
+      "destination": "/index.html"
+    }
   ]
 }

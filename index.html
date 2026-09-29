@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-29.1">
+<meta name="build" content="2026-09-29.2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1348,7 +1348,89 @@
     table.data th { color: #444; background: #f3f3f3; }
     table.data td { color: #111; border-color: #e5e5e5; }
     .pill { border: 1px solid #ccc; color: #333 !important; background: none !important; }
+
+    /* Worksheet on paper: blank boxes to tick, ruled lines to write on */
+    #section-worksheet .ws-bar, #section-worksheet .ws-end, #section-worksheet .ws-save,
+    #section-worksheet .ws-who, #section-worksheet .ws-allgood { display: none !important; }
+    .ws-page { max-width: none; padding: 0; }
+    .ws-t, .ws-sec-t, .ws-q-t { color: #111; }
+    .ws-intro, .ws-sec-l, .ws-q-h, .ws-q-n { color: #444; }
+    .ws-q { border: none; background: none; padding: 0; margin: 0 0 13px; break-inside: avoid; page-break-inside: avoid; }
+    .ws-opt { border: none; background: none; padding: 2px 0 2px 22px; margin: 0; position: relative; color: #111; font-size: 12.5px; }
+    .ws-opt::before { content: ''; position: absolute; left: 2px; top: 3px; width: 11px; height: 11px; border: 1px solid #555; border-radius: 2px; }
+    .ws-opt.on::before { background: #FFB612; }
+    .ws-write { border: none; border-bottom: 1px solid #bbb; border-radius: 0; min-height: 0; height: 58px; color: #111; background: repeating-linear-gradient(transparent, transparent 26px, #ddd 26px, #ddd 27px); padding: 2px 0; }
+    .ws-chips { gap: 3px 10px; }
+    .ws-chip { border: none; background: none; color: #111; padding: 1px 0 1px 20px; position: relative; font-size: 11.5px; width: 31%; }
+    .ws-chip::before { content: ''; position: absolute; left: 2px; top: 3px; width: 10px; height: 10px; border: 1px solid #555; border-radius: 2px; }
+    .ws-chip.on::before { background: #FFB612; }
+    .ws-sec { break-after: avoid; }
+
   }
+
+
+  /* ===== HOMEWORK / WORKSHEET ===== */
+  /* The player page is its own thing: big taps, no chrome, works on an iPad. */
+  /* the review's standalone bar belongs to the review, not to a kid's worksheet */
+  body.ws-mode .sa-bar { display: none !important; }
+  .ws-page { max-width: 760px; margin: 0 auto; padding: 0 16px 120px; }
+  .ws-head { display: flex; align-items: center; gap: 14px; padding: 18px 0 14px; }
+  .ws-head img { width: 46px; height: 46px; flex-shrink: 0; }
+  .ws-k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold); font-weight: 600; }
+  .ws-t { font-size: 25px; font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; }
+  .ws-intro { white-space: pre-line; font-size: 14.5px; line-height: 1.7; color: var(--text-muted); border-left: 3px solid var(--gold); padding: 2px 0 2px 14px; margin: 4px 0 20px; }
+  .ws-who { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 8px; }
+  .ws-who button { display: flex; align-items: center; gap: 10px; padding: 16px 14px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--bg-elev); color: var(--text); font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; text-align: left; }
+  .ws-who button:hover, .ws-who button:active { border-color: var(--gold); background: var(--bg-hover); }
+  .ws-who b { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 34px; border-radius: 8px; background: var(--gold); color: #000; font-size: 13px; flex-shrink: 0; }
+  .ws-bar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px; padding: 10px 16px; margin: 0 -16px 18px; background: var(--bg); border-bottom: 1px solid var(--border); }
+  .ws-bar-n { font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .ws-bar-s { font-size: 11px; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
+  .ws-prog { flex: 1; height: 7px; border-radius: 4px; background: var(--bg-elev-2); overflow: hidden; min-width: 40px; }
+  .ws-prog i { display: block; height: 100%; background: var(--gold); transition: width 0.25s; }
+  .ws-sec { margin: 30px 0 14px; }
+  .ws-sec-t { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+  .ws-sec-l { font-size: 13.5px; color: var(--text-muted); line-height: 1.6; margin-top: 5px; }
+  .ws-q { border: 1px solid var(--border); border-radius: 10px; padding: 15px 16px; margin-bottom: 11px; background: var(--bg-elev); }
+  .ws-q.done { border-color: rgba(255,182,18,0.4); }
+  .ws-q-n { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-subtle); font-weight: 600; }
+  .ws-q-t { font-size: 15.5px; line-height: 1.5; margin: 5px 0 12px; }
+  .ws-q-h { font-size: 12.5px; color: var(--text-muted); margin: -7px 0 11px; font-style: italic; }
+  .ws-opt { display: block; width: 100%; text-align: left; padding: 13px 14px; margin-bottom: 8px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 14.5px; line-height: 1.45; font-family: inherit; cursor: pointer; }
+  .ws-opt:last-child { margin-bottom: 0; }
+  .ws-opt:hover { border-color: var(--text-subtle); }
+  .ws-opt.on { border-color: var(--gold); background: rgba(255,182,18,0.12); font-weight: 500; }
+  .ws-opt.unsure { color: var(--text-muted); font-style: italic; }
+  .ws-opt.unsure.on { color: var(--text); font-style: normal; }
+  .ws-write { width: 100%; min-height: 96px; resize: vertical; background: var(--bg); border: 1px solid var(--border-strong); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 15px; line-height: 1.6; padding: 12px 13px; }
+  .ws-write:focus { outline: none; border-color: var(--gold); }
+  .ws-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .ws-chip { padding: 8px 12px; border: 1px solid var(--border-strong); border-radius: 20px; background: var(--bg); color: var(--text-muted); font-size: 13px; font-family: inherit; cursor: pointer; }
+  .ws-chip.on { border-color: var(--gold); background: rgba(255,182,18,0.16); color: var(--text); font-weight: 500; }
+  .ws-allgood { margin-top: 12px; }
+  .ws-note { font-size: 12.5px; color: var(--gold); margin-top: 9px; }
+  .ws-end { border: 1px solid var(--gold); border-radius: 12px; padding: 20px; margin-top: 26px; text-align: center; background: rgba(255,182,18,0.06); }
+  .ws-end h4 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .ws-end p { font-size: 13.5px; color: var(--text-muted); line-height: 1.6; margin-bottom: 14px; }
+  .ws-sent { color: var(--pos); font-size: 13.5px; font-weight: 600; }
+  .ws-save { font-size: 11px; color: var(--text-subtle); }
+  /* coach side */
+  .hw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .hw-card { border: 1px solid var(--border); border-radius: 9px; padding: 13px 14px; background: var(--bg-elev); }
+  .hw-card.none { opacity: 0.55; }
+  .hw-card-n { font-size: 14px; font-weight: 600; }
+  .hw-card-s { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
+  .hw-gap { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .hw-gap:last-child { border-bottom: none; }
+  .hw-gap-b { flex: 1; height: 8px; border-radius: 4px; background: var(--bg-elev-2); overflow: hidden; }
+  .hw-gap-b i { display: block; height: 100%; background: var(--gold); }
+  .hw-gap-c { font-size: 12px; color: var(--text-muted); min-width: 58px; text-align: right; font-variant-numeric: tabular-nums; }
+  .hw-gap-t { min-width: 190px; }
+  .hw-ans { border-left: 3px solid var(--border-strong); padding: 3px 0 3px 12px; margin: 8px 0 14px; }
+  .hw-ans-q { font-size: 12.5px; color: var(--text-muted); }
+  .hw-ans-a { font-size: 14px; white-space: pre-line; margin-top: 3px; }
+  .hw-ans-a.wrong { color: var(--neg); }
+  .hw-ans-a.unsure { color: var(--warn); font-style: italic; }
 
   /* ===== UPDATE BANNER ===== */
   #update-banner {
@@ -1875,6 +1957,10 @@
       <svg class="nav-icon" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 12h8M8 8h8M8 16h5"/></svg>
       Review
     </div>
+    <div class="nav-item" data-section="homework" onclick="navigate('homework')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M9 4h9a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2V4z"/><path d="M6 4H5a1 1 0 0 0-1 1v13"/><path d="M11 9h6M11 13h4"/></svg>
+      Homework
+    </div>
     <div class="nav-item" data-section="pitching" onclick="navigate('pitching')">
       <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5 6c3 3 3 9 0 12M19 6c-3 3-3 9 0 12"/></svg>
       Pitching
@@ -2104,6 +2190,21 @@
     </section>
 
     <!-- ============ PITCHING ============ -->
+    <section class="section" id="section-worksheet">
+      <div id="ws-body"></div>
+    </section>
+
+    <section class="section" id="section-homework">
+      <div class="section-header noprint">
+        <div>
+          <div class="section-title">Homework</div>
+          <div class="section-sub">Worksheets the boys fill in at home — and what their answers tell you.</div>
+        </div>
+        <div class="section-actions" id="hw-actions"></div>
+      </div>
+      <div id="hw-body"></div>
+    </section>
+
     <section class="section" id="section-pitching">
       <div class="section-header">
         <div>
@@ -3317,7 +3418,7 @@ function navigate(section) {
   // On the phone the bar scrolls, so keep the active tab in view
   if (window.innerWidth <= 768) navEl?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
   const crumb = document.querySelector('[data-crumb="section"]');
-  const SECTION_LABEL = { planner: 'Game Planner', playingtime: 'Playing Time', livegame: 'Live Game', tourplanner: 'Tournament Planner', review: 'Review' };
+  const SECTION_LABEL = { planner: 'Game Planner', playingtime: 'Playing Time', livegame: 'Live Game', tourplanner: 'Tournament Planner', review: 'Review', worksheet: 'Worksheet' };
   if (crumb) crumb.textContent = SECTION_LABEL[section] || (section.charAt(0).toUpperCase() + section.slice(1));
   window.scrollTo(0, 0);
   if (section === 'dashboard') { renderDashboard(); loadUniformOrders(); }
@@ -3325,6 +3426,8 @@ function navigate(section) {
   if (section === 'playingtime') renderPlayingTimeSection();
   if (section === 'tourplanner') renderTourPlanner();
   if (section === 'review') renderReview();
+  if (section === 'homework') renderHomework();
+  if (section === 'worksheet') renderWorksheetPage();
   if (section === 'pitching') renderPitching();
   if (section === 'livegame') renderLive();
   if (section === 'roster') renderRoster();
@@ -10258,13 +10361,367 @@ document.addEventListener('keydown', (e) => {
 // ============================================================
 // BOOT
 // ============================================================
+// ================= HOMEWORK / WORKSHEETS =================
+// Worksheets the players fill in at home. The coach writes one (a row in
+// team_worksheets, questions as jsonb); each player's answers live in
+// team_worksheet_answers and save as he types, so an iPad going to sleep
+// never costs a kid his work. The player page is a standalone route: no app
+// chrome, no login, one link for the whole team — they tap their own name.
+// Nothing is graded on their screen. The answers are for the coach to read.
+let WORKSHEETS = [], WS_ROWS = [], WS = null, WS_PID = '', WS_ANS = {}, WS_SENT = null;
+let WS_ROUTE = null, WS_TIMER = null;
+const WS_PLAYER_KEY = 'thunder_ws_player';
+
+function parseWorksheetRoute() {
+  const m = location.pathname.match(/^\/worksheet(?:\/([^/]+))?\/?$/);
+  return m ? { slug: m[1] || '' } : null;
+}
+
+async function loadWorksheets() {
+  const [ws, rows] = await Promise.all([
+    supa('team_worksheets', 'GET', null, '?select=*&order=week_of.desc'),
+    supa('team_worksheet_answers', 'GET', null, '?select=*'),
+  ]);
+  if (Array.isArray(ws)) WORKSHEETS = ws;
+  if (Array.isArray(rows)) WS_ROWS = rows;
+}
+
+const wsQuestions = w => (w?.sections || []).flatMap(s => s.questions || []);
+const wsRow = (wid, pid) => WS_ROWS.find(r => r.worksheet_id === wid && r.player_id === pid) || null;
+function wsAnswered(w, ans) {
+  return wsQuestions(w).filter(q => {
+    const v = (ans || {})[q.id];
+    if (q.type === 'check') return Array.isArray(v);
+    return v !== undefined && v !== null && String(v).trim() !== '';
+  }).length;
+}
+function wsPick(slug) {
+  if (slug) return WORKSHEETS.find(w => w.slug === slug) || null;
+  return WORKSHEETS.find(w => w.published_at) || null;
+}
+
+// ---- the player's page ----
+function renderWorksheetPage() {
+  const body = document.getElementById('ws-body');
+  if (!body) return;
+  document.body.classList.add('ws-mode');
+  const w = wsPick(WS_ROUTE?.slug);
+  if (!w) {
+    body.innerHTML = `<div class="ws-page"><div class="ws-head"><img src="/logo.svg" alt=""><div>
+      <div class="ws-k">${esc(TEAM_SETTINGS.team_name || 'Team')}</div><div class="ws-t">Nothing assigned yet</div></div></div>
+      <div class="ws-intro">Coach hasn't sent out this week's sheet yet. Check back later.</div></div>`;
+    return;
+  }
+  WS = w;
+  if (!WS_PID) { try { WS_PID = localStorage.getItem(WS_PLAYER_KEY) || ''; } catch {} }
+  if (WS_PID && !playerById(WS_PID)) WS_PID = '';
+  if (!WS_PID) { body.innerHTML = wsPickerHTML(w); return; }
+
+  const row = wsRow(w.id, WS_PID);
+  WS_ANS = row?.answers ? JSON.parse(JSON.stringify(row.answers)) : {};
+  WS_SENT = row?.submitted_at || null;
+  try {
+    const local = JSON.parse(localStorage.getItem('thunder_ws_' + w.id + '_' + WS_PID) || 'null');
+    if (local && Object.keys(local).length > Object.keys(WS_ANS).length) WS_ANS = local;
+  } catch {}
+  body.innerHTML = wsSheetHTML(w);
+  wsProgress();
+}
+
+function wsPickerHTML(w) {
+  const players = PLAYERS.filter(p => p.cloudId).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  return `<div class="ws-page">
+    <div class="ws-head"><img src="/logo.svg" alt=""><div>
+      <div class="ws-k">${esc(TEAM_SETTINGS.team_name || 'Team')} · Homework</div>
+      <div class="ws-t">${esc(w.title)}</div></div></div>
+    <div class="ws-intro">${esc(w.intro || '')}</div>
+    <div class="ws-sec"><div class="ws-sec-t">Who are you?</div>
+      <div class="ws-sec-l">Tap your name. This device will remember you.</div></div>
+    <div class="ws-who">${players.map(p => `<button onclick="wsSetPlayer('${p.cloudId}')"><b>${esc(p.num || '')}</b>${esc(firstName(p))}</button>`).join('')}</div>
+  </div>`;
+}
+
+function wsSetPlayer(pid) {
+  WS_PID = pid;
+  try { localStorage.setItem(WS_PLAYER_KEY, pid); } catch {}
+  renderWorksheetPage();
+  window.scrollTo(0, 0);
+}
+function wsSwitchPlayer() {
+  if (!confirm('Switch to a different player? Your answers are saved.')) return;
+  WS_PID = ''; try { localStorage.removeItem(WS_PLAYER_KEY); } catch {}
+  renderWorksheetPage();
+}
+
+function wsSheetHTML(w) {
+  const p = playerById(WS_PID);
+  let n = 0;
+  const qHTML = q => {
+    n++;
+    const v = WS_ANS[q.id];
+    const done = q.type === 'check' ? Array.isArray(v) : (v !== undefined && String(v).trim() !== '');
+    let inner = '';
+    if (q.type === 'choice') {
+      inner = q.options.map((o, i) => {
+        const unsure = i === q.options.length - 1;
+        return `<button class="ws-opt ${unsure ? 'unsure' : ''} ${v === i ? 'on' : ''}" onclick="wsChoose('${q.id}', ${i})">${esc(o)}</button>`;
+      }).join('');
+    } else if (q.type === 'check') {
+      inner = `<div class="ws-chips">${q.options.map((o, i) =>
+        `<button class="ws-chip ${(Array.isArray(v) && v.includes(i)) ? 'on' : ''}" onclick="wsToggle('${q.id}', ${i})">${esc(o)}</button>`).join('')}</div>
+        <div class="ws-allgood noprint"><button class="btn btn-secondary btn-sm" onclick="wsAllGood('${q.id}')">I'm good on all of these</button></div>`;
+    } else {
+      inner = `<textarea class="ws-write" placeholder="Write your answer…" oninput="wsWrite('${q.id}', this.value)">${esc(v || '')}</textarea>`;
+    }
+    return `<div class="ws-q ${done ? 'done' : ''}" id="wsq-${q.id}">
+      <div class="ws-q-n">Question ${n}</div>
+      <div class="ws-q-t">${esc(q.q)}</div>
+      ${q.hint ? `<div class="ws-q-h">${esc(q.hint)}</div>` : ''}
+      ${inner}
+      ${q.note ? `<div class="ws-note noprint">${esc(q.note)}</div>` : ''}
+    </div>`;
+  };
+  return `<div class="ws-page">
+    <div class="ws-bar noprint">
+      <span class="ws-bar-n">${esc(p ? '#' + (p.num || '') + ' ' + firstName(p) : '')}</span>
+      <span class="ws-prog"><i id="ws-prog-i" style="width:0%"></i></span>
+      <span class="ws-bar-s" id="ws-prog-t"></span>
+    </div>
+    <div class="ws-head"><img src="/logo.svg" alt=""><div>
+      <div class="ws-k">${esc(TEAM_SETTINGS.team_name || 'Team')} · Homework</div>
+      <div class="ws-t">${esc(w.title)}</div></div></div>
+    <div class="ws-intro">${esc(w.intro || '')}</div>
+    ${(w.sections || []).map(sec => `
+      <div class="ws-sec"><div class="ws-sec-t">${esc(sec.title)}</div>
+        ${sec.lead ? `<div class="ws-sec-l">${esc(sec.lead)}</div>` : ''}</div>
+      ${(sec.questions || []).map(qHTML).join('')}`).join('')}
+    <div class="ws-end noprint">
+      <h4>${WS_SENT ? 'Sent to Coach' : 'Finished?'}</h4>
+      <p id="ws-end-p">${WS_SENT ? 'Coach has your answers. You can still change anything — just send it again.' : 'Send it to Coach when you\'re done. You can still change your answers after.'}</p>
+      <button class="btn btn-primary" onclick="wsSubmit()">${WS_SENT ? 'Send again' : 'Send to Coach'}</button>
+      <div class="ws-save" id="ws-save" style="margin-top:10px">Saved automatically as you go</div>
+      <div style="margin-top:14px"><button class="btn btn-secondary btn-sm" onclick="printPage()">Print this sheet</button>
+      <button class="btn btn-secondary btn-sm" onclick="wsSwitchPlayer()">Not ${esc(p ? firstName(p) : 'you')}?</button></div>
+    </div>
+  </div>`;
+}
+
+function wsProgress() {
+  if (!WS) return;
+  const total = wsQuestions(WS).length, done = wsAnswered(WS, WS_ANS);
+  const bar = document.getElementById('ws-prog-i'), txt = document.getElementById('ws-prog-t');
+  if (bar) bar.style.width = Math.round(done / Math.max(1, total) * 100) + '%';
+  if (txt) txt.textContent = `${done} of ${total}`;
+}
+function wsMark(qid, done) {
+  const el = document.getElementById('wsq-' + qid);
+  if (el) el.classList.toggle('done', !!done);
+  wsProgress(); wsQueueSave();
+}
+function wsChoose(qid, i) {
+  WS_ANS[qid] = i;
+  const el = document.getElementById('wsq-' + qid);
+  el?.querySelectorAll('.ws-opt').forEach((b, bi) => b.classList.toggle('on', bi === i));
+  wsMark(qid, true);
+}
+function wsToggle(qid, i) {
+  const cur = Array.isArray(WS_ANS[qid]) ? WS_ANS[qid] : [];
+  WS_ANS[qid] = cur.includes(i) ? cur.filter(x => x !== i) : [...cur, i];
+  const el = document.getElementById('wsq-' + qid);
+  el?.querySelectorAll('.ws-chip').forEach((b, bi) => b.classList.toggle('on', WS_ANS[qid].includes(bi)));
+  wsMark(qid, true);
+}
+function wsAllGood(qid) {
+  WS_ANS[qid] = [];
+  const el = document.getElementById('wsq-' + qid);
+  el?.querySelectorAll('.ws-chip').forEach(b => b.classList.remove('on'));
+  wsMark(qid, true);
+  toast('Got it — nothing flagged');
+}
+function wsWrite(qid, val) { WS_ANS[qid] = val; wsMark(qid, val.trim() !== ''); }
+
+function wsQueueSave() {
+  try { localStorage.setItem('thunder_ws_' + WS.id + '_' + WS_PID, JSON.stringify(WS_ANS)); } catch {}
+  const el = document.getElementById('ws-save');
+  if (el) el.textContent = 'Saving…';
+  clearTimeout(WS_TIMER);
+  WS_TIMER = setTimeout(wsSave, 900);
+}
+async function wsSave(submit) {
+  if (!WS || !WS_PID) return false;
+  const body = { worksheet_id: WS.id, player_id: WS_PID, answers: WS_ANS, updated_at: new Date().toISOString() };
+  if (submit) body.submitted_at = new Date().toISOString();
+  else if (WS_SENT) body.submitted_at = WS_SENT;
+  const res = await supa('team_worksheet_answers', 'POST', [body], '?on_conflict=worksheet_id,player_id', 'resolution=merge-duplicates');
+  const el = document.getElementById('ws-save');
+  if (el) el.textContent = res ? 'Saved' : 'Not saved — check your connection';
+  if (res) {
+    const i = WS_ROWS.findIndex(r => r.worksheet_id === WS.id && r.player_id === WS_PID);
+    if (i >= 0) WS_ROWS[i] = { ...WS_ROWS[i], ...body }; else WS_ROWS.push(body);
+  }
+  return !!res;
+}
+async function wsSubmit() {
+  clearTimeout(WS_TIMER);
+  const total = wsQuestions(WS).length, done = wsAnswered(WS, WS_ANS);
+  if (done < total && !confirm(`You've answered ${done} of ${total}. Send it to Coach anyway?`)) return;
+  const ok = await wsSave(true);
+  if (!ok) { toast('Could not send — check your connection'); return; }
+  WS_SENT = new Date().toISOString();
+  const p = document.getElementById('ws-end-p');
+  if (p) p.innerHTML = `<span class="ws-sent">Sent. Coach has your answers.</span><br>You can still change anything — just send it again.`;
+  toast('Sent to Coach');
+}
+
+// ---- the coach's side ----
+function renderHomework() {
+  const body = document.getElementById('hw-body');
+  const actions = document.getElementById('hw-actions');
+  if (!body) return;
+  if (!WORKSHEETS.length) {
+    body.innerHTML = `<div class="card"><div class="card-empty" style="padding:40px">No worksheets yet.</div></div>`;
+    if (actions) actions.innerHTML = '';
+    return;
+  }
+  const w = WORKSHEETS.find(x => x.id === (HW_UI.id || WORKSHEETS[0].id)) || WORKSHEETS[0];
+  HW_UI.id = w.id;
+  const link = location.origin + '/worksheet' + (WORKSHEETS[0].id === w.id ? '' : '/' + w.slug);
+  if (actions) actions.innerHTML = `
+    ${WORKSHEETS.length > 1 ? `<select class="input" style="width:auto" onchange="HW_UI.id=this.value; renderHomework()">
+      ${WORKSHEETS.map(x => `<option value="${x.id}" ${x.id === w.id ? 'selected' : ''}>${esc(x.title)}</option>`).join('')}</select>` : ''}
+    <button class="btn ${w.published_at ? 'btn-secondary' : 'btn-primary'} btn-sm" onclick="hwPublish(${w.published_at ? 'false' : 'true'})">${w.published_at ? 'Unpublish' : 'Publish to players'}</button>
+    <button class="btn btn-secondary btn-sm" onclick="hwCopyLink('${esc(link)}')">Copy player link</button>
+    <button class="btn btn-secondary btn-sm" onclick="printPage()">Print / PDF</button>`;
+
+  const players = PLAYERS.filter(p => p.cloudId).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const total = wsQuestions(w).length;
+  const rows = players.map(p => ({ p, row: wsRow(w.id, p.cloudId) }));
+  const sent = rows.filter(r => r.row?.submitted_at).length;
+  const started = rows.filter(r => r.row && !r.row.submitted_at).length;
+
+  body.innerHTML = `
+    <div class="kpi-strip">
+      <div class="kpi"><div class="kpi-label">Sent in</div><div class="kpi-value mono">${sent} / ${players.length}</div></div>
+      <div class="kpi"><div class="kpi-label">Started</div><div class="kpi-value mono">${started}</div></div>
+      <div class="kpi"><div class="kpi-label">Questions</div><div class="kpi-value mono">${total}</div></div>
+      <div class="kpi"><div class="kpi-label">Status</div><div class="kpi-value mono" style="font-size:15px;color:${w.published_at ? 'var(--pos)' : 'var(--warn)'}">${w.published_at ? 'Published' : 'Not sent'}</div></div>
+    </div>
+    ${!w.published_at ? `<div class="rv-fact noprint" style="margin-bottom:12px"><strong>Not published.</strong> The player link shows "nothing assigned yet" until you press Publish to players.</div>` : ''}
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">Who's done it</div>
+      <div class="hw-grid">${rows.map(({ p, row }) => {
+        const d = row ? wsAnswered(w, row.answers) : 0;
+        return `<div class="hw-card ${row ? '' : 'none'}">
+          <div class="hw-card-n">#${esc(p.num || '')} ${esc(firstName(p))}</div>
+          <div class="hw-card-s">${row?.submitted_at ? 'Sent ' + fmtStamp(row.submitted_at) : row ? `Started — ${d} of ${total}` : 'Not started'}</div>
+        </div>`; }).join('')}</div>
+    </div>
+    ${hwGapsHTML(w, rows)}
+    ${hwAnswersHTML(w, rows)}`;
+}
+let HW_UI = { id: '', player: '' };
+
+// What they don't understand — the whole point of the sheet.
+function hwGapsHTML(w, rows) {
+  const checkQ = wsQuestions(w).find(q => q.type === 'check');
+  const live = rows.filter(r => r.row);
+  if (!live.length) return `<div class="card"><div class="card-empty" style="padding:30px">Nothing sent in yet.</div></div>`;
+  let flagged = [];
+  if (checkQ) {
+    const counts = {};
+    live.forEach(({ row }) => (row.answers?.[checkQ.id] || []).forEach(i => { counts[i] = (counts[i] || 0) + 1; }));
+    flagged = Object.entries(counts).map(([i, c]) => ({ term: checkQ.options[i], c }))
+      .sort((a, b) => b.c - a.c || a.term.localeCompare(b.term));
+  }
+  const missed = wsQuestions(w).filter(q => q.type === 'choice').map(q => {
+    let wrong = 0, unsure = 0;
+    live.forEach(({ row }) => {
+      const v = row.answers?.[q.id];
+      if (v === undefined) return;
+      if (v === q.options.length - 1) unsure++;
+      else if (v !== q.answer) wrong++;
+    });
+    return { q, wrong, unsure, bad: wrong + unsure };
+  }).filter(x => x.bad > 0).sort((a, b) => b.bad - a.bad);
+
+  return `<div class="dash-row cols-2">
+    <div class="card">
+      <div class="card-title">Terms they flagged <span class="card-link">${flagged.length} of ${checkQ ? checkQ.options.length : 0}</span></div>
+      ${flagged.length ? flagged.map(f => `<div class="hw-gap">
+        <span class="hw-gap-t">${esc(f.term)}</span>
+        <span class="hw-gap-b"><i style="width:${Math.round(f.c / live.length * 100)}%"></i></span>
+        <span class="hw-gap-c">${f.c} of ${live.length}</span></div>`).join('')
+        : `<div class="card-empty" style="padding:20px">Nobody has flagged a term yet.</div>`}
+    </div>
+    <div class="card">
+      <div class="card-title">Questions they missed <span class="card-link">wrong or not sure</span></div>
+      ${missed.length ? missed.slice(0, 14).map(m => `<div class="hw-gap">
+        <span class="hw-gap-t">${esc(m.q.q.slice(0, 60))}${m.q.q.length > 60 ? '…' : ''}</span>
+        <span class="hw-gap-b"><i style="width:${Math.round(m.bad / live.length * 100)}%"></i></span>
+        <span class="hw-gap-c">${m.wrong}✗ ${m.unsure}?</span></div>`).join('')
+        : `<div class="card-empty" style="padding:20px">Nothing missed yet.</div>`}
+    </div>
+  </div>`;
+}
+
+function hwAnswersHTML(w, rows) {
+  const live = rows.filter(r => r.row);
+  if (!live.length) return '';
+  if (!HW_UI.player || !live.some(r => r.p.cloudId === HW_UI.player)) HW_UI.player = live[0].p.cloudId;
+  const cur = live.find(r => r.p.cloudId === HW_UI.player);
+  const ans = cur.row.answers || {};
+  return `<div class="card">
+    <div class="card-title">What they wrote
+      <select class="input" style="width:auto;font-size:12px;padding:3px 8px" onchange="HW_UI.player=this.value; renderHomework()">
+        ${live.map(({ p }) => `<option value="${p.cloudId}" ${p.cloudId === HW_UI.player ? 'selected' : ''}>${esc(playerLabel(p))}</option>`).join('')}
+      </select>
+    </div>
+    ${(w.sections || []).map(sec => {
+      const qs = (sec.questions || []).filter(q => ans[q.id] !== undefined);
+      if (!qs.length) return '';
+      return `<div class="rv-kicker" style="margin-top:14px">${esc(sec.title)}</div>
+      ${qs.map(q => {
+        const v = ans[q.id];
+        let txt = '', cls = '';
+        if (q.type === 'choice') {
+          txt = q.options[v] ?? '—';
+          if (v === q.options.length - 1) cls = 'unsure';
+          else if (v !== q.answer) { cls = 'wrong'; txt += `  (we mean: ${q.options[q.answer]})`; }
+        } else if (q.type === 'check') {
+          txt = v.length ? v.map(i => q.options[i]).join(' · ') : 'Nothing flagged';
+          if (!v.length) cls = 'unsure';
+        } else txt = String(v);
+        return `<div class="hw-ans"><div class="hw-ans-q">${esc(q.q)}</div>
+          <div class="hw-ans-a ${cls}">${esc(txt)}</div></div>`;
+      }).join('')}`;
+    }).join('')}
+  </div>`;
+}
+
+async function hwPublish(on) {
+  const w = WORKSHEETS.find(x => x.id === HW_UI.id);
+  if (!w) return;
+  if (on && !confirm('Publish to players? Anyone with the link will be able to fill it in.')) return;
+  const val = on ? new Date().toISOString() : null;
+  const res = await supa('team_worksheets', 'PATCH', { published_at: val, updated_at: new Date().toISOString() }, `?id=eq.${w.id}`);
+  if (!res) { toast('Could not save'); return; }
+  w.published_at = val;
+  renderHomework();
+  toast(on ? 'Published — the link is live' : 'Unpublished');
+}
+function hwCopyLink(url) {
+  (navigator.clipboard?.writeText(url) || Promise.reject()).then(() => toast('Player link copied'), () => prompt('Copy this link:', url));
+}
+
 (async function boot() {
   loadCache();
   applyTeamSettings();
   renderDashboard();
   // /review/<tournament>[/<player>|/reports] is the review on its own — for coaches and parents
   SA_ROUTE = parseStandaloneRoute();
-  if (SA_ROUTE) { document.body.classList.add('standalone'); navigate('review'); }
+  WS_ROUTE = parseWorksheetRoute();
+  if (WS_ROUTE) { document.body.classList.add('standalone'); navigate('worksheet'); }
+  else if (SA_ROUTE) { document.body.classList.add('standalone'); navigate('review'); }
   else if (location.hash === '#review' || location.hash === '#reports') {
     if (location.hash === '#reports') RV_UI.mode = 'reports';
     history.replaceState(null, '', location.pathname); navigate('review');
@@ -10274,12 +10731,14 @@ document.addEventListener('keydown', (e) => {
   const ok = await loadFromCloud();
   if (ok) {
     applyTeamSettings();
+    if (WS_ROUTE) { await loadWorksheets(); renderWorksheetPage(); return; }
     if (SA_ROUTE) { applyStandaloneRoute(); return; }
     if (UI.section === 'dashboard') { renderDashboard(); loadUniformOrders(); }
     if (UI.section === 'planner') { ensureGameLoaded(); renderPlanner(); }
     if (UI.section === 'playingtime') renderPlayingTimeSection();
     if (UI.section === 'tourplanner') renderTourPlanner();
     if (UI.section === 'review') renderReview();
+    if (UI.section === 'homework') { await loadWorksheets(); renderHomework(); }
     if (UI.section === 'pitching') renderPitching();
     if (UI.section === 'livegame') renderLive();
     if (UI.section === 'roster') renderRoster();

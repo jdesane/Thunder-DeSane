@@ -117,6 +117,20 @@ system prompt forbids inventing stats or observations — keep it that way.
   Resend (`team_secrets.resend_api_key`, from `onboarding@resend.dev` — only
   the Resend account's own address can receive until a domain is verified),
   and stamps `notified` on the entry so the same submission isn't mailed twice.
+- **Homework worksheets**: `team_worksheets` (slug, week_of, title, intro,
+  `sections` jsonb of questions, `published_at`) and `team_worksheet_answers`
+  (one row per worksheet per player, `answers` jsonb keyed by question id).
+  Question types: `choice` (options with the coach's meaning as `answer`, the
+  last option is always "I'm not sure yet"), `text`, and `check` (multi-select
+  — the "which terms are you still unsure about" list, the most useful answer
+  on the sheet). `/worksheet` is the players' standalone route: no chrome, no
+  login, they tap their own name, answers save as they type to localStorage
+  and Supabase so a sleeping iPad loses nothing. Nothing is graded on their
+  screen. Players see nothing until the coach presses Publish (`published_at`).
+  The Homework screen shows who's done it, what they wrote, and the two
+  aggregates that matter: terms the team flagged and questions they missed.
+  Seeded by `scripts/seed_worksheet_offense.py` — every term and definition in
+  it is the coach's, never invented.
 - **Standalone review URLs** (vercel.json rewrites `/review/*` to
   index.html): `/review/<tournament-slug>` is the assessment on its own
   for the staff, `/review/<slug>/reports` all player reports,
