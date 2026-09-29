@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-29.3">
+<meta name="build" content="2026-09-29.4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -5869,7 +5869,9 @@ let RV_DATA = {};   // section key -> the numbers, as text lines, for drafting
 let RV_LABELS = {}; // section key -> the heading shown for it, in page order
 function reviewPin() { return String(TEAM_SETTINGS.review_pin || '').trim(); }
 function managerDevice() {
-  const pin = reviewPin(); if (!pin) return true;
+  if (WS_ROUTE) return false;                 // a player's worksheet is never the manager
+  const pin = reviewPin();
+  if (!pin) return !SA_ROUTE;                 // unknown or unset: never on a shared link
   try { return localStorage.getItem('thunder_rv_pin_ok') === pin; } catch { return false; }
 }
 // While previewing as a coach, the manager's own device renders like theirs.
@@ -6065,7 +6067,12 @@ function applyStandaloneRoute() {
   if (!scope) return;
   RV_UI.scope = scope.key; RV_UI.mode = 'assess'; RV_UI.player = 'all';
   document.body.classList.remove('sa-parent');
-  if (SA_ROUTE.sub === 'reports') { RV_UI.mode = 'reports'; }
+  if (SA_ROUTE.sub === 'reports') {
+    // Every family's report on one page — the manager's print view, not a link
+    // to stumble onto.
+    if (!managerDevice()) { SA_ROUTE = { ...SA_ROUTE, sub: '' }; }
+    else RV_UI.mode = 'reports';
+  }
   else if (SA_ROUTE.sub) {
     const p = PLAYERS.find(x => playerSlug(x) === SA_ROUTE.sub);
     if (p) { RV_UI.mode = 'reports'; RV_UI.player = p.cloudId; document.body.classList.add('sa-parent'); }
@@ -10386,19 +10393,23 @@ document.addEventListener('keydown', (e) => {
 let WORKSHEETS = [], WS_ROWS = [], WS = null, WS_PID = '', WS_ANS = {}, WS_SENT = null;
 let WS_ROUTE = null, WS_TIMER = null;
 const WS_PLAYER_KEY = 'thunder_ws_player';
+function WS_PID_FROM_DEVICE() { try { return localStorage.getItem(WS_PLAYER_KEY) || ''; } catch { return ''; } }
 
 function parseWorksheetRoute() {
   const m = location.pathname.match(/^\/worksheet(?:\/([^/]+))?\/?$/);
   return m ? { slug: m[1] || '' } : null;
 }
 
-async function loadWorksheets() {
+async function loadWorksheets(pid) {
+  // On a player's page pid is set, and only that player's row comes back —
+  // one boy cannot read another boy's answers out of the network tab.
+  const q = pid ? '?select=*&player_id=eq.' + encodeURIComponent(pid) : '?select=*';
   const [ws, rows] = await Promise.all([
     supa('team_worksheets', 'GET', null, '?select=*&order=week_of.desc'),
-    supa('team_worksheet_answers', 'GET', null, '?select=*'),
+    supa('team_worksheet_answers', 'GET', null, q),
   ]);
   if (Array.isArray(ws)) WORKSHEETS = ws;
-  if (Array.isArray(rows)) WS_ROWS = rows;
+  if (Array.isArray(rows)) WS_ROWS = pid ? rows : rows;
 }
 
 const wsQuestions = w => (w?.sections || []).flatMap(s => s.questions || []);
@@ -10410,9 +10421,14 @@ function wsAnswered(w, ans) {
     return v !== undefined && v !== null && String(v).trim() !== '';
   }).length;
 }
+// Only published worksheets ever render on the player route. WS_PREVIEW is set
+// in memory from the Homework screen (which is behind the PIN) and never from
+// the URL, so a guessed slug cannot reach a draft.
+let WS_PREVIEW = false;
 function wsPick(slug) {
-  if (slug) return WORKSHEETS.find(w => w.slug === slug) || null;
-  return WORKSHEETS.find(w => w.published_at) || null;
+  const live = w => !!w && (!!w.published_at || WS_PREVIEW);
+  if (slug) { const w = WORKSHEETS.find(x => x.slug === slug); return live(w) ? w : null; }
+  return WORKSHEETS.find(live) || null;
 }
 
 // ---- the player's page ----
@@ -10456,9 +10472,10 @@ function wsPickerHTML(w) {
   </div>`;
 }
 
-function wsSetPlayer(pid) {
+async function wsSetPlayer(pid) {
   WS_PID = pid;
   try { localStorage.setItem(WS_PLAYER_KEY, pid); } catch {}
+  if (WS_ROUTE) await loadWorksheets(pid);     // just this boy's answers
   renderWorksheetPage();
   window.scrollTo(0, 0);
 }
@@ -10753,7 +10770,7 @@ async function loadPublicData(kind) {
   }));
   if (Array.isArray(config) && config[0] && config[0].value) {
     const v = { ...config[0].value };
-    delete v.review_pin;               // never hand the PIN to a public page
+    if (kind === 'worksheet') delete v.review_pin;   // a player's page never needs it
     TEAM_SETTINGS = { ...DEFAULT_SETTINGS, ...v };
   }
   if (Array.isArray(games)) GAMES = games;
@@ -10835,7 +10852,7 @@ async function startApp() {
     navigate(WS_ROUTE ? 'worksheet' : 'review');
     if (!await loadPublicData(WS_ROUTE ? 'worksheet' : 'review')) return;
     applyTeamSettings();
-    if (WS_ROUTE) { await loadWorksheets(); renderWorksheetPage(); }
+    if (WS_ROUTE) { await loadWorksheets(WS_PID_FROM_DEVICE()); renderWorksheetPage(); }
     else applyStandaloneRoute();
     return;
   }

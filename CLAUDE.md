@@ -80,6 +80,14 @@ fetches anything:
   shows the PIN screen before loading anything else. `startApp()` is the only
   path that calls `loadFromCloud()`.
 
+Guessed URLs must not reveal anything: an unpublished worksheet never renders
+from its slug (`wsPick` requires `published_at`; `WS_PREVIEW` is set in memory
+from the Homework screen, never from the URL), `/review/<slug>/reports` falls
+back to the assessment unless the device holds the PIN, and a player's page
+fetches only that player's answer row. `managerDevice()` fails closed on any
+shared link — never infer "manager" from a missing PIN, which is what happens
+on a public page where the PIN was stripped.
+
 This is defence in depth, not a security boundary. The anon key is in the page
 source and RLS still lets `anon` read every table, so anyone who opens devtools
 can query the lot. Closing that properly needs real auth for the coach app plus
