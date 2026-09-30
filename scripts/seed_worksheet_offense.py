@@ -204,6 +204,37 @@ P2_TERMS = [
 ]
 
 
+# ---------------------------------------------------------------- ANSWER SHEET
+# The teaching half, released separately. Every explanation is built from the
+# coach's own glossary and his on-deck / outside-pitch walkthrough — the
+# approach ones are close to verbatim. He edits them in the app; a video URL
+# pasted there survives a re-run of this script.
+WHY = {
+ "p1": "Go into the at-bat with a plan for which pitch you want to swing at. You build it on deck, not when you get in the box.",
+ "p2": "With two strikes you change. Simplify, compete, and be ready to hit anything that could be called a strike. The hunting is over \u2014 now you protect.",
+ "p5": "With two strikes, be ready to swing at a pitch that could be strike three. That does not mean swing at everything. It means don't let a close one get called on you.",
+ "p6": "Let pitches outside the strike zone go by. A ball you swing at is a free out for them.",
+ "p10": "We judge the at-bat by your decisions and how you competed, not by whether you got a hit. A hard out on a good plan is a good at-bat.",
+ "a1": "Two things: how hard he is throwing, so you can time him \u2014 and where he is throwing it, so you know what to look for. Timing on its own is not a plan. Location is what turns watching into an approach.",
+ "a2": "He is living outside, so that is your pitch. Step in looking for the outside pitch you can drive to the opposite field. Get in on the plate, know where you are trying to make contact to drive it that way, let the ball travel, and be ready to explode on it when you see it.",
+ "a3": "We don't swing. Take it and go back to the game plan \u2014 the outside pitch you can drive. One strike this early costs you nothing. Chasing a pitch you were not looking for costs you the at-bat.",
+ "a4": "Now you go to your two-strike approach. You stop hunting one pitch, you protect the plate, and you fight off anything close.",
+ "a6": "A good at-bat is about your decisions and how you competed. A hit is a result. You can have a great at-bat and line out, and a bad at-bat and get a bloop hit.",
+ "b1": "Your starting spot off the base before the pitch.",
+ "b2": "Extra controlled steps toward the next base as the pitch comes in \u2014 ready to go if it gets by the catcher, ready to get back if it doesn't.",
+ "b4": "Less than two outs and a fly ball: get back to the bag, tag, and go when he catches it. If you are standing halfway when he catches it, you have given up the run.",
+ "b8": "Sprint through the bag every time. Don't slow down to watch whether he made the play.",
+ "b9": "Drop it right where you are and get down the line. Your bat is not your job. The base is.",
+ "b10": "Because the ball is live. If it gets away from the catcher that is a base, sometimes two. You cannot take it if you are still standing at home plate worrying about where your bat lands.",
+ "m3": "Let the last play go and get ready for the next one. There is nothing you can do about the pitch that already happened.",
+ "m4": "Your effort, your preparation, your decisions and your attitude. Not the umpire, not the field, not what the other team does.",
+}
+
+VIDEO = {
+ "b1": "https://www.tiktok.com/@coach.rac/video/7472917633281625374",
+}
+
+
 def honest(terms, extra):
     return {
       "id": "honest",
@@ -272,6 +303,24 @@ assert len(ids) == len(set(ids)) + 2, "question ids must be unique inside a shee
 terms = P1_TERMS + P2_TERMS
 assert len(terms) == len(set(terms)), "a term is on both sheets"
 print("%d questions total, %d terms across both check lists" % (len(ids), len(terms)))
+
+for sheet in SHEETS:
+    for sec in sheet["sections"]:
+        for q in sec["questions"]:
+            if q["id"] in WHY:   q["why"] = WHY[q["id"]]
+            if q["id"] in VIDEO: q["video"] = VIDEO[q["id"]]
+
+# Anything the coach typed into the app wins over the seed.
+for sheet in SHEETS:
+    cur = req("team_worksheets?slug=eq.%s&select=sections" % sheet["slug"])
+    if cur:
+        live = {q["id"]: q for s_ in cur[0]["sections"] for q in s_["questions"]}
+        for sec in sheet["sections"]:
+            for q in sec["questions"]:
+                was = live.get(q["id"], {})
+                for f in ("why", "video"):
+                    if was.get(f) and was[f] != WHY.get(q["id"]) and was[f] != VIDEO.get(q["id"]):
+                        q[f] = was[f]
 
 for sheet in SHEETS:
     if req("team_worksheets?slug=eq.%s&select=id" % sheet["slug"]):

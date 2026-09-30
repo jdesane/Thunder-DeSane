@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-29.7">
+<meta name="build" content="2026-09-30.1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1432,6 +1432,30 @@
   .hw-ans-a.wrong { color: var(--neg); }
   .hw-ans-a.unsure { color: var(--warn); font-style: italic; }
 
+
+
+  /* answer sheet */
+  .ws-video { margin: 12px 0 2px; }
+  .ws-video iframe { width: 100%; max-width: 330px; height: 585px; border: 0; border-radius: 10px; background: #000; display: block; }
+  .ws-video.wide iframe { max-width: 100%; height: auto; aspect-ratio: 16/9; }
+  .ws-vlink { display: inline-block; margin-top: 10px; font-size: 13.5px; color: var(--gold); }
+  .ws-yours { font-size: 13.5px; padding: 9px 12px; border-radius: 8px; margin-bottom: 10px; background: var(--bg); border: 1px solid var(--border-strong); }
+  .ws-yours b { display: block; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-subtle); margin-bottom: 3px; font-weight: 600; }
+  .ws-yours.right { border-color: rgba(34,197,94,0.45); }
+  .ws-yours.wrong { border-color: rgba(239,68,68,0.45); }
+  .ws-yours.unsure { border-color: rgba(255,182,18,0.45); }
+  .ws-correct { font-size: 14.5px; line-height: 1.5; padding: 10px 12px; border-radius: 8px; background: rgba(255,182,18,0.10); border: 1px solid rgba(255,182,18,0.35); }
+  .ws-correct b { display: block; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); margin-bottom: 3px; }
+  .ws-why { font-size: 14px; line-height: 1.65; color: var(--text-muted); margin-top: 10px; white-space: pre-line; }
+  .ws-locked { border: 1px dashed var(--gold); border-radius: 10px; padding: 16px; text-align: center; font-size: 14px; color: var(--text-muted); line-height: 1.6; margin-top: 18px; }
+  /* coach's editor */
+  .hw-edit { border-bottom: 1px solid var(--border); padding: 11px 0; }
+  .hw-edit:last-child { border-bottom: none; }
+  .hw-edit-q { font-size: 13px; margin-bottom: 6px; }
+  .hw-edit textarea { width: 100%; min-height: 54px; resize: vertical; background: var(--bg); border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text); font-family: inherit; font-size: 13px; line-height: 1.55; padding: 7px 9px; margin-bottom: 6px; }
+  .hw-edit input { width: 100%; font-size: 12.5px; }
+  .hw-edit textarea:focus, .hw-edit input:focus { outline: none; border-color: var(--gold); }
+  .hw-has-video { color: var(--gold); font-size: 11px; margin-left: 6px; }
 
   /* ===== APP LOCK ===== */
   /* The player worksheet and the review links are public. The app behind them
@@ -10391,7 +10415,7 @@ document.addEventListener('keydown', (e) => {
 // chrome, no login, one link for the whole team — they tap their own name.
 // Nothing is graded on their screen. The answers are for the coach to read.
 let WORKSHEETS = [], WS_ROWS = [], WS = null, WS_PID = '', WS_ANS = {}, WS_SENT = null;
-let WS_ROUTE = null, WS_TIMER = null;
+let WS_ROUTE = null, WS_TIMER = null, WS_VIEW = 'sheet';
 const WS_PLAYER_KEY = 'thunder_ws_player';
 function WS_PID_FROM_DEVICE() { try { return localStorage.getItem(WS_PLAYER_KEY) || ''; } catch { return ''; } }
 
@@ -10431,6 +10455,80 @@ function wsPick(slug) {
   return WORKSHEETS.find(live) || null;
 }
 
+// ---- videos on the answer sheet ----
+// TikTok, YouTube and Instagram all embed by id. Anything else falls back to a
+// plain link so a pasted URL is never silently dropped.
+function videoEmbed(url) {
+  const u = String(url || '').trim();
+  if (!u) return '';
+  let m, src = '', wide = false;
+  if ((m = u.match(/tiktok\.com\/.*\/video\/(\d+)/))) src = 'https://www.tiktok.com/embed/v2/' + m[1];
+  else if ((m = u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([\w-]{6,})/))) { src = 'https://www.youtube.com/embed/' + m[1]; wide = true; }
+  else if ((m = u.match(/instagram\.com\/(reel|p)\/([\w-]+)/))) src = 'https://www.instagram.com/' + m[1] + '/' + m[2] + '/embed';
+  if (!src) return `<a class="ws-vlink" href="${esc(u)}" target="_blank" rel="noopener">Watch the video ↗</a>`;
+  return `<div class="ws-video ${wide ? 'wide' : ''}"><iframe src="${esc(src)}" loading="lazy" allowfullscreen
+    allow="encrypted-media; fullscreen; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
+}
+
+// ---- the answer sheet, as the player sees it ----
+const sameText = (a, b) => !!a && !!b &&
+  String(a).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() ===
+  String(b).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+function wsAnswersOpen(w, row) { return !!w.answers_published_at && !!row?.submitted_at; }
+
+function wsAnswerSheetHTML(w, row) {
+  const ans = row?.answers || {};
+  const p = playerById(WS_PID);
+  let n = 0;
+  const block = q => {
+    n++;
+    const v = ans[q.id];
+    let yours = '', cls = '', correct = '';
+    if (q.type === 'choice') {
+      const right = q.options[q.answer];
+      if (v === undefined) { yours = 'You left this one blank'; cls = 'unsure'; }
+      else if (v === q.options.length - 1) { yours = q.options[v]; cls = 'unsure'; }
+      else { yours = q.options[v]; cls = v === q.answer ? 'right' : 'wrong'; }
+      correct = `<div class="ws-correct"><b>${cls === 'right' ? 'That\'s it' : 'What we mean'}</b>${esc(right)}</div>`;
+    } else if (q.type === 'check') {
+      const list = Array.isArray(v) && v.length ? v.map(i => q.options[i]).join(' · ') : 'You didn\'t flag any';
+      yours = list;
+      correct = `<div class="ws-correct"><b>These are next</b>We'll go through every one you flagged at practice.</div>`;
+    } else {
+      yours = (v && String(v).trim()) || 'You left this one blank';
+      if (!v || !String(v).trim()) cls = 'unsure';
+      correct = q.why ? `<div class="ws-correct"><b>What we were looking for</b>${esc(q.why)}</div>` : '';
+    }
+    return `<div class="ws-q">
+      <div class="ws-q-n">Question ${n}</div>
+      <div class="ws-q-t">${esc(q.q)}</div>
+      <div class="ws-yours ${cls}"><b>Your answer</b>${esc(yours)}</div>
+      ${correct}
+      ${q.type !== 'text' && q.why && !sameText(q.why, q.options?.[q.answer]) ? `<div class="ws-why">${esc(q.why)}</div>` : ''}
+      ${q.video ? videoEmbed(q.video) : ''}
+    </div>`;
+  };
+  const qs = wsQuestions(w).filter(q => q.type === 'choice');
+  const rightCount = qs.filter(q => ans[q.id] === q.answer).length;
+  return `<div class="ws-page">
+    <div class="ws-bar noprint">
+      <span class="ws-bar-n">${esc(p ? '#' + (p.num || '') + ' ' + firstName(p) : '')}</span>
+      <span class="ws-bar-s">${rightCount} of ${qs.length} picked right</span>
+    </div>
+    <div class="ws-head"><img src="/logo.svg" alt=""><div>
+      <div class="ws-k">${esc(TEAM_SETTINGS.team_name || 'Team')} · Answers</div>
+      <div class="ws-t">${esc(w.title)}</div></div></div>
+    <div class="ws-intro">Here is what we meant by each one, next to what you put. Watch the videos — they show it better than we can say it.\n\nGetting one wrong here is not a problem. Not knowing it on Saturday is.</div>
+    ${(w.sections || []).map(sec => `
+      <div class="ws-sec"><div class="ws-sec-t">${esc(sec.title)}</div></div>
+      ${(sec.questions || []).map(block).join('')}`).join('')}
+    <div class="ws-end noprint">
+      <button class="btn btn-secondary btn-sm" onclick="WS_VIEW='sheet'; renderWorksheetPage(); window.scrollTo(0,0)">Back to my answers</button>
+      <button class="btn btn-secondary btn-sm" onclick="printPage()">Print this</button>
+    </div>
+  </div>`;
+}
+
 // ---- the player's page ----
 function renderWorksheetPage() {
   const body = document.getElementById('ws-body');
@@ -10455,6 +10553,7 @@ function renderWorksheetPage() {
     const local = JSON.parse(localStorage.getItem('thunder_ws_' + w.id + '_' + WS_PID) || 'null');
     if (local && Object.keys(local).length > Object.keys(WS_ANS).length) WS_ANS = local;
   } catch {}
+  if (WS_VIEW === 'answers' && wsAnswersOpen(w, row)) { body.innerHTML = wsAnswerSheetHTML(w, row); return; }
   body.innerHTML = wsSheetHTML(w);
   wsProgress();
 }
@@ -10532,6 +10631,9 @@ function wsSheetHTML(w) {
       <p id="ws-end-p">${WS_SENT ? 'Coach has your answers. You can still change anything — just send it again.' : 'Send it to Coach when you\'re done. You can still change your answers after.'}</p>
       <button class="btn btn-primary" onclick="wsSubmit()">${WS_SENT ? 'Send again' : 'Send to Coach'}</button>
       <div class="ws-save" id="ws-save" style="margin-top:10px">Saved automatically as you go</div>
+      ${WS.answers_published_at ? (WS_SENT
+        ? `<div style="margin-top:14px"><button class="btn btn-primary btn-sm" onclick="WS_VIEW='answers'; renderWorksheetPage(); window.scrollTo(0,0)">See the answers</button></div>`
+        : `<div class="ws-locked">The answer sheet is ready — with videos.<br>Send yours in and it unlocks.</div>`) : ''}
       <div style="margin-top:14px"><button class="btn btn-secondary btn-sm" onclick="printPage()">Print this sheet</button>
       <button class="btn btn-secondary btn-sm" onclick="wsSwitchPlayer()">Not ${esc(p ? firstName(p) : 'you')}?</button></div>
     </div>
@@ -10637,6 +10739,7 @@ function renderHomework() {
       ${WORKSHEETS.map(x => `<option value="${x.id}" ${x.id === w.id ? 'selected' : ''}>${esc(x.title)}</option>`).join('')}</select>` : ''}
     <button class="btn ${w.published_at ? 'btn-secondary' : 'btn-primary'} btn-sm" onclick="hwPublish(${w.published_at ? 'false' : 'true'})">${w.published_at ? 'Unpublish' : 'Publish to players'}</button>
     <button class="btn btn-secondary btn-sm" onclick="hwCopyLink('${esc(link)}')">Copy player link</button>
+    <button class="btn ${w.answers_published_at ? 'btn-secondary' : 'btn-primary'} btn-sm" onclick="hwPublishAnswers(${w.answers_published_at ? 'false' : 'true'})">${w.answers_published_at ? 'Hide answers' : 'Send answer sheet'}</button>
     <button class="btn btn-secondary btn-sm" onclick="refreshHomework()">Refresh</button>
     <button class="btn btn-secondary btn-sm" onclick="printPage()">Print / PDF</button>`;
 
@@ -10664,7 +10767,8 @@ function renderHomework() {
         </div>`; }).join('')}</div>
     </div>
     ${hwGapsHTML(w, rows)}
-    ${hwAnswersHTML(w, rows)}`;
+    ${hwAnswersHTML(w, rows)}
+    ${hwEditorHTML(w)}`;
 }
 let HW_UI = { id: '', player: '' };
 
@@ -10750,6 +10854,59 @@ function hwAnswersHTML(w, rows) {
       }).join('')}`;
     }).join('')}
   </div>`;
+}
+
+// The answer sheet's content: an explanation and a video per question. The
+// explanations are seeded from the coach's own glossary; he edits them here.
+function hwEditorHTML(w) {
+  const withVideo = wsQuestions(w).filter(q => q.video).length;
+  return `<details class="card" style="margin-top:12px">
+    <summary class="card-title" style="cursor:pointer;list-style:none">
+      Answer sheet — explanations and videos
+      <span class="card-link">${withVideo} of ${wsQuestions(w).length} have a video</span>
+    </summary>
+    <div class="rv-fact" style="margin:10px 0">Paste a TikTok, YouTube or Instagram link and it embeds on the boys' answer sheet. They only see any of this after you press <strong>Send answer sheet</strong> — and only once they've sent theirs in.</div>
+    ${(w.sections || []).map(sec => `
+      <div class="rv-kicker" style="margin-top:14px">${esc(sec.title)}</div>
+      ${(sec.questions || []).filter(q => q.type !== 'check').map(q => `
+        <div class="hw-edit">
+          <div class="hw-edit-q">${esc(q.q)}${q.video ? '<span class="hw-has-video">▶ video</span>' : ''}</div>
+          <textarea placeholder="What we mean — shown next to the right answer"
+            onchange="hwSetQ('${q.id}', 'why', this.value)">${esc(q.why || '')}</textarea>
+          <input class="input" placeholder="Video link (optional)" value="${esc(q.video || '')}"
+            onchange="hwSetQ('${q.id}', 'video', this.value)">
+        </div>`).join('')}`).join('')}
+  </details>`;
+}
+
+async function hwSetQ(qid, field, val) {
+  const w = WORKSHEETS.find(x => x.id === HW_UI.id);
+  if (!w) return;
+  let found = false;
+  (w.sections || []).forEach(sec => (sec.questions || []).forEach(q => {
+    if (q.id !== qid) return;
+    found = true;
+    const v = String(val || '').trim();
+    if (v) q[field] = v; else delete q[field];
+  }));
+  if (!found) return;
+  const res = await supa('team_worksheets', 'PATCH',
+    { sections: w.sections, updated_at: new Date().toISOString() }, `?id=eq.${w.id}`);
+  toast(res ? 'Saved' : 'Could not save');
+  if (res && field === 'video') renderHomework();
+}
+
+async function hwPublishAnswers(on) {
+  const w = WORKSHEETS.find(x => x.id === HW_UI.id);
+  if (!w) return;
+  if (on && !confirm('Send the answer sheet? Each boy sees it on his own link as soon as he has sent his worksheet in.')) return;
+  const val = on ? new Date().toISOString() : null;
+  const res = await supa('team_worksheets', 'PATCH',
+    { answers_published_at: val, updated_at: new Date().toISOString() }, `?id=eq.${w.id}`);
+  if (!res) { toast('Could not save'); return; }
+  w.answers_published_at = val;
+  renderHomework();
+  toast(on ? 'Answer sheet is live' : 'Answer sheet hidden again');
 }
 
 async function hwPublish(on) {

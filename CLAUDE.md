@@ -158,6 +158,13 @@ system prompt forbids inventing stats or observations — keep it that way.
   screen. Players see nothing until the coach presses Publish (`published_at`).
   The Homework screen shows who's done it, what they wrote, and the two
   aggregates that matter: terms the team flagged and questions they missed.
+- **Answer sheets**: each question can carry `why` (the coach's explanation)
+  and `video` (a TikTok / YouTube / Instagram URL, embedded by `videoEmbed()`
+  — anything unrecognised falls back to a link, never dropped). Both are
+  edited in the Homework screen's "Answer sheet" panel. A player sees the
+  answers only when `answers_published_at` is set **and** he has submitted his
+  own, so nobody reads them instead of doing the work. An explanation that
+  only restates the right answer is suppressed rather than printed twice.
   Seeded by `scripts/seed_worksheet_offense.py` — every term and definition in
   it is the coach's, never invented.
 - **Standalone review URLs** (vercel.json rewrites `/review/*` to
