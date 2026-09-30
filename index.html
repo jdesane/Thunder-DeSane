@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-29.6">
+<meta name="build" content="2026-09-29.7">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -10649,7 +10649,7 @@ function renderHomework() {
   body.innerHTML = `
     <div class="kpi-strip">
       <div class="kpi"><div class="kpi-label">Sent in</div><div class="kpi-value mono">${sent} / ${players.length}</div></div>
-      <div class="kpi"><div class="kpi-label">Started</div><div class="kpi-value mono">${started}</div></div>
+      <div class="kpi"><div class="kpi-label">Still working</div><div class="kpi-value mono">${started}</div></div>
       <div class="kpi"><div class="kpi-label">Questions</div><div class="kpi-value mono">${total}</div></div>
       <div class="kpi"><div class="kpi-label">Status</div><div class="kpi-value mono" style="font-size:15px;color:${w.published_at ? 'var(--pos)' : 'var(--warn)'}">${w.published_at ? 'Published' : 'Not sent'}</div></div>
     </div>
@@ -10724,7 +10724,14 @@ function hwAnswersHTML(w, rows) {
       </select>
     </div>
     ${(w.sections || []).map(sec => {
-      const qs = (sec.questions || []).filter(q => ans[q.id] !== undefined);
+      const answered = q => {
+        const v = ans[q.id];
+        if (v === undefined || v === null) return false;
+        if (q.type === 'check') return Array.isArray(v);
+        if (q.type === 'text') return String(v).trim() !== '';
+        return true;
+      };
+      const qs = (sec.questions || []).filter(answered);
       if (!qs.length) return '';
       return `<div class="rv-kicker" style="margin-top:14px">${esc(sec.title)}</div>
       ${qs.map(q => {
