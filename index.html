@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-01.2">
+<meta name="build" content="2026-10-01.3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -2306,7 +2306,7 @@
       <div class="section-header noprint">
         <div>
           <div class="section-title">Homework</div>
-          <div class="section-sub">Worksheets the boys fill in at home — and what their answers tell you.</div>
+          <div class="section-sub">Worksheets the players fill in at home — and what their answers tell you.</div>
         </div>
         <div class="section-actions" id="hw-actions"></div>
       </div>
@@ -10495,7 +10495,7 @@ function parseWorksheetRoute() {
 
 async function loadWorksheets(pid) {
   // On a player's page pid is set, and only that player's row comes back —
-  // one boy cannot read another boy's answers out of the network tab.
+  // one player cannot read another player's answers out of the network tab.
   const q = pid ? '?select=*&player_id=eq.' + encodeURIComponent(pid) : '?select=*';
   const [ws, rows] = await Promise.all([
     supa('team_worksheets', 'GET', null, '?select=*&order=week_of.desc'),
@@ -10643,7 +10643,7 @@ function wsPickerHTML(w) {
 async function wsSetPlayer(pid) {
   WS_PID = pid;
   try { localStorage.setItem(WS_PLAYER_KEY, pid); } catch {}
-  if (WS_ROUTE) await loadWorksheets(pid);     // just this boy's answers
+  if (WS_ROUTE) await loadWorksheets(pid);     // just this player's answers
   renderWorksheetPage();
   window.scrollTo(0, 0);
 }
@@ -10811,7 +10811,7 @@ function renderHomework() {
     <button class="btn btn-secondary btn-sm" onclick="hwCopyLink('${esc(link)}')">Copy player link</button>
     <button class="btn ${w.answers_published_at ? 'btn-secondary' : 'btn-primary'} btn-sm" onclick="hwPublishAnswers(${w.answers_published_at ? 'false' : 'true'})">${w.answers_published_at ? 'Hide answers' : 'Send answer sheet'}</button>
     <button class="btn btn-secondary btn-sm" onclick="refreshHomework()">Refresh</button>
-    <button class="btn btn-secondary btn-sm" onclick="hwPrintPack()">Print every boy's sheet</button>
+    <button class="btn btn-secondary btn-sm" onclick="hwPrintPack()">Print every player's sheet</button>
     <button class="btn btn-secondary btn-sm" onclick="printPage()">Print / PDF</button>`;
 
   const players = PLAYERS.filter(p => p.cloudId).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -10844,7 +10844,7 @@ function renderHomework() {
 let HW_UI = { id: '', player: '', pack: false };
 
 // What they don't understand — the whole point of the sheet.
-// ---- one printable page per boy: the questions, what he put, and what we mean ----
+// ---- one printable page per player: the questions, their answers, what we mean ----
 function hwPrintPack() {
   HW_UI.pack = true;
   renderHomework();
@@ -11005,7 +11005,7 @@ function hwEditorHTML(w) {
       Answer sheet — explanations and videos
       <span class="card-link">${withVideo} of ${wsQuestions(w).length} have a video</span>
     </summary>
-    <div class="rv-fact" style="margin:10px 0">Paste a TikTok, YouTube or Instagram link and it embeds on the boys' answer sheet. They only see any of this after you press <strong>Send answer sheet</strong> — and only once they've sent theirs in.</div>
+    <div class="rv-fact" style="margin:10px 0">Paste a TikTok, YouTube or Instagram link and it embeds on the players' answer sheet. They only see any of this after you press <strong>Send answer sheet</strong> — and only once they've sent theirs in.</div>
     ${(w.sections || []).map(sec => `
       <div class="rv-kicker" style="margin-top:14px">${esc(sec.title)}</div>
       ${(sec.questions || []).filter(q => q.type !== 'check').map(q => `
@@ -11039,7 +11039,7 @@ async function hwSetQ(qid, field, val) {
 async function hwPublishAnswers(on) {
   const w = WORKSHEETS.find(x => x.id === HW_UI.id);
   if (!w) return;
-  if (on && !confirm('Send the answer sheet? Each boy sees it on his own link as soon as he has sent his worksheet in.')) return;
+  if (on && !confirm('Send the answer sheet? Each player sees it on their own link as soon as they have sent their worksheet in.')) return;
   const val = on ? new Date().toISOString() : null;
   const res = await supa('team_worksheets', 'PATCH',
     { answers_published_at: val, updated_at: new Date().toISOString() }, `?id=eq.${w.id}`);
