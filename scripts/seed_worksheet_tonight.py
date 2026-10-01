@@ -46,14 +46,13 @@ SECTIONS = [
     ])],
   },
   {
-    "id": "arm", "title": "Arm and glove — about 10 minutes",
+    "id": "arm", "title": "Arm and glove — five minutes",
     "lead": "Garage, carport, driveway under cover — anywhere you can throw without getting soaked. "
             "If nobody is around to catch, a wall works.",
     "questions": [checklist("c2", "Tap each one as you finish it:", [
-        "Play catch for 10 minutes",
-        "20 throws aimed at your partner's chest",
-        "20 quick exchanges — glove to hand, no wasted motion",
-        "No partner: 30 throws against a wall",
+        "Play catch for five minutes",
+        "20 of those throws aimed at your partner's chest",
+        "No partner: 30 throws against a wall instead",
     ])],
   },
   {
@@ -64,13 +63,11 @@ SECTIONS = [
     ])],
   },
   {
-    "id": "head", "title": "Head — about 10 minutes",
+    "id": "head", "title": "Head — about six minutes",
     "lead": "This is the part that actually decides Saturday.",
     "questions": [checklist("c4", "Tap each one as you finish it:", [
-        "Read your answer sheet from Part 1",
-        "Watch the videos on it",
+        "Read your answer sheet from Part 1 and watch the videos on it",
         "Get a parent to quiz you: “when I say ___, show me what you do”",
-        "Pick one term you flagged and learn it properly",
     ])],
   },
   {
@@ -88,7 +85,7 @@ SECTIONS = [
 ]
 
 INTRO = ("No practice tonight. This is what it is instead.\n\n"
-         "All of it fits in about half an hour and none of it needs a field. Tap each thing as you "
+         "The whole thing is under half an hour and none of it needs a field. Tap each thing as you "
          "finish it, then send it to me so I know who got their work in before Saturday.\n\n"
          "If you only have time for one section, make it the swings.")
 
