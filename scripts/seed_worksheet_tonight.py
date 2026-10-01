@@ -61,8 +61,6 @@ SECTIONS = [
     "lead": "Living room floor. Nobody needs to watch you do these.",
     "questions": [checklist("c3", "Tap each one as you finish it:", [
         "20 secondary leads — your shuffles as the pitch comes in",
-        "10 ball-four drops — say “ball four”, drop the bat where you stand, sprint three steps",
-        "10 tag-ups — touch the bag, wait, then go",
     ])],
   },
   {
