@@ -57,8 +57,8 @@ SECTIONS = [
     ])],
   },
   {
-    "id": "feet", "title": "Feet — about 5 minutes, no equipment",
-    "lead": "Living room floor. Nobody needs to watch you do these.",
+    "id": "feet", "title": "Feet — two minutes, no equipment",
+    "lead": "Living room floor. Nobody needs to watch you do it.",
     "questions": [checklist("c3", "Tap each one as you finish it:", [
         "20 secondary leads — your shuffles as the pitch comes in",
     ])],
@@ -88,7 +88,7 @@ SECTIONS = [
 ]
 
 INTRO = ("No practice tonight. This is what it is instead.\n\n"
-         "All of it fits in about forty minutes and none of it needs a field. Tap each thing as you "
+         "All of it fits in about half an hour and none of it needs a field. Tap each thing as you "
          "finish it, then send it to me so I know who got their work in before Saturday.\n\n"
          "If you only have time for one section, make it the swings.")
 
