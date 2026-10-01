@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-09-30.1">
+<meta name="build" content="2026-10-01.1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1293,8 +1293,11 @@
     .sidebar, .topbar, .noprint, #update-banner, .nav-item, .drawer, .drawer-backdrop, #toast { display: none !important; }
     .app { display: block; }
     .main { padding: 0; }
+    /* Print whatever screen you are on. This used to name the Review, which
+       was the only printable one — so Homework and a player's worksheet both
+       printed a blank page. */
     .section { display: none !important; }
-    #section-review { display: block !important; padding: 0 !important; }
+    .section.active { display: block !important; padding: 0 !important; }
     .card { border: 1px solid #ddd; background: #fff; break-inside: auto; page-break-inside: auto; }
     .rv-stats, .rv-games, .rv-pub, .rv-h, .rv-kicker { break-inside: avoid; }
     .rv-h, .rv-kicker { break-after: avoid; }
@@ -1348,6 +1351,40 @@
     table.data th { color: #444; background: #f3f3f3; }
     table.data td { color: #111; border-color: #e5e5e5; }
     .pill { border: 1px solid #ccc; color: #333 !important; background: none !important; }
+    /* Homework and the answer sheet on paper: the dark cards printed as
+       black boxes with invisible text. */
+    .card-title { color: #111; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+    .kpi-strip { border-bottom-color: #ddd; }
+    .kpi-value { color: #111 !important; }
+    .kpi-label { color: #555 !important; }
+    .hw-card { background: #fff !important; border: 1px solid #ddd; break-inside: avoid; }
+    .hw-card.none { opacity: 1; color: #888; }
+    .hw-card-n { color: #111; }
+    .hw-card-s { color: #555; }
+    .hw-gap { border-bottom-color: #e5e5e5; break-inside: avoid; }
+    .hw-gap-b { background: #eee; }
+    .hw-gap-b i { background: #FFB612; }
+    .hw-gap-c { color: #555; }
+    .hw-ans { border-left-color: #ccc; break-inside: avoid; }
+    .hw-ans-q { color: #555; }
+    .hw-ans-a { color: #111; }
+    .hw-ans-a.wrong { color: #b00020 !important; }
+    .hw-ans-a.unsure { color: #b07a00 !important; }
+    .hw-grid { grid-template-columns: repeat(3, 1fr); }
+    details.card > summary { list-style: none; }
+    .hw-edit, .hw-edit textarea, .hw-edit input { display: none !important; }
+    /* answer sheet */
+    .ws-yours, .ws-correct { background: #fff !important; break-inside: avoid; }
+    .ws-yours { border: 1px solid #ccc; color: #111; }
+    .ws-yours b { color: #666; }
+    .ws-yours.right { border-color: #2e7d32; }
+    .ws-yours.wrong { border-color: #b00020; }
+    .ws-yours.unsure { border-color: #b07a00; }
+    .ws-correct { border: 1px solid #FFB612; color: #111; }
+    .ws-correct b { color: #b07a00; }
+    .ws-why { color: #444; }
+    .ws-video, .ws-locked { display: none !important; }
+    .ws-vlink { color: #b07a00; }
 
     /* Worksheet on paper: blank boxes to tick, ruled lines to write on */
     #section-worksheet .ws-bar, #section-worksheet .ws-end, #section-worksheet .ws-save,
