@@ -35,7 +35,7 @@ def checklist(qid, lead, items):
 
 SECTIONS = [
   {
-    "id": "swings", "title": "Swings — about 15 minutes",
+    "id": "swings", "title": "Swings — about 12 minutes",
     "lead": "Use a tee if you have one. No tee is fine — dry swings in front of a mirror count, "
             "same numbers. Go slower than you think you need to.",
     "questions": [checklist("c1", "Tap each one as you finish it:", [
@@ -46,11 +46,11 @@ SECTIONS = [
     ])],
   },
   {
-    "id": "arm", "title": "Arm and glove — five minutes",
+    "id": "arm", "title": "Arm and glove — ten minutes",
     "lead": "Garage, carport, driveway under cover — anywhere you can throw without getting soaked. "
             "If nobody is around to catch, a wall works.",
     "questions": [checklist("c2", "Tap each one as you finish it:", [
-        "Play catch for five minutes",
+        "Play catch for ten minutes",
         "20 of those throws aimed at your partner's chest",
         "No partner: 30 throws against a wall instead",
     ])],
