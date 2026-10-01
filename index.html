@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-01.4">
+<meta name="build" content="2026-10-01.5">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1486,6 +1486,11 @@
 
 
   /* answer sheet */
+  .ws-menu { display: grid; gap: 10px; margin-top: 8px; }
+  .ws-menu button { display: block; width: 100%; text-align: left; padding: 17px 16px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--bg-elev); color: var(--text); font-family: inherit; cursor: pointer; }
+  .ws-menu button:hover { border-color: var(--gold); background: var(--bg-hover); }
+  .ws-menu-t { display: block; font-size: 16px; font-weight: 600; }
+  .ws-menu-s { display: block; font-size: 12.5px; color: var(--text-muted); margin-top: 3px; }
   .ws-video { margin: 12px 0 2px; }
   .ws-video iframe { width: 100%; max-width: 330px; height: 585px; border: 0; border-radius: 10px; background: #000; display: block; }
   .ws-video.wide iframe { max-width: 100%; height: auto; aspect-ratio: 16/9; }
@@ -10484,7 +10489,7 @@ document.addEventListener('keydown', (e) => {
 // chrome, no login, one link for the whole team — they tap their own name.
 // Nothing is graded on their screen. The answers are for the coach to read.
 let WORKSHEETS = [], WS_ROWS = [], WS = null, WS_PID = '', WS_ANS = {}, WS_SENT = null;
-let WS_ROUTE = null, WS_TIMER = null, WS_VIEW = 'sheet';
+let WS_ROUTE = null, WS_TIMER = null, WS_VIEW = 'sheet', WS_CHOSEN = '';
 const WS_PLAYER_KEY = 'thunder_ws_player';
 function WS_PID_FROM_DEVICE() { try { return localStorage.getItem(WS_PLAYER_KEY) || ''; } catch { return ''; } }
 
@@ -10518,11 +10523,40 @@ function wsAnswered(w, ans) {
 // in memory from the Homework screen (which is behind the PIN) and never from
 // the URL, so a guessed slug cannot reach a draft.
 let WS_PREVIEW = false;
+const wsIsLive = w => !!w && (!!w.published_at || WS_PREVIEW);
+function wsLive() { return WORKSHEETS.filter(wsIsLive); }
 function wsPick(slug) {
-  const live = w => !!w && (!!w.published_at || WS_PREVIEW);
-  if (slug) { const w = WORKSHEETS.find(x => x.slug === slug); return live(w) ? w : null; }
-  return WORKSHEETS.find(live) || null;
+  if (slug) { const w = WORKSHEETS.find(x => x.slug === slug); return wsIsLive(w) ? w : null; }
+  if (WS_CHOSEN) { const w = WORKSHEETS.find(x => x.id === WS_CHOSEN); if (wsIsLive(w)) return w; }
+  return wsLive()[0] || null;
 }
+
+// With more than one sheet out at once, the single link has to land somewhere
+// a player can reach either of them — tonight's reps and last week's answers.
+function wsMenuHTML(live) {
+  const p = playerById(WS_PID);
+  const card = w => {
+    const row = wsRow(w.id, WS_PID);
+    const total = wsQuestions(w).length;
+    const done = row ? wsAnswered(w, row.answers) : 0;
+    let state = 'Not started';
+    if (row?.submitted_at) state = wsAnswersOpen(w, row) ? 'Sent \u00b7 your answers are ready' : 'Sent \u00b7 thanks';
+    else if (row) state = `Started \u2014 ${done} of ${total}`;
+    return `<button onclick="wsOpenSheet('${w.id}')">
+      <span class="ws-menu-t">${esc(w.title)}</span>
+      <span class="ws-menu-s">${esc(state)}</span></button>`;
+  };
+  return `<div class="ws-page">
+    <div class="ws-head"><img src="/logo.svg" alt=""><div>
+      <div class="ws-k">${esc(TEAM_SETTINGS.team_name || 'Team')} \u00b7 Homework</div>
+      <div class="ws-t">Hi ${esc(p ? firstName(p) : '')}</div></div></div>
+    <div class="ws-intro">You have ${live.length} things here. Open whichever one you want.</div>
+    <div class="ws-menu">${live.map(card).join('')}</div>
+    <div class="ws-end noprint"><button class="btn btn-secondary btn-sm" onclick="wsSwitchPlayer()">Not ${esc(p ? firstName(p) : 'you')}?</button></div>
+  </div>`;
+}
+function wsOpenSheet(id) { WS_CHOSEN = id; WS_VIEW = 'sheet'; renderWorksheetPage(); window.scrollTo(0, 0); }
+function wsBackToMenu() { WS_CHOSEN = ''; WS_VIEW = 'sheet'; renderWorksheetPage(); window.scrollTo(0, 0); }
 
 // ---- videos on the answer sheet ----
 // TikTok, YouTube and Instagram all embed by id. Anything else falls back to a
@@ -10622,6 +10656,10 @@ function renderWorksheetPage() {
   if (WS_PID && !playerById(WS_PID)) WS_PID = '';
   if (!WS_PID) { body.innerHTML = wsPickerHTML(w); return; }
 
+  // more than one sheet out, and none asked for by name: let them choose
+  const live = wsLive();
+  if (!WS_ROUTE?.slug && !WS_CHOSEN && live.length > 1) { body.innerHTML = wsMenuHTML(live); return; }
+
   const row = wsRow(w.id, WS_PID);
   WS_ANS = row?.answers ? JSON.parse(JSON.stringify(row.answers)) : {};
   WS_SENT = row?.submitted_at || null;
@@ -10711,6 +10749,7 @@ function wsSheetHTML(w) {
         ? `<div style="margin-top:14px"><button class="btn btn-primary btn-sm" onclick="WS_VIEW='answers'; renderWorksheetPage(); window.scrollTo(0,0)">See the answers</button></div>`
         : `<div class="ws-locked">The answer sheet is ready — with videos.<br>Send yours in and it unlocks.</div>`) : ''}
       <div style="margin-top:14px"><button class="btn btn-secondary btn-sm" onclick="printPage()">Print this sheet</button>
+      ${wsLive().length > 1 && !WS_ROUTE?.slug ? `<button class="btn btn-secondary btn-sm" onclick="wsBackToMenu()">My other sheets</button>` : ''}
       <button class="btn btn-secondary btn-sm" onclick="wsSwitchPlayer()">Not ${esc(p ? firstName(p) : 'you')}?</button></div>
     </div>
   </div>`;
