@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-01.5">
+<meta name="build" content="2026-10-01.6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1486,6 +1486,12 @@
 
 
   /* answer sheet */
+  @keyframes ws-pop { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,182,18,0.55); }
+    50% { transform: scale(1.05); box-shadow: 0 0 0 12px rgba(255,182,18,0); } }
+  .ws-pop { animation: ws-pop 1.9s ease-in-out infinite; font-size: 15px; padding: 12px 22px; }
+  .ws-end-b { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
+  .ws-end .ws-save { margin-top: 10px; }
+  @media (prefers-reduced-motion: reduce) { .ws-pop { animation: none; } }
   .ws-menu { display: grid; gap: 10px; margin-top: 8px; }
   .ws-menu button { display: block; width: 100%; text-align: left; padding: 17px 16px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--bg-elev); color: var(--text); font-family: inherit; cursor: pointer; }
   .ws-menu button:hover { border-color: var(--gold); background: var(--bg-hover); }
@@ -10736,23 +10742,34 @@ function wsSheetHTML(w) {
       <div class="ws-k">${esc(TEAM_SETTINGS.team_name || 'Team')} · Homework</div>
       <div class="ws-t">${esc(w.title)}</div></div></div>
     <div class="ws-intro">${esc(w.intro || '')}</div>
+    ${WS_SENT ? `<div class="ws-end noprint">
+      <h4>Sent to Coach</h4>
+      <p id="ws-end-p">Coach has your answers. You can still change anything — just send it again.</p>
+      ${WS.answers_published_at
+        ? `<button class="btn btn-primary ws-pop" onclick="WS_VIEW='answers'; renderWorksheetPage(); window.scrollTo(0,0)">See the answers</button>
+           <div class="ws-save">Your answers, what we meant, and the videos</div>` : ''}
+      <div class="ws-end-b"><button class="btn btn-secondary btn-sm" onclick="wsSubmit()">Send again</button>
+      ${wsFootButtons(p)}</div>
+    </div>` : ''}
     ${(w.sections || []).map(sec => `
       <div class="ws-sec"><div class="ws-sec-t">${esc(sec.title)}</div>
         ${sec.lead ? `<div class="ws-sec-l">${esc(sec.lead)}</div>` : ''}</div>
       ${(sec.questions || []).map(qHTML).join('')}`).join('')}
-    <div class="ws-end noprint">
-      <h4>${WS_SENT ? 'Sent to Coach' : 'Finished?'}</h4>
-      <p id="ws-end-p">${WS_SENT ? 'Coach has your answers. You can still change anything — just send it again.' : 'Send it to Coach when you\'re done. You can still change your answers after.'}</p>
-      <button class="btn btn-primary" onclick="wsSubmit()">${WS_SENT ? 'Send again' : 'Send to Coach'}</button>
-      <div class="ws-save" id="ws-save" style="margin-top:10px">Saved automatically as you go</div>
-      ${WS.answers_published_at ? (WS_SENT
-        ? `<div style="margin-top:14px"><button class="btn btn-primary btn-sm" onclick="WS_VIEW='answers'; renderWorksheetPage(); window.scrollTo(0,0)">See the answers</button></div>`
-        : `<div class="ws-locked">The answer sheet is ready — with videos.<br>Send yours in and it unlocks.</div>`) : ''}
-      <div style="margin-top:14px"><button class="btn btn-secondary btn-sm" onclick="printPage()">Print this sheet</button>
-      ${wsLive().length > 1 && !WS_ROUTE?.slug ? `<button class="btn btn-secondary btn-sm" onclick="wsBackToMenu()">My other sheets</button>` : ''}
-      <button class="btn btn-secondary btn-sm" onclick="wsSwitchPlayer()">Not ${esc(p ? firstName(p) : 'you')}?</button></div>
-    </div>
+    ${WS_SENT ? '' : `<div class="ws-end noprint">
+      <h4>Finished?</h4>
+      <p id="ws-end-p">Send it to Coach. You can still change your answers after.</p>
+      <button class="btn btn-primary" onclick="wsSubmit()">Send to Coach</button>
+      <div class="ws-save" id="ws-save">Saved automatically as you go</div>
+      ${WS.answers_published_at ? `<div class="ws-locked">The answer sheet is ready — with videos.<br>Send yours in and it unlocks.</div>` : ''}
+      <div class="ws-end-b">${wsFootButtons(p)}</div>
+    </div>`}
   </div>`;
+}
+
+function wsFootButtons(p) {
+  return `<button class="btn btn-secondary btn-sm" onclick="printPage()">Print this sheet</button>
+    ${wsLive().length > 1 && !WS_ROUTE?.slug ? `<button class="btn btn-secondary btn-sm" onclick="wsBackToMenu()">My other sheets</button>` : ''}
+    <button class="btn btn-secondary btn-sm" onclick="wsSwitchPlayer()">Not ${esc(p ? firstName(p) : 'you')}?</button>`;
 }
 
 function wsProgress() {
@@ -10791,8 +10808,7 @@ function wsWrite(qid, val) { WS_ANS[qid] = val; wsMark(qid, val.trim() !== ''); 
 
 function wsQueueSave() {
   try { localStorage.setItem('thunder_ws_' + WS.id + '_' + WS_PID, JSON.stringify(WS_ANS)); } catch {}
-  const el = document.getElementById('ws-save');
-  if (el) el.textContent = 'Saving…';
+  document.querySelectorAll('#ws-save, #ws-save-b').forEach(el => { el.textContent = 'Saving…'; });
   clearTimeout(WS_TIMER);
   WS_TIMER = setTimeout(wsSave, 900);
 }
@@ -10802,8 +10818,9 @@ async function wsSave(submit) {
   if (submit) body.submitted_at = new Date().toISOString();
   else if (WS_SENT) body.submitted_at = WS_SENT;
   const res = await supa('team_worksheet_answers', 'POST', [body], '?on_conflict=worksheet_id,player_id', 'resolution=merge-duplicates');
-  const el = document.getElementById('ws-save');
-  if (el) el.textContent = res ? 'Saved' : 'Not saved — check your connection';
+  document.querySelectorAll('#ws-save, #ws-save-b').forEach(el => {
+    el.textContent = res ? 'Saved' : 'Not saved — check your connection';
+  });
   if (res) {
     const i = WS_ROWS.findIndex(r => r.worksheet_id === WS.id && r.player_id === WS_PID);
     if (i >= 0) WS_ROWS[i] = { ...WS_ROWS[i], ...body }; else WS_ROWS.push(body);
