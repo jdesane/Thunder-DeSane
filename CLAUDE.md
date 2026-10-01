@@ -156,6 +156,11 @@ system prompt forbids inventing stats or observations — keep it that way.
   login, they tap their own name, answers save as they type to localStorage
   and Supabase so a sleeping iPad loses nothing. Nothing is graded on their
   screen. Players see nothing until the coach presses Publish (`published_at`).
+  With more than one sheet published the player page shows a menu after they
+  tap their name (`wsMenuHTML` / `wsOpenSheet`, `WS_CHOSEN`), so the single
+  `/worksheet` link still reaches all of them; `/worksheet/<slug>` goes
+  straight to one. A `check` question is also how a reps checklist is built —
+  see `scripts/seed_worksheet_tonight.py`.
   The Homework screen shows who's done it, what they wrote, and the two
   aggregates that matter: terms the team flagged and questions they missed.
   "Print every player's sheet" swaps the screen for a pack (`HW_UI.pack`): one
