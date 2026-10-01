@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-01.1">
+<meta name="build" content="2026-10-01.2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1354,6 +1354,20 @@
     /* Homework and the answer sheet on paper: the dark cards printed as
        black boxes with invisible text. */
     .card-title { color: #111; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+    .hw-page { border: none; background: #fff !important; padding: 0; margin: 0; break-after: page; page-break-after: always; }
+    .hw-page:last-child { break-after: auto; page-break-after: auto; }
+    .hw-page-h { border-bottom: 2px solid #111; }
+    .hw-page-n, .hw-page-sc { color: #111; }
+    .hw-page-s, .hw-page-sc small, .hw-pq-q { color: #555; }
+    .hw-page-sec { color: #b07a00; }
+    .hw-pq { break-inside: avoid; page-break-inside: avoid; }
+    .hw-pq-a { color: #111; border-left-color: #ccc; }
+    .hw-pq-a.right { border-left-color: #2e7d32; }
+    .hw-pq-a.wrong { border-left-color: #b00020; }
+    .hw-pq-a.unsure { border-left-color: #b07a00; }
+    .hw-pq-a.blank { color: #999; }
+    .hw-pq-m { color: #b07a00; }
+
     .kpi-strip { border-bottom-color: #ddd; }
     .kpi-value { color: #111 !important; }
     .kpi-label { color: #555 !important; }
@@ -1493,6 +1507,24 @@
   .hw-edit input { width: 100%; font-size: 12.5px; }
   .hw-edit textarea:focus, .hw-edit input:focus { outline: none; border-color: var(--gold); }
   .hw-has-video { color: var(--gold); font-size: 11px; margin-left: 6px; }
+
+  .hw-page { border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 14px; background: var(--bg-elev); }
+  .hw-page-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 2px solid var(--gold); padding-bottom: 10px; margin-bottom: 12px; }
+  .hw-page-n { font-size: 17px; font-weight: 700; }
+  .hw-page-s { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
+  .hw-page-sc { font-size: 19px; font-weight: 700; text-align: right; white-space: nowrap; }
+  .hw-page-sc small { display: block; font-size: 10px; font-weight: 500; color: var(--text-muted); letter-spacing: 0.04em; }
+  .hw-page-sec { font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--gold); font-weight: 600; margin: 14px 0 7px; }
+  .hw-pq { margin-bottom: 9px; }
+  .hw-pq-q { font-size: 12.5px; color: var(--text-muted); line-height: 1.45; }
+  .hw-pq-q span { color: var(--text-subtle); margin-right: 5px; }
+  .hw-pq-a { font-size: 13.5px; line-height: 1.5; padding: 5px 9px; border-left: 3px solid var(--border-strong); margin-top: 3px; white-space: pre-line; }
+  .hw-pq-a i { font-style: normal; font-weight: 700; margin-right: 6px; }
+  .hw-pq-a.right { border-left-color: var(--pos); }
+  .hw-pq-a.wrong { border-left-color: var(--neg); }
+  .hw-pq-a.unsure { border-left-color: var(--warn); }
+  .hw-pq-a.blank { border-left-color: var(--border); color: var(--text-subtle); font-style: italic; }
+  .hw-pq-m { font-size: 12px; color: var(--gold); margin: 3px 0 0 12px; }
 
   /* ===== APP LOCK ===== */
   /* The player worksheet and the review links are public. The app behind them
@@ -10759,6 +10791,7 @@ function renderHomework() {
   const body = document.getElementById('hw-body');
   const actions = document.getElementById('hw-actions');
   if (!body) return;
+  if (HW_UI.pack) { renderHomeworkPack(); return; }
   if (!WORKSHEETS.length) {
     body.innerHTML = `<div class="card"><div class="card-empty" style="padding:40px">${HW_LOADING ? 'Loading…' : 'No worksheets yet.'}</div></div>`;
     if (actions) actions.innerHTML = '';
@@ -10778,6 +10811,7 @@ function renderHomework() {
     <button class="btn btn-secondary btn-sm" onclick="hwCopyLink('${esc(link)}')">Copy player link</button>
     <button class="btn ${w.answers_published_at ? 'btn-secondary' : 'btn-primary'} btn-sm" onclick="hwPublishAnswers(${w.answers_published_at ? 'false' : 'true'})">${w.answers_published_at ? 'Hide answers' : 'Send answer sheet'}</button>
     <button class="btn btn-secondary btn-sm" onclick="refreshHomework()">Refresh</button>
+    <button class="btn btn-secondary btn-sm" onclick="hwPrintPack()">Print every boy's sheet</button>
     <button class="btn btn-secondary btn-sm" onclick="printPage()">Print / PDF</button>`;
 
   const players = PLAYERS.filter(p => p.cloudId).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -10807,9 +10841,78 @@ function renderHomework() {
     ${hwAnswersHTML(w, rows)}
     ${hwEditorHTML(w)}`;
 }
-let HW_UI = { id: '', player: '' };
+let HW_UI = { id: '', player: '', pack: false };
 
 // What they don't understand — the whole point of the sheet.
+// ---- one printable page per boy: the questions, what he put, and what we mean ----
+function hwPrintPack() {
+  HW_UI.pack = true;
+  renderHomework();
+  setTimeout(() => window.print(), 120);
+}
+function hwClosePack() { HW_UI.pack = false; renderHomework(); window.scrollTo(0, 0); }
+window.addEventListener('afterprint', () => { if (HW_UI.pack) hwClosePack(); });
+
+function renderHomeworkPack() {
+  const body = document.getElementById('hw-body');
+  const actions = document.getElementById('hw-actions');
+  const w = WORKSHEETS.find(x => x.id === HW_UI.id);
+  if (!w || !body) return;
+  if (actions) actions.innerHTML = `<button class="btn btn-primary btn-sm" onclick="hwClosePack()">Done</button>`;
+
+  const players = PLAYERS.filter(p => p.cloudId).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const live = players.map(p => ({ p, row: wsRow(w.id, p.cloudId) })).filter(x => x.row);
+  if (!live.length) { body.innerHTML = `<div class="card"><div class="card-empty" style="padding:40px">Nothing sent in yet.</div></div>`; return; }
+
+  const mc = wsQuestions(w).filter(q => q.type === 'choice');
+  body.innerHTML = `<div class="noprint" style="margin-bottom:14px;font-size:13px;color:var(--text-muted)">
+      ${live.length} sheet${live.length === 1 ? '' : 's'}, one page each. Your browser's print dialog is open — if you closed it, press Done and try again.
+    </div>` + live.map(({ p, row }) => {
+    const ans = row.answers || {};
+    const right = mc.filter(q => ans[q.id] === q.answer).length;
+    const unsure = mc.filter(q => ans[q.id] === q.options.length - 1).length;
+    let n = 0;
+    const flagged = ans.h1;
+    const chk = wsQuestions(w).find(q => q.type === 'check');
+    return `<div class="hw-page">
+      <div class="hw-page-h">
+        <div>
+          <div class="hw-page-n">#${esc(p.num || '')} ${esc(p.name || '')}</div>
+          <div class="hw-page-s">${esc(w.title)} · ${row.submitted_at ? 'Sent ' + fmtStamp(row.submitted_at) : 'Not sent — ' + wsAnswered(w, ans) + ' of ' + wsQuestions(w).length + ' answered'}</div>
+        </div>
+        <div class="hw-page-sc">${right} / ${mc.length}<small>picked right${unsure ? ' · ' + unsure + ' not sure' : ''}</small></div>
+      </div>
+      ${(w.sections || []).map(sec => {
+        const qs = (sec.questions || []).filter(q => q.type !== 'check');
+        if (!qs.length) return '';
+        return `<div class="hw-page-sec">${esc(sec.title)}</div>` + qs.map(q => {
+          n++;
+          const v = ans[q.id];
+          let txt = '', mark = '', cls = '';
+          if (q.type === 'choice') {
+            if (v === undefined) { txt = '— left blank'; cls = 'blank'; }
+            else if (v === q.options.length - 1) { txt = q.options[v]; cls = 'unsure'; mark = '?'; }
+            else { txt = q.options[v]; cls = v === q.answer ? 'right' : 'wrong'; mark = v === q.answer ? '✓' : '✗'; }
+          } else {
+            txt = (v && String(v).trim()) || '— left blank';
+            if (!v || !String(v).trim()) cls = 'blank';
+          }
+          const showMeant = q.type === 'choice' && cls !== 'right';
+          return `<div class="hw-pq">
+            <div class="hw-pq-q"><span>${n}.</span>${esc(q.q)}</div>
+            <div class="hw-pq-a ${cls}">${mark ? `<i>${mark}</i>` : ''}${esc(txt)}</div>
+            ${showMeant ? `<div class="hw-pq-m">We mean: ${esc(q.options[q.answer])}</div>` : ''}
+          </div>`;
+        }).join('');
+      }).join('')}
+      ${chk ? `<div class="hw-page-sec">Terms he flagged</div>
+        <div class="hw-pq-a ${Array.isArray(flagged) && flagged.length ? '' : 'blank'}">${
+          flagged === undefined ? '— did not reach this section'
+          : (flagged.length ? esc(flagged.map(i => chk.options[i]).join(' · ')) : 'Said he was good on all of them')}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
 function hwGapsHTML(w, rows) {
   const checkQ = wsQuestions(w).find(q => q.type === 'check');
   const live = rows.filter(r => r.row);

@@ -158,6 +158,10 @@ system prompt forbids inventing stats or observations — keep it that way.
   screen. Players see nothing until the coach presses Publish (`published_at`).
   The Homework screen shows who's done it, what they wrote, and the two
   aggregates that matter: terms the team flagged and questions they missed.
+  "Print every boy's sheet" swaps the screen for a pack (`HW_UI.pack`): one
+  page per player with every question, his answer marked right / wrong / not
+  sure / blank, what we meant where he missed, and the terms he flagged.
+  `afterprint` puts the screen back.
 - **Answer sheets**: each question can carry `why` (the coach's explanation)
   and `video` (a TikTok / YouTube / Instagram URL, embedded by `videoEmbed()`
   — anything unrecognised falls back to a link, never dropped). Both are
