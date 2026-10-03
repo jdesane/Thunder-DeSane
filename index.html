@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-03.1">
+<meta name="build" content="2026-10-03.2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -6803,6 +6803,10 @@ function renderTourPlanner() {
     const next = upcomingTournaments()[0];
     PITCH_UI.tournament = next?.id || TM_STATE.tournaments[0]?.id || '';
   }
+  if (PITCH_UI.loadedFor !== PITCH_UI.tournament) {
+    loadPlanning(PITCH_UI.tournament);
+    PITCH_UI.loadedFor = PITCH_UI.tournament;
+  }
   if (sel) {
     sel.innerHTML = TM_STATE.tournaments.length
       ? TM_STATE.tournaments.map(t => {
@@ -7105,6 +7109,7 @@ function setArmCap(date, delta) {
   const base = PITCH_UI.armCap[date] !== undefined ? PITCH_UI.armCap[date] : def;
   const next = Math.max(1, Math.min(def, base + delta));
   if (next === def) delete PITCH_UI.armCap[date]; else PITCH_UI.armCap[date] = next;
+  savePlanning();
   renderTourPlanner();
 }
 
@@ -7255,7 +7260,34 @@ function setGamesPerDay(date, delta) {
   const cur = PITCH_UI.gamesPerDay[date];
   const base = cur !== undefined ? cur : GAMES.filter(g => g.game_date === date).length;
   PITCH_UI.gamesPerDay[date] = Math.max(0, Math.min(6, base + delta));
+  savePlanning();
   refreshPitchViews();
+}
+
+// ---- the planner's what-ifs belong to the tournament, not the browser ----
+// They used to live in memory, so a refresh lost them and the other coaches
+// never saw the plan at all.
+let PLAN_SAVE = null;
+function planningFor(tid) {
+  const t = TM_STATE.tournaments.find(x => x.id === tid);
+  return (t && t.planning) || {};
+}
+function loadPlanning(tid) {
+  const pl = planningFor(tid);
+  PITCH_UI.gamesPerDay = { ...(pl.gamesPerDay || {}) };
+  PITCH_UI.armCap = { ...(pl.armCap || {}) };
+}
+function savePlanning() {
+  const tid = PITCH_UI.tournament;
+  const t = TM_STATE.tournaments.find(x => x.id === tid);
+  if (!t) return;
+  t.planning = { gamesPerDay: { ...PITCH_UI.gamesPerDay }, armCap: { ...PITCH_UI.armCap } };
+  clearTimeout(PLAN_SAVE);
+  PLAN_SAVE = setTimeout(async () => {
+    const ok = await supa('team_tournaments', 'PATCH',
+      { planning: t.planning, updated_at: new Date().toISOString() }, `?id=eq.${tid}`);
+    if (!ok) toast('Plan not saved — check your connection');
+  }, 600);
 }
 function clearGamesPerDay() { PITCH_UI.gamesPerDay = {}; refreshPitchViews(); }
 

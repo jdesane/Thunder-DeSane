@@ -52,7 +52,10 @@ happened once (`renderPitching`); grep before naming.
   later tournament day. The Tournament Planner's Per-arm cap row is a stepper
   (`PITCH_UI.armCap[date]`, `armCapFor()`): the coach can set a day *lower*
   than the default to spread the work across more arms, never higher — the
-  rest-day rule is still the ceiling. Game times are text ("11:00 AM"), so
+  rest-day rule is still the ceiling. Both that and the games-per-day stepper
+  persist on `team_tournaments.planning` (`{gamesPerDay, armCap}`, keyed by
+  date) via `savePlanning()` / `loadPlanning()` — they used to be memory-only,
+  so a refresh lost them and the other coaches never saw the plan. Game times are text ("11:00 AM"), so
   sort them with `byGameTime` / `gameTimeMinutes`; a string compare puts the
   1:00 PM game before the 11:00 AM one.
 - **Team rotation rules** (auto-fill and the rule check): every available
