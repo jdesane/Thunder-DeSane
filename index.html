@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-01.6">
+<meta name="build" content="2026-10-03.1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -6651,7 +6651,8 @@ function renderPlayerReports(A, scope, when) {
 // ============================================================
 // PITCHING
 // ============================================================
-let PITCH_UI = { asOf: '', tournament: '', scenario: {}, gamesPerDay: {} };
+let PITCH_UI = {
+  armCap: {}, asOf: '', tournament: '', scenario: {}, gamesPerDay: {} };
 // Scenario controls live in Tournament Planner but the state is shared with
 // Pitching; re-render whichever section is on screen.
 function refreshPitchViews() {
@@ -6907,7 +6908,7 @@ function renderTpOverview(tourney, days) {
   let n = 0;
   days.forEach((date, di) => {
     const planned = GAMES.filter(g => g.game_date === date && g.tournament_id === tourney.id)
-      .sort((a, b) => (a.game_time || '').localeCompare(b.game_time || ''));
+      .sort(byGameTime);
     const override = PITCH_UI.gamesPerDay[date];
     const count = override !== undefined ? override : planned.length;
     for (let i = 0; i < count; i++) {
@@ -7049,7 +7050,7 @@ function weekendPlan(tourney) {
     const isLast = i === days.length - 1;
     // On any day but the last, holding arms at or under the rest threshold
     // is what keeps them available tomorrow.
-    const cap = isLast ? rules.maxIPPerDay : rules.restThreshold;
+    const cap = armCapFor(d, isLast, rules);
     // Size the staff for the long version of the day, not the average one.
     const minArms = demandMax ? Math.ceil(demandMax / cap) : 0;
     const supply = pool.reduce((s, p) =>
@@ -7086,6 +7087,36 @@ function setExpectedGames(total) {
   PITCH_UI.gamesPerDay = out;
   refreshPitchViews();
 }
+
+// How many innings one arm may throw on a given day. The default keeps every
+// arm under the rest threshold on any day with another day after it, so nobody
+// is lost for the bracket. The coach can set it lower to spread the work.
+function armCapFor(date, isLast, rules) {
+  rules = rules || defaultRules();
+  const set = PITCH_UI.armCap[date];
+  const def = isLast ? rules.maxIPPerDay : rules.restThreshold;
+  return set !== undefined ? Math.min(set, def) : def;
+}
+function setArmCap(date, delta) {
+  const days = tournamentDays(TM_STATE.tournaments.find(t => t.id === PITCH_UI.tournament));
+  const isLast = days[days.length - 1] === date;
+  const rules = defaultRules();
+  const def = isLast ? rules.maxIPPerDay : rules.restThreshold;
+  const base = PITCH_UI.armCap[date] !== undefined ? PITCH_UI.armCap[date] : def;
+  const next = Math.max(1, Math.min(def, base + delta));
+  if (next === def) delete PITCH_UI.armCap[date]; else PITCH_UI.armCap[date] = next;
+  renderTourPlanner();
+}
+
+// "11:00 AM" vs "1:00 PM": a string compare puts the afternoon game first.
+function gameTimeMinutes(t) {
+  const m = String(t || '').match(/(\d{1,2}):(\d{2})\s*([AaPp])?/);
+  if (!m) return 24 * 60 + 1;                       // no time set sorts last
+  let h = Number(m[1]) % 12;
+  if (m[3] && m[3].toLowerCase() === 'p') h += 12;
+  return h * 60 + Number(m[2]);
+}
+const byGameTime = (a, b) => gameTimeMinutes(a.game_time) - gameTimeMinutes(b.game_time);
 
 function expectedGamesTotal(tourney) {
   const days = tournamentDays(tourney);
@@ -7127,9 +7158,9 @@ function buildMultiGamePlan(tourney) {
   let n = 0;
   days.forEach((date, di) => {
     const isLast = di === days.length - 1;
-    const dayCap = isLast ? rules.maxIPPerDay : rules.restThreshold;
+    const dayCap = armCapFor(date, isLast, rules);
     const override = PITCH_UI.gamesPerDay[date];
-    const planned = GAMES.filter(g => g.game_date === date && g.tournament_id === tourney.id);
+    const planned = GAMES.filter(g => g.game_date === date && g.tournament_id === tourney.id).sort(byGameTime);
     const count = override !== undefined ? override : planned.length;
     // Plan arms for the long version of a game; a short one just leaves innings unused.
     const innPerGame = planningInnings();
@@ -7274,7 +7305,12 @@ function renderWeekendPlan(tourney) {
   }</td></tr>`;
 
   const capRow = `<tr><td class="who">Per-arm cap</td>${
-    plan.rows.map(r => `<td class="mono" title="${r.isLast ? 'Last day — the daily max applies' : 'Staying at or under this keeps an arm eligible the next day'}">${r.cap} IP</td>`).join('')
+    plan.rows.map(r => `<td><div class="stepper" style="justify-content:center"
+      title="${r.isLast ? 'Last day — the daily max applies' : 'At or under this an arm is still eligible the next day'}">
+      <button class="step-btn" onclick="setArmCap('${r.date}',-1)" ${r.cap <= 1 ? 'disabled' : ''}>−</button>
+      <div class="step-val ${PITCH_UI.armCap[r.date] !== undefined ? 'hot' : ''} mono">${r.cap}</div>
+      <button class="step-btn" onclick="setArmCap('${r.date}',1)">+</button>
+    </div></td>`).join('')
   }<td class="mono">${rules.maxIPPer3Days} IP</td></tr>`;
 
   const armsRow = `<tr><td class="who">Arms needed</td>${

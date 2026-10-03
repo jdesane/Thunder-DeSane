@@ -49,7 +49,12 @@ happened once (`renderPitching`); grep before naming.
   charges a full inning. One implementation, used everywhere:
   `pitcherFindingsOn` / `wouldExceedOn` / `remainingCapacity` /
   `availabilityOn`. Auto-fill holds every arm at 3 IP on any day that has a
-  later tournament day.
+  later tournament day. The Tournament Planner's Per-arm cap row is a stepper
+  (`PITCH_UI.armCap[date]`, `armCapFor()`): the coach can set a day *lower*
+  than the default to spread the work across more arms, never higher — the
+  rest-day rule is still the ceiling. Game times are text ("11:00 AM"), so
+  sort them with `byGameTime` / `gameTimeMinutes`; a string compare puts the
+  1:00 PM game before the 11:00 AM one.
 - **Team rotation rules** (auto-fill and the rule check): every available
   player takes the field; bench time follows tiers, top < middle < bottom;
   nobody sits two innings in a row; a must-play player goes to their
