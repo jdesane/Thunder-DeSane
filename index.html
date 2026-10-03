@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-03.2">
+<meta name="build" content="2026-10-03.3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -4298,6 +4298,29 @@ function ruleCheck() {
   checks.push(longSits.length === 0
     ? { level: 'pass', label: 'No back-to-back bench innings', detail: 'Nobody sits two innings in a row' }
     : { level: 'fail', label: `${longSits.length} player${longSits.length === 1 ? '' : 's'} sitting back-to-back`, detail: longSits.join(' · ') });
+
+  // 9. Everyone sits once before anyone sits twice.
+  // Coach's rule, and only when the game isn't one we have to win — in a
+  // have-to-win game the bench follows the tiers instead.
+  if ((GAME?.planning_mode || 'balanced') !== 'have_to_win') {
+    const sits = {};
+    avail.forEach(p => { sits[p.cloudId] = 0; });
+    for (let i = 1; i <= innings; i++) {
+      avail.forEach(p => {
+        if (!POSITIONS.some(pos => def[i]?.[pos] === p.cloudId)) sits[p.cloudId]++;
+      });
+    }
+    const twice = avail.filter(p => sits[p.cloudId] >= 2);
+    const never = avail.filter(p => sits[p.cloudId] === 0);
+    checks.push(twice.length && never.length
+      ? { level: 'fail',
+          label: `${twice.length} sitting twice before ${never.length} ${never.length === 1 ? 'has' : 'have'} sat once`,
+          detail: `Sat twice: ${twice.map(playerShort).join(', ')} · Not yet sat: ${never.map(playerShort).join(', ')}` }
+      : { level: 'pass', label: 'Everyone sits once before anyone sits twice',
+          detail: never.length
+            ? `${never.length} player${never.length === 1 ? '' : 's'} yet to sit, nobody down twice`
+            : 'Every available player has had a turn on the bench' });
+  }
 
   return checks;
 }

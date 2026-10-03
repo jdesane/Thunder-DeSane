@@ -63,7 +63,9 @@ happened once (`renderPitching`); grep before naming.
   nobody sits two innings in a row; a must-play player goes to their
   best-rated open position, never the first premium spot in fill order.
   After any manual change to an inning, `repairNextInning` reseats anyone
-  benched there in the next inning.
+  benched there in the next inning. In any mode other than `have_to_win`,
+  nobody sits a second time until every available player has sat once — a
+  have-to-win game leans on the tiers instead.
 - **Recorded beats planned**: when a game has `fielding` /
   `pitching_stats` / `batting_stats` / `fielding_stats` (imported from
   GameChanger), those drive Playing Time, pitching history and the Review,
