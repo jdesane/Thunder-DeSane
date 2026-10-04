@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-03.3">
+<meta name="build" content="2026-10-04.1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -7684,6 +7684,17 @@ async function endLiveGame() {
 }
 
 // ---- render ----
+// A tournament day runs several games back to back, and the score of the one
+// just finished does not always get entered before the next one starts. If a
+// later game on the same day is already under way, the remembered game is over
+// whatever its status says — resuming it would put the new game's lineup
+// changes into the wrong game.
+function supersededLive(g) {
+  return GAMES.some(o => o.id !== g.id && o.game_date === g.game_date
+    && (o.status === 'live' || o.status === 'in_progress')
+    && gameTimeMinutes(o.game_time) > gameTimeMinutes(g.game_time));
+}
+
 function renderLive() {
   const body = document.getElementById('live-body');
   if (!body) return;
@@ -7692,13 +7703,14 @@ function renderLive() {
   if (!LIVE) {
     const remembered = recallGame('live');
     const prev = remembered && GAMES.find(g => g.id === remembered);
-    if (prev && prev.status !== 'final') { startLive(prev.id); return; }
+    if (prev && prev.status !== 'final' && !supersededLive(prev)) { startLive(prev.id); return; }
   }
   // Otherwise offer today's game, else any planned game
   if (!LIVE) {
     const today = todayISO();
     const candidates = GAMES.filter(g => g.status !== 'final')
-      .sort((a, b) => Math.abs(new Date(a.game_date || today) - new Date(today)) - Math.abs(new Date(b.game_date || today) - new Date(today)));
+      .sort((a, b) => (Math.abs(new Date(a.game_date || today) - new Date(today)) - Math.abs(new Date(b.game_date || today) - new Date(today)))
+        || byGameTime(a, b));
     if (!candidates.length) {
       body.innerHTML = `<div class="card"><div class="live-empty-cta">
         <div style="font-size:14px;color:var(--text);margin-bottom:6px">No game ready to run</div>
