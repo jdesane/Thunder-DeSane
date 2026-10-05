@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-04.1">
+<meta name="build" content="2026-10-05.1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -3608,6 +3608,35 @@ function defaultRules() { return RULE_SETS.usssa_9u; }
 
 const MODE_LABEL = { have_to_win: 'Have to Win', balanced: 'Balanced', play_time: 'Play Time' };
 
+// How good the other team is, and how long that makes the game. 9U games are
+// time-capped with a run rule at both ends, so a close game against a strong
+// opponent runs the full six while a mismatch either way is over in three.
+// Plan for the top of each band: a plan that runs long leaves innings unused,
+// one that runs short leaves you improvising in the dugout. The rank is the
+// coach's call — nothing here infers it from a scoreline.
+const OPP_TIER_LABEL = { strong: 'Tough', middle: 'Middle', weak: 'Weaker' };
+const OPP_TIER_INNINGS = { strong: 6, middle: 5, weak: 4 };
+const OPP_TIER_NOTE = {
+  strong: 'Plan 6 — a close game goes the distance',
+  middle: 'Plan 5',
+  weak: 'Plan 4 — likely shorter on the run rule',
+};
+
+// Opponent names are matched loosely, so "WBT Cobras Blue" and
+// "WBT Cobras 9U Blue" are remembered as the same club.
+function oppKey(name) {
+  return String(name || '').toLowerCase()
+    .replace(/\b\d+\s*u\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+// A rank set on the game wins; failing that, what you last said about this
+// opponent. Returns null when you have never ranked them.
+function opponentTier(g) {
+  if (!g) return null;
+  if (g.opponent_tier) return g.opponent_tier;
+  const k = oppKey(g.opponent);
+  return (k && (TEAM_SETTINGS.opponent_tiers || {})[k]) || null;
+}
+
 // How long a game actually runs, from recorded history where available.
 // A partial inning still charges a full inning against pitching limits,
 // so demand estimates round up.
@@ -3626,8 +3655,11 @@ function inningsProfile() {
     games: h.length,
   };
 }
-// Innings to plan a defensive grid for: cover the longest game actually seen.
-function planningInnings() {
+// Innings to plan a defensive grid for. Once the opponent is ranked, that rank
+// decides; otherwise cover the longest game actually seen.
+function planningInnings(g) {
+  const tier = opponentTier(g);
+  if (tier && OPP_TIER_INNINGS[tier]) return OPP_TIER_INNINGS[tier];
   const p = inningsProfile();
   return Math.max(1, Math.ceil(Number(TEAM_SETTINGS.max_innings) || p.max));
 }
@@ -4352,6 +4384,7 @@ function blankGame() {
     tournament_id: next?.id || null,
     rule_set: 'usssa_9u',
     planning_mode: 'balanced',
+    opponent_tier: null,
     status: 'planned',
     innings: planningInnings(),
     batting_order: [],
@@ -4418,6 +4451,7 @@ async function saveGame() {
     tournament_id: GAME.tournament_id || null,
     rule_set: GAME.rule_set || 'usssa_9u',
     planning_mode: GAME.planning_mode || 'balanced',
+    opponent_tier: GAME.opponent_tier || null,
     status: GAME.status || 'planned',
     innings: GAME.innings || 6,
     batting_order: GAME.batting_order || [],
@@ -4466,6 +4500,26 @@ function setGameField(field, value) {
 function setMode(mode) {
   if (!GAME) return;
   GAME.planning_mode = mode;
+  markDirty();
+  renderPlanner();
+}
+
+// Ranking the opponent sets how long the plan is built for, and is remembered
+// against that opponent's name so the next meeting starts there. Tapping the
+// rank it already has clears it back to the game-length history.
+function setOpponentTier(tier) {
+  if (!GAME) return;
+  GAME.opponent_tier = GAME.opponent_tier === tier ? null : tier;
+  const k = oppKey(GAME.opponent);
+  if (k) {
+    const tiers = { ...(TEAM_SETTINGS.opponent_tiers || {}) };
+    if (GAME.opponent_tier) tiers[k] = GAME.opponent_tier; else delete tiers[k];
+    TEAM_SETTINGS = { ...TEAM_SETTINGS, opponent_tiers: tiers };
+    saveCache();
+    supa('team_config', 'POST', [{ key: 'team_settings', value: TEAM_SETTINGS }],
+         '?on_conflict=key', 'resolution=merge-duplicates');
+  }
+  GAME.innings = planningInnings(GAME);
   markDirty();
   renderPlanner();
 }
@@ -4587,6 +4641,12 @@ function renderPlanner() {
         <div class="seg">
           ${[['home', 'Home'], ['away', 'Away'], ['coin', 'Coin flip']].map(([l, lbl]) =>
             `<button class="seg-btn ${GAME.location === l ? 'active' : ''}" onclick="setGameField('location','${l}');renderPlanner()">${lbl}</button>`).join('')}
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Opponent${!GAME.opponent_tier && opponentTier(GAME) ? ' · remembered' : ''}</label>
+        <div class="seg">
+          ${Object.keys(OPP_TIER_LABEL).map(t => `<button class="seg-btn ${opponentTier(GAME) === t ? 'active' : ''}" title="${OPP_TIER_NOTE[t]}" onclick="setOpponentTier('${t}')">${OPP_TIER_LABEL[t]}</button>`).join('')}
         </div>
       </div>
       <div class="field">
@@ -5173,7 +5233,7 @@ function playingTimeData(games = ptGames()) {
     // played — charging everyone a full game of bench time would be a lie.
     if (!hasAnyFielding(g)) return;
 
-    const innings = g.innings || planningInnings();
+    const innings = g.innings || planningInnings(g);
     const def = g.defense || {};
     const avail = g.availability || {};
     const recorded = hasRecordedFielding(g);
@@ -7190,14 +7250,16 @@ function buildMultiGamePlan(tourney) {
     const override = PITCH_UI.gamesPerDay[date];
     const planned = GAMES.filter(g => g.game_date === date && g.tournament_id === tourney.id).sort(byGameTime);
     const count = override !== undefined ? override : planned.length;
-    // Plan arms for the long version of a game; a short one just leaves innings unused.
-    const innPerGame = planningInnings();
-
     for (let g = 0; g < count; g++) {
       n++;
       // A game you've already planned in Game Planner keeps its own pitching.
       // Its innings are already in `real`, so re-planning it would count them twice.
       const existing = planned[g];
+      // Plan arms for the long version of a game; a short one just leaves innings
+      // unused. How long that is comes from the opponent's rank where it is set,
+      // so a bracket game against a tough team forecasts six and a pool game
+      // against a weaker one forecasts four.
+      const innPerGame = planningInnings(existing);
       const already = existing ? gamePitcherBlocks(existing) : [];
       if (already.length) {
         const ip = already.reduce((s, a) => s + a.ip, 0);
@@ -10398,7 +10460,9 @@ function renderSettings() {
     const p = inningsProfile();
     sum.innerHTML = p.games
       ? `${p.games} games recorded · average <strong style="color:var(--text)">${p.mean.toFixed(2)}</strong> innings · range ${p.min}–${p.max}.
-         Defensive plans are built for ${planningInnings()} innings.`
+         Defensive plans are built for ${planningInnings()} innings, unless the game's
+         opponent is ranked in the Game Planner — Tough ${OPP_TIER_INNINGS.strong}, Middle
+         ${OPP_TIER_INNINGS.middle}, Weaker ${OPP_TIER_INNINGS.weak}.`
       : 'No game lengths recorded yet — estimates fall back to the typical value above.';
   }
 

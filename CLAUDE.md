@@ -70,9 +70,17 @@ happened once (`renderPitching`); grep before naming.
   `pitching_stats` / `batting_stats` / `fielding_stats` (imported from
   GameChanger), those drive Playing Time, pitching history and the Review,
   not the planned `defense` grid. Innings are stored as **outs**.
-- **Game length**: 9U games are time-capped; plans build for the longest
-  game seen (`planningInnings()`), demand estimates use the typical length
-  (`inningsProfile()`), both from Settings → Game length.
+- **Game length**: 9U games are time-capped with a run rule at both ends, so
+  how long one runs is mostly about how even it is. `planningInnings(game)`
+  takes the opponent's rank where the coach has set one — Tough 6, Middle 5,
+  Weaker 4 (`OPP_TIER_INNINGS`, plan the top of each band) — and otherwise
+  falls back to the longest game seen, from Settings → Game length. Demand
+  estimates use the typical length (`inningsProfile()`). The rank lives on
+  `team_games.opponent_tier` and is remembered per opponent in
+  `team_settings.opponent_tiers`, keyed by `oppKey()` so "WBT Cobras Blue" and
+  "WBT Cobras 9U Blue" are one club. **The rank is the coach's**, like tiers and
+  ratings — never infer it from a scoreline. Note `TIER_LABEL` is already taken
+  by player tiers; the opponent ones are `OPP_TIER_*`.
 
 ## Who can see what
 
