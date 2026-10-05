@@ -69,7 +69,14 @@ happened once (`renderPitching`); grep before naming.
 - **Recorded beats planned**: when a game has `fielding` /
   `pitching_stats` / `batting_stats` / `fielding_stats` (imported from
   GameChanger), those drive Playing Time, pitching history and the Review,
-  not the planned `defense` grid. Innings are stored as **outs**.
+  not the planned `defense` grid. Innings are stored as **outs**, so
+  `playingTimeData()` and `seasonInnings()` tally in outs and convert to
+  innings **once, at the end**. Rounding each position as it is added credits
+  a player who moves inside an inning with a whole inning at every spot he
+  touched, and the bench column — whatever is left of the game — swallows the
+  whole error. That hid half of Easton's bench time and three-quarters of
+  Ryder's over one weekend. A spot touched for only an out or two still shows
+  as 1 so position variety stays visible; totals and bench come off the outs.
 - **Game length**: 9U games are time-capped with a run rule at both ends, so
   how long one runs is mostly about how even it is. `planningInnings(game)`
   takes the opponent's rank where the coach has set one — Tough 6, Middle 5,

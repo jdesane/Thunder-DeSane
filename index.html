@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-05.1">
+<meta name="build" content="2026-10-05.2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -3738,20 +3738,27 @@ function seasonInnings(excludeGameId) {
     };
 
     if (hasRecordedFielding(g)) {
-      // Imported innings, in outs, rounded to whole innings for fairness maths
+      // Imported innings are in outs. Add them as outs and convert at the end;
+      // rounding each position first credited a player who moved inside an
+      // inning with a whole inning at every spot he touched.
       Object.keys(g.fielding).forEach(pid => {
         POSITIONS.forEach(pos => {
           const o = g.fielding[pid]?.[pos];
-          if (o) add(pid, pos, Math.round(outsToInnings(o)) || (o > 0 ? 1 : 0));
+          if (o) add(pid, pos, o);
         });
       });
     } else {
       const def = g.defense || {};
       Object.keys(def).forEach(inn => {
-        POSITIONS.forEach(pos => add(def[inn]?.[pos], pos, 1));
+        POSITIONS.forEach(pos => add(def[inn]?.[pos], pos, 3));
       });
     }
     seen.forEach(pid => { touch(pid).games++; });
+  });
+  Object.values(out).forEach(r => {
+    const inn = o => Math.round(outsToInnings(o));
+    POSITIONS.forEach(pos => { if (r.byPos[pos]) r.byPos[pos] = inn(r.byPos[pos]) || 1; });
+    ['total', 'infield', 'outfield', 'mid', 'pitch'].forEach(k => { r[k] = inn(r[k]); });
   });
   return out;
 }
@@ -5219,6 +5226,11 @@ function ptGames() {
 // Innings by position for every player across the selected games.
 // A player marked unavailable for a game gets no innings AND no bench time —
 // an absence shouldn't read as being benched.
+//
+// Everything is tallied in OUTS and converted to innings once at the end.
+// Rounding each position on its own inflated the total — a player who moved
+// twice inside an inning was credited an inning at each spot — and the bench
+// column, which is whatever is left of the game, absorbed the whole error.
 function playingTimeData(games = ptGames()) {
   const rows = {};
   const touch = pid => (rows[pid] = rows[pid] || {
@@ -5253,37 +5265,48 @@ function playingTimeData(games = ptGames()) {
         POSITIONS.forEach(pos => {
           const o = g.fielding[pid]?.[pos];
           if (!o) return;
-          const inn = Math.round(outsToInnings(o)) || 1;
-          r.byPos[pos] = (r.byPos[pos] || 0) + inn;
+          r.byPos[pos] = (r.byPos[pos] || 0) + o;
           r.positions.add(pos);
-          r.total += inn; gameInn += inn;
-          gamePos[pos] = (gamePos[pos] || 0) + inn;
-          if (INFIELD.includes(pos)) r.infield += inn;
-          if (OUTFIELD.includes(pos)) r.outfield += inn;
-          if (MID_INFIELD.includes(pos)) r.mid += inn;
-          if (pos === 'P') r.pitch += inn;
+          r.total += o; gameInn += o;
+          gamePos[pos] = (gamePos[pos] || 0) + o;
+          if (INFIELD.includes(pos)) r.infield += o;
+          if (OUTFIELD.includes(pos)) r.outfield += o;
+          if (MID_INFIELD.includes(pos)) r.mid += o;
+          if (pos === 'P') r.pitch += o;
         });
-        r.bench += Math.max(0, innings - gameInn);
+        r.bench += Math.max(0, innings * 3 - gameInn);
       } else {
         for (let i = 1; i <= innings; i++) {
           let played = false;
           POSITIONS.forEach(pos => {
             if (def[i]?.[pos] !== pid) return;
             played = true;
-            r.byPos[pos] = (r.byPos[pos] || 0) + 1;
+            r.byPos[pos] = (r.byPos[pos] || 0) + 3;
             r.positions.add(pos);
-            r.total++; gameInn++;
-            gamePos[pos] = (gamePos[pos] || 0) + 1;
-            if (INFIELD.includes(pos)) r.infield++;
-            if (OUTFIELD.includes(pos)) r.outfield++;
-            if (MID_INFIELD.includes(pos)) r.mid++;
-            if (pos === 'P') r.pitch++;
+            r.total += 3; gameInn += 3;
+            gamePos[pos] = (gamePos[pos] || 0) + 3;
+            if (INFIELD.includes(pos)) r.infield += 3;
+            if (OUTFIELD.includes(pos)) r.outfield += 3;
+            if (MID_INFIELD.includes(pos)) r.mid += 3;
+            if (pos === 'P') r.pitch += 3;
           });
-          if (!played) r.bench++;
+          if (!played) r.bench += 3;
         }
       }
-      r.log.push({ game: g, innings: gameInn, of: innings, byPos: gamePos, recorded });
+      r.log.push({ game: g, innings: gameInn, of: innings * 3, byPos: gamePos, recorded });
     });
+  });
+  // Outs -> innings, once per row. A spot a player only touched for an out or
+  // two still shows as 1 so the variety stays visible, but the total and the
+  // bench column come straight off the outs and stay exact.
+  Object.values(rows).forEach(r => {
+    const inn = o => Math.round(outsToInnings(o));
+    POSITIONS.forEach(pos => { if (r.byPos[pos]) r.byPos[pos] = inn(r.byPos[pos]) || 1; });
+    r.log.forEach(l => {
+      Object.keys(l.byPos).forEach(pos => { l.byPos[pos] = inn(l.byPos[pos]) || 1; });
+      l.innings = inn(l.innings); l.of = inn(l.of);
+    });
+    ['total', 'bench', 'infield', 'outfield', 'mid', 'pitch'].forEach(k => { r[k] = inn(r[k]); });
   });
   return { games, rows };
 }
