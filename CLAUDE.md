@@ -118,7 +118,8 @@ system prompt forbids inventing stats or observations — keep it that way.
 
 - `team_players.positions` — 0–5 per position (0 = never); `tier` —
   top / middle / bottom. #10 is **Funzy** Travaglini (was Alfonso).
-- `team_games` — `game_number` 1–12 are imported GameChanger games.
+- `team_games` — `game_number` 1–18 are imported GameChanger games (13 is
+  West Boca Orange; 14–18 are the Treasure Coast Triple Play, Oct 3–4).
   **Game 8 (Sep 6, WBT Cobras Blue, W 19-10) is score-only**: the export
   supplied for it was a byte-identical copy of the Billygoats file. Ask for
   a fresh export; import with the script below.
