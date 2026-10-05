@@ -185,9 +185,21 @@ def main():
         res = req("team_games", 'POST', [payload])
         print(f"created game {res[0]['game_number']}: {res[0]['opponent']} {res[0]['game_date']}")
     else:
+        # Coach corrections outrank the export. GameChanger credits a whole
+        # inning to a player who only came on for part of it — a pitching
+        # change mid-inning — which hides his bench time. Where the coach has
+        # said what really happened, that stands, so re-importing the same
+        # file doesn't quietly undo him.
+        prior = req(f"team_games?select=fielding_corrections&game_number=eq.{a.game_number}")
+        fixes = (prior[0].get('fielding_corrections') if prior else None) or {}
+        for p_id, row in fixes.items():
+            if p_id in payload['fielding']:
+                payload['fielding'][p_id] = row
         res = req(f"team_games?game_number=eq.{a.game_number}", 'PATCH', payload)
         if not res: sys.exit(f"No game with number {a.game_number}.")
         print(f"updated game {a.game_number}: {res[0]['opponent']} {res[0]['game_date']}")
+        if fixes:
+            print(f"re-applied {len(fixes)} coach fielding correction(s) over the export.")
     print("Remember: add this game's length to Settings → Game length.")
 
 

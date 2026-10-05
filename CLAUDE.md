@@ -77,6 +77,14 @@ happened once (`renderPitching`); grep before naming.
   whole error. That hid half of Easton's bench time and three-quarters of
   Ryder's over one weekend. A spot touched for only an out or two still shows
   as 1 so position variety stays visible; totals and bench come off the outs.
+- **Coach corrections beat the export**: GameChanger credits a whole inning to
+  a player who only came on for part of it — the usual cause is a pitching
+  change mid-inning — which hides his bench time. `team_games.fielding_corrections`
+  (`{player_id: {POS: outs}}`, replacing that player's whole row) is the coach's
+  word on what really happened; it is written into `fielding` and re-applied by
+  `scripts/import_gamechanger.py` after every import, so re-importing the same
+  export never silently undoes him. Game 17 holds one: Easton came on at third
+  for the end of an inning, so his SS outs there are 9, not the exported 11.
 - **Game length**: 9U games are time-capped with a run rule at both ends, so
   how long one runs is mostly about how even it is. `planningInnings(game)`
   takes the opponent's rank where the coach has set one — Tough 6, Middle 5,
