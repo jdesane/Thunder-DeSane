@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-07.11">
+<meta name="build" content="2026-10-07.12">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -5933,7 +5933,10 @@ async function loadReviewNotes(scopeKey) {
     if (UI.section === 'review') renderReview();
     return;
   }
-  const rows = await supa('team_reviews', 'GET', null, `?scope_key=eq.${encodeURIComponent(scopeKey)}&select=notes`);
+  // The view, not the table: it hands back the published write-ups and the
+  // parent report copy, and strips every coach's private submission unless
+  // you are the manager — who reads them through "Show submitted notes".
+  const rows = await supa('team_reviews_scoped', 'GET', null, `?scope_key=eq.${encodeURIComponent(scopeKey)}&select=notes`);
   if (Array.isArray(rows) && rows[0]?.notes) RV_NOTES = rows[0].notes;
   if (RV_NOTES_KEY !== scopeKey) return;   // scope changed while loading
   // The write-ups, the sent status, the coach gate and the stamps are all

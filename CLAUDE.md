@@ -259,6 +259,14 @@ not the client politely omitting fields. `handle_new_user()` makes the first
 account `manager` and **every later one `viewer`**: an account that appears
 from nowhere can look, not touch, and is promoted deliberately.
 
+Reviews are read through **`team_reviews_scoped`**, which hands back the
+published write-ups and the parent report copy and **strips every coach's
+private submission unless you are the manager**. Coaches are told "nothing you
+submit is shown back on the page"; that has to be true of the payload, not the
+rendering. Reading the table directly handed a viewer 38 sections of four
+coaches' private assessments of nine-year-olds. `saveCoachNote()` still writes
+to the table — it needs the real notes to merge into.
+
 `managerDevice()` is manager-only, so drafting and sending a review is not a
 coach's to do. `applyRoleToChrome()` hides Finances and Uniforms from a viewer
 and bands the top of the screen — the database is the boundary, that is so the
