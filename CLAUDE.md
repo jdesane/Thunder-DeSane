@@ -97,6 +97,31 @@ happened once (`renderPitching`); grep before naming.
   ratings — never infer it from a scoreline. Note `TIER_LABEL` is already taken
   by player tiers; the opponent ones are `OPP_TIER_*`.
 
+## Multi-tenancy (groundwork laid, not switched on)
+
+The app serves one team today but is being built to serve many, so new work
+must not assume a single team. Every `team_*` table carries a `team_id` ->
+`teams(id)`, backfilled to `sfl-thunder-black` and defaulted to it, so the
+current client — which knows nothing about the column — keeps writing correct
+rows. `teams` holds name/slug/age_division/season; `team_members`
+(team_id, user_id, role: manager/coach/viewer) says who may act on a team and
+fills up when auth lands.
+
+Still single-tenant, and each flips in the same change that updates the client,
+because the client upserts against single-column conflict targets
+(`?on_conflict=key` / `scope_key` / `worksheet_id`):
+
+| table | today | becomes |
+|---|---|---|
+| `team_config` | `PRIMARY KEY (key)` | `(team_id, key)` |
+| `team_reviews` | `UNIQUE (scope_key)` | `(team_id, scope_key)` |
+| `team_worksheets` | `UNIQUE (slug)` | `(team_id, slug)` |
+| `team_secrets` | `PRIMARY KEY (name)` | `(team_id, name)` |
+
+`team_id` columns are nullable with a default only while one team exists. Drop
+the defaults, make them NOT NULL and have the client send `team_id` explicitly
+as part of onboarding the second team.
+
 ## Who can see what
 
 The app is one file serving two audiences, so the boot path splits before it
