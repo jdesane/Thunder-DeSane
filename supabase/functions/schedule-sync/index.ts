@@ -4,8 +4,8 @@
 //                 stored one from team_secrets)
 // → { games: {created, updated, adopted, skipped}, practices: {...}, conflicts: [...] }
 //
-// What it writes: date, time, opponent, venue, home/away — and practices,
-// which the app has never had anywhere to put.
+// What it writes: date, time, opponent, venue, home/away, the uniform — and
+// practices, which the app has never had anywhere to put.
 //
 // What it will not touch, ever:
 //   * a game that has been played (it has a result or recorded stats). The
@@ -50,6 +50,24 @@ function nameOverlap(a: string, b: string) {
   let hit = 0;
   for (const w of A) if (B.has(w)) hit++;
   return hit / Math.min(A.size, B.size);
+}
+
+/** Pull the uniform out of an event description. GameChanger holds it as a
+ *  "UNIFORM:" line followed by "* item" bullets, with stray text either side
+ *  ("Sunday" before, "Field 2" after). Returns one item per line, or null. */
+function uniformFrom(desc: string) {
+  if (!desc) return null;
+  const lines = desc.split("\n").map((l) => l.trim());
+  const at = lines.findIndex((l) => /^uniform\s*:/i.test(l));
+  if (at < 0) return null;
+  const items: string[] = [];
+  for (const l of lines.slice(at + 1)) {
+    if (!l) continue;
+    if (!l.startsWith("*")) break;
+    const item = l.replace(/^\*\s*/, "").trim();
+    if (item) items.push(item);
+  }
+  return items.length ? items.join("\n") : null;
 }
 
 /** ICS escapes commas and newlines; unfold continuation lines first. */
@@ -128,7 +146,7 @@ Deno.serve(async (req: Request) => {
 
   const me = String(team.name || "").toLowerCase();
   const { data: existing } = await db.from("team_games")
-    .select("id,game_date,game_time,opponent,venue,location,source_uid,result,fielding,pitching_stats")
+    .select("id,game_date,game_time,opponent,venue,location,uniform,source_uid,result,fielding,pitching_stats")
     .eq("team_id", teamId);
   const games = existing ?? [];
   const byUid = new Map(games.filter((g) => g.source_uid).map((g) => [g.source_uid, g]));
@@ -190,10 +208,12 @@ Deno.serve(async (req: Request) => {
     else { out.ignored++; continue; }
     if (!opponent || /^tbd$/i.test(opponent)) { out.ignored++; continue; }
 
+    const uniform = uniformFrom(ev.DESCRIPTION || "");
     const fields = {
       game_date: when.date, game_time: when.time, opponent,
       location: home ? "home" : "away",
       ...(place ? { venue: place } : {}),
+      ...(uniform ? { uniform } : {}),
     };
 
     let match = byUid.get(ev.UID);
@@ -227,12 +247,15 @@ Deno.serve(async (req: Request) => {
       continue;
     }
 
-    // Played games are history. Say what the feed thinks and change nothing.
+    // Played games are history. Say what the feed thinks and change nothing —
+    // except the uniform, which is only ever a note about what to wear and is
+    // worth having on the record even after the fact.
     if (played(match)) {
       const diffs: string[] = [];
       if (match.game_time !== fields.game_time) diffs.push(`time ${match.game_time} vs feed ${fields.game_time}`);
       if (match.game_date !== fields.game_date) diffs.push(`date ${match.game_date} vs feed ${fields.game_date}`);
       if (diffs.length) out.conflicts.push(`${match.opponent} ${match.game_date}: ${diffs.join("; ")} — kept yours`);
+      if (uniform && !match.uniform) await db.from("team_games").update({ uniform }).eq("id", match.id);
       out.games.skipped++;
       continue;
     }

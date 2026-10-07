@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-07.4">
+<meta name="build" content="2026-10-07.5">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -3640,6 +3640,14 @@ const MODE_LABEL = { have_to_win: 'Have to Win', balanced: 'Balanced', play_time
 // Plan for the top of each band: a plan that runs long leaves innings unused,
 // one that runs short leaves you improvising in the dugout. The rank is the
 // coach's call — nothing here infers it from a scoreline.
+// What the team wears. The combinations are the coach's, kept in
+// team_settings.uniforms exactly as he wrote them; schedule-sync also lifts one
+// out of the GameChanger event when it is there. Nothing here invents a kit.
+function uniformOptions() { return (TEAM_SETTINGS.uniforms || []).filter(u => Array.isArray(u) && u.length); }
+function uniformItems(g) { return String(g?.uniform || '').split('\n').map(x => x.trim()).filter(Boolean); }
+// Jersey, belt and hat are enough to tell all of them apart in a dropdown.
+function uniformLabel(items) { return items.slice(1, 4).join(' · ') || items.join(' · '); }
+
 const OPP_TIER_LABEL = { strong: 'Tough', middle: 'Middle', weak: 'Weaker' };
 const OPP_TIER_INNINGS = { strong: 6, middle: 5, weak: 4 };
 const OPP_TIER_NOTE = {
@@ -4418,6 +4426,7 @@ function blankGame() {
     rule_set: 'usssa_9u',
     planning_mode: 'balanced',
     opponent_tier: null,
+    uniform: null,
     status: 'planned',
     innings: planningInnings(),
     batting_order: [],
@@ -4485,6 +4494,7 @@ async function saveGame() {
     rule_set: GAME.rule_set || 'usssa_9u',
     planning_mode: GAME.planning_mode || 'balanced',
     opponent_tier: GAME.opponent_tier || null,
+    uniform: GAME.uniform || null,
     status: GAME.status || 'planned',
     innings: GAME.innings || 6,
     batting_order: GAME.batting_order || [],
@@ -4540,6 +4550,14 @@ function setMode(mode) {
 // Ranking the opponent sets how long the plan is built for, and is remembered
 // against that opponent's name so the next meeting starts there. Tapping the
 // rank it already has clears it back to the game-length history.
+function setUniform(v) {
+  if (!GAME) return;
+  if (v === 'keep') return;
+  const u = uniformOptions()[Number(v)];
+  GAME.uniform = u ? u.join('\n') : null;
+  markDirty();
+  renderPlanner();
+}
 function setOpponentTier(tier) {
   if (!GAME) return;
   GAME.opponent_tier = GAME.opponent_tier === tier ? null : tier;
@@ -4675,6 +4693,15 @@ function renderPlanner() {
           ${[['home', 'Home'], ['away', 'Away'], ['coin', 'Coin flip']].map(([l, lbl]) =>
             `<button class="seg-btn ${GAME.location === l ? 'active' : ''}" onclick="setGameField('location','${l}');renderPlanner()">${lbl}</button>`).join('')}
         </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Uniform</label>
+        <select class="input" style="min-width:210px" onchange="setUniform(this.value)">
+          <option value="">Not set</option>
+          ${uniformOptions().map((u, i) => `<option value="${i}" ${uniformItems(GAME).join('\n') === u.join('\n') ? 'selected' : ''}>${esc(uniformLabel(u))}</option>`).join('')}
+          ${uniformItems(GAME).length && !uniformOptions().some(u => u.join('\n') === uniformItems(GAME).join('\n'))
+            ? `<option value="keep" selected>${esc(uniformLabel(uniformItems(GAME)))} (from GameChanger)</option>` : ''}
+        </select>
       </div>
       <div class="field">
         <label class="field-label">Opponent${!GAME.opponent_tier && opponentTier(GAME) ? ' · remembered' : ''}</label>
@@ -5217,10 +5244,12 @@ function printLineup() {
     th { background: #f4f4f4; font-weight: 600; }
     .slot { color: #888; width: 24px; }
     .def td, .def th { text-align: center; padding: 5px 6px; }
+    .uni { font-size: 13px; font-weight: 600; }
     @media print { body { margin: 12px; } }
   </style></head><body>
     <h1>${esc(title)}</h1>
     <div class="sub">${esc(sub)}</div>
+    ${uniformItems(GAME).length ? `<h2>Uniform</h2><div class="uni">${uniformItems(GAME).map(esc).join(' &middot; ')}</div>` : ''}
     <h2>Batting Order</h2>
     <table>${orderRows || '<tr><td>No order set</td></tr>'}</table>
     <h2>Defense by Inning</h2>

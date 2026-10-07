@@ -172,6 +172,15 @@ are ignored.
 - **Never touch the plan** — defense, batting order, opponent rank, planning
   mode, notes, availability. It writes date, time, opponent, venue, home/away.
 
+**The uniform** comes out of the event description — GameChanger holds it as a
+`UNIFORM:` line with `* item` bullets, and about half the games have one.
+`team_games.uniform` is one item per line; it shows as a picker in the Game
+Planner and on the printed plan, which is the copy that reaches the dugout. The
+combinations in `team_settings.uniforms` are **the coach's, stored exactly as he
+wrote them** — never tidy the spelling and never invent a kit. A sync fills the
+uniform on a played game only when it is empty, since it is a note about what to
+wear rather than a record of what happened.
+
 `source_uid` (the feed's event id, unique per team) is what makes a re-sync
 update rather than duplicate. Games entered before the feed was connected are
 **adopted** by it: same date, then an exact `oppKey` match, then
