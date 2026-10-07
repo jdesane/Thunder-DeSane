@@ -194,7 +194,12 @@ client.
 
 Still open: `team_members` has a `role` column that nothing enforces yet — a
 `coach` can do everything a `manager` can. Split those when the second seat is
-sold. And there is no backup; turn on point-in-time recovery.
+sold.
+
+On backups: the project is on Supabase **Pro**, which already takes a daily
+backup and keeps 7 days. Point-in-time recovery is a paid add-on on top of
+that and buys restore-to-the-second instead of restore-to-last-night — not
+worth it at this size. A local export is the cheaper belt and braces.
 
 ## Judgement stays with the coach
 
