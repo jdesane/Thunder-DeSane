@@ -149,6 +149,39 @@ anon grants** — the review PIN is currently sent in full to every visitor of a
 `/review/...` link, so it is not a secret and manager controls must key off the
 session instead.
 
+## Schedule sync
+
+`schedule-sync` (verify_jwt on) pulls the team's GameChanger iCal feed. The URL
+carries a token, so it is a **secret** — `team_secrets.schedule_ics_url`, saved
+and read only by the function, never back into the page. Settings → Schedule
+sync pastes it and runs it.
+
+The feed carries more than games: `SUMMARY` is `"<team> vs X"` for home and
+`"<team> @ X"` for away, `DESCRIPTION` often holds the uniform of the day, and
+there are **47 practices** with times and addresses — which is why
+`team_practices` now exists. Birthdays, fundraisers and tournament placeholders
+are ignored.
+
+**What it must never do**, and the reasons are from the real feed:
+
+- **Never change a played game** (one with a `result` or recorded stats). The
+  feed's bracket entries are placeholders made when the draw happens and often
+  never corrected: on Oct 4 it still had the 1:00 PBG game at 4:00 and the 3:00
+  championship listed as the earlier of the two. Disagreements are returned as
+  `conflicts` and the coach's version stands.
+- **Never touch the plan** — defense, batting order, opponent rank, planning
+  mode, notes, availability. It writes date, time, opponent, venue, home/away.
+
+`source_uid` (the feed's event id, unique per team) is what makes a re-sync
+update rather than duplicate. Games entered before the feed was connected are
+**adopted** by it: same date, then an exact `oppKey` match, then
+`nameOverlap() >= 0.5`, then — if exactly one unclaimed game and one unclaimed
+event share the date — that one. The feed and the app almost never spell a club
+the same way ("PBG Storm 9U" / "Palm Beach Gardens Storm", "Fort Sluggers 9U" /
+"Fort Slugger", "West Boca Panthers 9U-Orange" / "West Boca Orange"); exact
+matching alone adopted 11 of 18 and would have created 6 duplicates, the
+ladder above adopts 16.
+
 ## Who can see what
 
 Two audiences, two completely separate paths to the data.

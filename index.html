@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-07.3">
+<meta name="build" content="2026-10-07.4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -2661,6 +2661,20 @@
           <div id="settings-account"></div>
         </div>
         <div class="card mb-4">
+          <div class="card-title">Schedule sync</div>
+          <div style="color:var(--text-muted);font-size:13px;line-height:1.6;margin-bottom:10px">
+            In GameChanger: Schedule → Sync → <strong>Copy Calendar Link</strong>, and paste it here.
+            Games and practices come across and stay current. It never changes a game you have
+            already played, and never touches a plan, a batting order or an opponent rank.
+          </div>
+          <input class="input" id="setting-ics" placeholder="webcal://api.team-manager.gc.com/…" autocomplete="off">
+          <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" onclick="syncSchedule()">Sync now</button>
+            <span id="ics-status" style="color:var(--text-muted);font-size:12px"></span>
+          </div>
+          <div id="ics-report" style="margin-top:10px;font-size:12px;line-height:1.7"></div>
+        </div>
+        <div class="card mb-4">
           <div class="card-title">Team info</div>
           <div class="flex flex-col gap-3">
             <div class="grid-2" style="gap:10px">
@@ -3239,7 +3253,7 @@ function loadCache() {
 // LOAD FROM CLOUD
 // ============================================================
 async function loadFromCloud() {
-  const [players, parents, expenses, donations, tournaments, payments, config, games] = await Promise.all([
+  const [players, parents, expenses, donations, tournaments, payments, config, games, practices] = await Promise.all([
     supa('team_players', 'GET', null, '?select=*&order=sort_order.asc'),
     supa('team_parents', 'GET', null, '?select=*'),
     supa('team_expenses', 'GET', null, '?select=*&order=date.desc'),
@@ -3248,7 +3262,9 @@ async function loadFromCloud() {
     supa('team_player_payments', 'GET', null, '?select=*&order=date.desc'),
     supa('team_config', 'GET', null, '?select=*'),
     supa('team_games', 'GET', null, '?select=*&order=game_date.asc.nullslast'),
+    supa('team_practices', 'GET', null, '?select=*&order=starts_at.asc'),
   ]);
+  if (Array.isArray(practices)) PRACTICES = practices;
   if (players === null) return false;
   if (players.length === 0) {
     await seedInitial();
@@ -5219,6 +5235,14 @@ function printLineup() {
 // PLAYING TIME
 // ============================================================
 let PT_UI = { scope: 'all', includePlanned: false, player: '' };
+// Practices, from the synced calendar. No plan or attendance yet — this is the
+// schedule, and the Dashboard's next-practice line comes off it.
+let PRACTICES = [];
+function nextPractice() {
+  const now = Date.now();
+  return PRACTICES.filter(p => new Date(p.starts_at).getTime() > now)
+    .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))[0] || null;
+}
 
 const mean = arr => arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : 0;
 const pct  = v => `${Math.round(v * 100)}%`;
@@ -8838,6 +8862,12 @@ function renderDashHero() {
   const el = document.getElementById('dash-hero');
   if (!el) return;
   const next = upcomingTournaments()[0];
+  const prac = nextPractice();
+  const pracLine = prac
+    ? `<div class="hero-note" style="margin-top:8px">Next practice ${esc(new Date(prac.starts_at)
+        .toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}${
+        prac.location ? ' · ' + esc(String(prac.location).split(',')[0]) : ''}</div>`
+    : '';
 
   if (!next) {
     el.innerHTML = `
@@ -8845,6 +8875,7 @@ function renderDashHero() {
         <div class="hero-eyebrow">Next Tournament</div>
         <div class="hero-name" style="font-size:17px;color:var(--text-muted)">Nothing on the schedule</div>
         <div class="hero-note">Add a tournament to start planning pitching rotations and playing time around it.</div>
+        ${pracLine}
         <div class="hero-foot">
           <button class="btn btn-primary btn-sm" onclick="navigate('tournaments')">Add tournament</button>
         </div>
@@ -10560,6 +10591,45 @@ async function savePaymentPlan() {
   try { renderFinances(); } catch(e) {}
   toast('Payment plan saved');
 }
+// The calendar link carries a token, so it goes to team_secrets through the
+// function and is never read back into the page.
+async function syncSchedule() {
+  const url = (document.getElementById('setting-ics')?.value || '').trim();
+  const st = document.getElementById('ics-status');
+  const rep = document.getElementById('ics-report');
+  if (st) st.textContent = 'Syncing…';
+  if (rep) rep.innerHTML = '';
+  const res = await fetch(SUPA_URL + '/functions/v1/schedule-sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: SUPA_KEY, Authorization: 'Bearer ' + (await authToken() || SUPA_KEY) },
+    body: JSON.stringify(url ? { url } : {}),
+  }).catch(() => null);
+  const out = res ? await res.json().catch(() => null) : null;
+  if (!res || !res.ok || !out || out.error) {
+    if (st) st.textContent = '';
+    if (rep) rep.innerHTML = `<span style="color:var(--neg)">${esc(out?.error || 'Sync failed — check the link')}</span>`;
+    return;
+  }
+  if (st) st.textContent = 'Synced ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const g = out.games, pr = out.practices;
+  const bits = [];
+  if (g.created) bits.push(`<strong>${g.created}</strong> new game${g.created === 1 ? '' : 's'}`);
+  if (g.updated) bits.push(`${g.updated} updated`);
+  if (g.adopted) bits.push(`${g.adopted} matched to games you already had`);
+  if (g.skipped) bits.push(`${g.skipped} already played, left alone`);
+  if (pr.created) bits.push(`<strong>${pr.created}</strong> practice${pr.created === 1 ? '' : 's'} added`);
+  if (pr.updated) bits.push(`${pr.updated} practices updated`);
+  if (rep) {
+    rep.innerHTML = (bits.join(' · ') || 'Nothing to change.') +
+      (out.conflicts?.length
+        ? `<div style="margin-top:8px;color:var(--warn)">The feed disagrees with games you have played. Yours were kept:<br>` +
+          out.conflicts.map(c => '· ' + esc(c)).join('<br>') + '</div>'
+        : '');
+  }
+  await loadFromCloud();
+  renderDashboard();
+}
+
 function renderAccountCard() {
   const el = document.getElementById('settings-account'); if (!el) return;
   const u = sessionUser();
