@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-07.6">
+<meta name="build" content="2026-10-07.7">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -2132,13 +2132,7 @@
       <div class="topbar-left">
         <span data-crumb="section">Dashboard</span>
       </div>
-      <div class="topbar-right">
-        <button class="btn btn-secondary btn-sm" onclick="openExpenseModal()">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-          New expense
-          <span class="kbd">⌘E</span>
-        </button>
-      </div>
+      <div class="topbar-right"></div>
     </div>
 
     <!-- ============ DASHBOARD ============ -->
@@ -2156,6 +2150,14 @@
 
       <div class="dash-row cols-3">
         <div id="dash-hero"></div>
+
+        <div class="card mb-4">
+          <div class="card-title">
+            What's coming up
+            <span class="card-link" onclick="navigate('planner')">Game Planner →</span>
+          </div>
+          <div id="dash-schedule"></div>
+        </div>
 
         <div class="card">
           <div class="card-title">
@@ -2278,11 +2280,10 @@
           <div class="section-sub">Forecast the weekend, size the staff, and plan every game before the first pitch.</div>
         </div>
         <div class="section-actions">
-          <select class="input" id="tp-tourney-select" style="width:auto;min-width:190px"
-                  onchange="PITCH_UI.tournament=this.value; PITCH_UI.gamesPerDay={}; renderTourPlanner()"></select>
           <button class="btn btn-secondary btn-sm" onclick="navigate('planner')">Game Planner →</button>
         </div>
       </div>
+      <div id="tp-picker" class="noprint" style="margin-bottom:14px"></div>
       <div id="tp-body"></div>
     </section>
 
@@ -6983,12 +6984,29 @@ function renderTourPlanner() {
   if (!body) return;
 
   if (!PITCH_UI.tournament) {
-    const next = upcomingTournaments()[0];
-    PITCH_UI.tournament = next?.id || TM_STATE.tournaments[0]?.id || '';
+    // The next one you're going to; failing that the one you just played.
+    // It used to fall back to tournaments[0], which is the oldest on record —
+    // so after the last weekend of a season the planner opened on August.
+    const byDate = [...TM_STATE.tournaments].sort((a, b) => (b.start_date || '').localeCompare(a.start_date || ''));
+    PITCH_UI.tournament = upcomingTournaments()[0]?.id || byDate[0]?.id || '';
   }
   if (PITCH_UI.loadedFor !== PITCH_UI.tournament) {
     loadPlanning(PITCH_UI.tournament);
     PITCH_UI.loadedFor = PITCH_UI.tournament;
+  }
+  const pick = document.getElementById('tp-picker');
+  if (pick) {
+    const list = [...TM_STATE.tournaments].sort((a, b) => (b.start_date || '').localeCompare(a.start_date || ''));
+    const today = todayISO();
+    pick.innerHTML = list.length
+      ? `<div class="seg" style="flex-wrap:wrap">${list.map(t => {
+          const when = t.start_date ? fmtShortDate(t.start_date) : 'TBD';
+          const ahead = (t.end_date || t.start_date || '') >= today;
+          return `<button class="seg-btn ${PITCH_UI.tournament === t.id ? 'active' : ''}"
+            onclick="PITCH_UI.tournament='${t.id}'; PITCH_UI.gamesPerDay={}; renderTourPlanner()">
+            ${esc(t.name || 'Untitled')} <span style="opacity:.65">· ${when}${ahead ? '' : ' · played'}</span></button>`;
+        }).join('')}</div>`
+      : '';
   }
   if (sel) {
     sel.innerHTML = TM_STATE.tournaments.length
@@ -8751,8 +8769,64 @@ function upcomingTournaments() {
     .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
 }
 
+// ---- What's coming up: games and practices on one list ----
+// The two live in different tables and the coach does not care which; he wants
+// to know what is next and what to wear to it.
+function renderDashSchedule() {
+  const el = document.getElementById('dash-schedule');
+  if (!el) return;
+  const now = Date.now();
+  const soon = [
+    ...GAMES.filter(g => g.game_date).map(g => {
+      // Game times are text ("3:00 PM"); gameTimeMinutes already parses them,
+      // and returns past-midnight for a game with no time so it sorts last.
+      const d = new Date(`${g.game_date}T00:00`);
+      d.setMinutes(gameTimeMinutes(g.game_time));
+      return { at: d.getTime(), kind: 'game', g };
+    }),
+    ...PRACTICES.map(p => ({ at: new Date(p.starts_at).getTime(), kind: 'practice', p })),
+  ].filter(x => x.at >= now - 6 * 3600 * 1000)      // a game today stays up while it is on
+   .sort((a, b) => a.at - b.at)
+   .slice(0, 8);
+
+  if (!soon.length) {
+    el.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:6px 0">
+      Nothing on the calendar. Settings → Schedule sync pulls your games and practices from GameChanger.</div>`;
+    return;
+  }
+  const dayFmt = t => new Date(t).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  const timeFmt = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  el.innerHTML = soon.map(x => {
+    if (x.kind === 'practice') {
+      return `<div class="alert-row">
+        <div class="alert-dot"></div>
+        <div class="alert-body">
+          <div class="alert-title">Practice</div>
+          <div class="alert-sub mono">${dayFmt(x.at)} · ${timeFmt(x.at)}${
+            x.p.location ? ' · ' + esc(String(x.p.location).split(',')[0]) : ''}</div>
+        </div>
+      </div>`;
+    }
+    const g = x.g;
+    const side = { home: 'vs', away: 'at', coin: 'vs' }[g.location] || 'vs';
+    const uni = uniformItems(g);
+    return `<div class="alert-row" onclick="openGameFromDash('${g.id}')" style="cursor:pointer">
+      <div class="alert-dot ${g.result?.outcome ? '' : 'info'}"></div>
+      <div class="alert-body">
+        <div class="alert-title">${esc(side)} ${esc(g.opponent || 'TBD')}</div>
+        <div class="alert-sub mono">${dayFmt(x.at)}${g.game_time ? ' · ' + esc(g.game_time) : ''}${
+          g.venue ? ' · ' + esc(String(g.venue).split(',')[0]) : ''}</div>
+        ${uni.length ? `<div class="alert-sub" style="color:var(--gold)">${esc(uni.slice(1, 4).join(' · '))}</div>` : ''}
+      </div>
+      ${g.result?.outcome ? `<span class="pill pill-muted">${esc(g.result.outcome)} ${g.result.rs}-${g.result.ra}</span>` : ''}
+    </div>`;
+  }).join('');
+}
+function openGameFromDash(id) { rememberGame('planner', id); navigate('planner'); }
+
 function renderDashboard() {
   renderDashHero();
+  renderDashSchedule();
   renderDashReadiness();
   renderDashRoster();
   renderDashPlan();
