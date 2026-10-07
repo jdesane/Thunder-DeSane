@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-07.1">
+<meta name="build" content="2026-10-07.2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -5867,8 +5867,16 @@ function noteEntry(key, coach) { return noteEntries(key)[coach] || { text: '', a
 // Report fields (the parent-facing copy) are single strings written by the manager.
 function reportField(key) { const v = RV_NOTES[key]; return typeof v === 'string' ? v : ''; }
 
+// Signed out, the notes already arrived with the page payload and hold only
+// the published write-ups — what each coach submitted never left the server.
+let RV_PUBLIC = [];
 async function loadReviewNotes(scopeKey) {
   RV_NOTES_KEY = scopeKey; RV_NOTES = {};
+  if (!signedIn()) {
+    RV_NOTES = RV_PUBLIC.find(r => r.scope_key === scopeKey)?.notes || {};
+    if (UI.section === 'review') renderReview();
+    return;
+  }
   const rows = await supa('team_reviews', 'GET', null, `?scope_key=eq.${encodeURIComponent(scopeKey)}&select=notes`);
   if (Array.isArray(rows) && rows[0]?.notes) RV_NOTES = rows[0].notes;
   if (RV_NOTES_KEY !== scopeKey) return;   // scope changed while loading
@@ -5970,6 +5978,18 @@ function setReportField(key, val) {
 // coach submitting on his phone doesn't wipe what another coach typed a minute ago.
 async function saveCoachNote(key, coach) {
   if (!RV_NOTES_KEY) return;
+  // An assistant coach on the review link is not signed in. His submission
+  // goes through the function, which merges his entry alone — it cannot reach
+  // another coach's note or anything the manager published.
+  if (!signedIn()) {
+    if (!coach) return;
+    await publicFn('public-write', {
+      kind: 'coach-note', scopeKey: RV_NOTES_KEY, key, coach, entry: noteEntries(key)[coach],
+    });
+    const el = document.querySelector(`[data-rv-saved="${key}|${coach}"]`);
+    if (el) { el.textContent = 'saved'; setTimeout(() => { if (el.textContent === 'saved') el.textContent = ''; }, 1500); }
+    return;
+  }
   const scope = reviewScope();
   const rows = await supa('team_reviews', 'GET', null, `?scope_key=eq.${encodeURIComponent(RV_NOTES_KEY)}&select=notes`);
   const server = (Array.isArray(rows) && rows[0]?.notes) || {};
@@ -11035,7 +11055,12 @@ async function wsSave(submit) {
   const body = { worksheet_id: WS.id, player_id: WS_PID, answers: WS_ANS, updated_at: new Date().toISOString() };
   if (submit) body.submitted_at = new Date().toISOString();
   else if (WS_SENT) body.submitted_at = WS_SENT;
-  const res = await supa('team_worksheet_answers', 'POST', [body], '?on_conflict=worksheet_id,player_id', 'resolution=merge-duplicates');
+  const res = signedIn()
+    ? await supa('team_worksheet_answers', 'POST', [body], '?on_conflict=worksheet_id,player_id', 'resolution=merge-duplicates')
+    : await publicFn('public-write', {
+        kind: 'worksheet-answer', worksheetId: WS.id, playerId: WS_PID,
+        answers: WS_ANS, submitted: !!(submit || WS_SENT),
+      });
   document.querySelectorAll('#ws-save, #ws-save-b').forEach(el => {
     el.textContent = res ? 'Saved' : 'Not saved — check your connection';
   });
@@ -11345,12 +11370,44 @@ function hwCopyLink(url) {
   (navigator.clipboard?.writeText(url) || Promise.reject()).then(() => toast('Player link copied'), () => prompt('Copy this link:', url));
 }
 
+// Public pages reach the database only through these two functions. Signed in,
+// the app talks to the tables directly under its own RLS and sees everything.
+async function publicFn(name, body) {
+  try {
+    const res = await fetch(SUPA_URL + '/functions/v1/' + name, {
+      method: 'POST',
+      headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) { console.error(name, res.status, await res.text()); return null; }
+    return await res.json();
+  } catch (e) { console.error(name, e); return null; }
+}
+
 // ---- what a public page is allowed to load ----
 // The worksheet and the review links are open to anyone with the URL, so they
 // fetch only the columns that page actually renders and never write the cache.
 // A kid's iPad has no business holding the roster's home addresses, the
 // parents' phone numbers, or the team's books.
 async function loadPublicData(kind) {
+  if (!signedIn()) {
+    const d = await publicFn('public-read', { kind, playerId: kind === 'worksheet' ? WS_PID_FROM_DEVICE() : null });
+    if (!d) return false;
+    TEAM_SETTINGS = { ...DEFAULT_SETTINGS, ...(d.settings || {}) };
+    PLAYERS = (d.players || []).map(pl => ({
+      cloudId: pl.id, num: pl.jersey_number, name: pl.name,
+      positions: pl.positions || {}, tier: pl.tier || 'middle', parents: [],
+    }));
+    if (kind === 'review') {
+      GAMES = d.games || [];
+      TM_STATE.tournaments = d.tournaments || [];
+      RV_PUBLIC = d.reviews || [];     // notes, already stripped to pub:/report:
+    } else {
+      WORKSHEETS = d.worksheets || [];
+      WS_ROWS = d.answers || [];
+    }
+    return true;
+  }
   const cols = kind === 'review'
     ? 'id,jersey_number,name,positions,tier,sort_order'
     : 'id,jersey_number,name,sort_order';
@@ -11556,7 +11613,7 @@ async function startApp() {
     navigate(WS_ROUTE ? 'worksheet' : 'review');
     if (!await loadPublicData(WS_ROUTE ? 'worksheet' : 'review')) return;
     applyTeamSettings();
-    if (WS_ROUTE) { await loadWorksheets(WS_PID_FROM_DEVICE()); renderWorksheetPage(); }
+    if (WS_ROUTE) { if (signedIn()) await loadWorksheets(WS_PID_FROM_DEVICE()); renderWorksheetPage(); }
     else applyStandaloneRoute();
     return;
   }
