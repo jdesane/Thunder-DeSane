@@ -102,7 +102,20 @@ function parseICS(raw: string) {
   });
 }
 
-/** 20261004T190000Z -> { date: "2026-10-04", time: "3:00 PM" } in the team's zone. */
+/** 20261004T190000Z -> { date: "2026-10-04", time: "3:00 PM" } in the team's zone.
+ *  An all-day event is written as a bare date (DTSTART:20261021) and has no
+ *  time at all — the first parser rejected those outright, which quietly threw
+ *  away every tournament block in the calendar. */
+function dateOnly(stamp: string) {
+  const m = stamp?.match(/^(\d{4})(\d{2})(\d{2})$/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+}
+/** ICS makes DTEND exclusive, so an Oct 21–25 tournament ends at 20261026. */
+function dayBefore(iso: string) {
+  const d = new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
 function localParts(stamp: string) {
   const m = stamp?.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/);
   if (!m) return null;
@@ -185,6 +198,10 @@ Deno.serve(async (req: Request) => {
     practices: { created: 0, updated: 0 },
     conflicts: [] as string[],
     errors: [] as string[],
+    // Multi-day all-day blocks: what a tournament looks like in this calendar.
+    // Offered, never created — "Off Weekend" and a fundraiser are the same
+    // shape, and whether something is a tournament is the coach's call.
+    candidates: [] as { title: string; start: string; end: string }[],
     ignored: 0,
   };
   // Every write is checked. supabase-js returns errors rather than throwing,
@@ -197,8 +214,29 @@ Deno.serve(async (req: Request) => {
     return true;
   };
 
+  const { data: tourneys } = await db.from("team_tournaments")
+    .select("name,start_date,end_date").eq("team_id", teamId);
+
   for (const ev of events) {
     const summary = ev.SUMMARY || "";
+
+    // All-day block spanning more than one day — a tournament, an off weekend
+    // or a week-long fundraiser. Offer it and let the coach say which.
+    const allDayStart = dateOnly(ev.DTSTART || "");
+    if (allDayStart) {
+      const rawEnd = dateOnly(ev.DTEND || "") || allDayStart;
+      const end = rawEnd > allDayStart ? dayBefore(rawEnd) : allDayStart;
+      const already = (tourneys ?? []).some((t) =>
+        oppKey(t.name) === oppKey(summary) ||
+        (t.start_date && t.start_date <= end && (t.end_date || t.start_date) >= allDayStart));
+      if (end > allDayStart && !already) {
+        out.candidates.push({ title: summary.trim(), start: allDayStart, end });
+      } else {
+        out.ignored++;
+      }
+      continue;
+    }
+
     const when = localParts(ev.DTSTART || "");
     if (!when || !ev.UID) continue;
     const place = (ev.LOCATION || "").replace(/\n/g, ", ").trim();

@@ -172,6 +172,15 @@ are ignored.
 - **Never touch the plan** — defense, batting order, opponent rank, planning
   mode, notes, availability. It writes date, time, opponent, venue, home/away.
 
+**Tournaments are offered, never created.** A multi-day all-day block
+(`DTSTART:20261021` with no time) is what a tournament looks like in this feed
+— but so is "Off Weekend 🎃" and so is a week-long fundraiser. The sync returns
+them as `candidates` and the coach taps Add on the real ones, the same reason
+opponent rank and tier are his. Single-day all-day events and anything with a
+time (birthdays, fundraiser nights) are not offered. Note `localParts()` only
+reads timestamps; `dateOnly()` reads all-day events, and leaving that out
+silently dropped every tournament block in the calendar.
+
 **The uniform** comes out of the event description — GameChanger holds it as a
 `UNIFORM:` line with `* item` bullets, and about half the games have one.
 `team_games.uniform` is one item per line; it shows as a picker in the Game

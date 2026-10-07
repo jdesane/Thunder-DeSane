@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-07.9">
+<meta name="build" content="2026-10-07.10">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -10723,8 +10723,36 @@ async function syncSchedule() {
           out.conflicts.map(c => '· ' + esc(c)).join('<br>') + '</div>'
         : '');
   }
+  if (out.candidates?.length && rep) {
+    // Offered, never created. "Off Weekend" and a week-long fundraiser look
+    // exactly like a tournament in a calendar; only the coach knows which.
+    rep.innerHTML += `<div style="margin-top:12px">
+      <div style="color:var(--text);margin-bottom:6px">Multi-day blocks on the calendar — add any that are tournaments:</div>
+      ${out.candidates.map((c, i) => `<div class="alert-row" style="cursor:default">
+        <div class="alert-body">
+          <div class="alert-title">${esc(c.title)}</div>
+          <div class="alert-sub mono">${esc(c.start)} → ${esc(c.end)}</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="cand-${i}"
+          onclick='addTournamentFromCandidate(${JSON.stringify(c).replace(/'/g, "&#39;")}, ${i})'>Add</button>
+      </div>`).join('')}
+    </div>`;
+  }
   await loadFromCloud();
   renderDashboard();
+}
+
+async function addTournamentFromCandidate(c, i) {
+  const btn = document.getElementById('cand-' + i);
+  if (btn) { btn.disabled = true; btn.textContent = 'Adding…'; }
+  const row = await supa('team_tournaments', 'POST', [{
+    name: c.title, start_date: c.start, end_date: c.end, status: 'planned',
+  }]);
+  if (!row) { if (btn) { btn.disabled = false; btn.textContent = 'Add'; } toast('Could not add'); return; }
+  if (btn) btn.textContent = 'Added ✓';
+  await loadFromCloud();
+  renderDashboard();
+  toast('Added — set the entry fee and games in Tournaments');
 }
 
 function renderAccountCard() {
