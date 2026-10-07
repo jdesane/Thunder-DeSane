@@ -1,8 +1,11 @@
 // review-draft — drafts or rewrites one section of the tournament review in
 // the head coach's voice, from the numbers and his own private notes.
 //
-// POST { pin, section, data, notes, current, instruction }
-//   pin         the review PIN from team_settings (the manager's unlock)
+// POST { section, data, notes, current, instruction }
+//   Deployed with verify_jwt ON: Supabase rejects anything without a valid
+//   session, so the caller is a signed-in coach by the time this runs. It used
+//   to take the review PIN instead, which was being sent to everyone who
+//   opened a review link and so authenticated nothing.
 //   section     a label for the section ("Overview", "Pitching", "Micah Dubler"…)
 //   data        the numbers for that section, as plain text lines
 //   notes       the manager's own private note on the section (may be empty)
@@ -13,8 +16,7 @@
 // → { text }
 //
 // The Anthropic key lives in team_secrets (service role only) or the
-// ANTHROPIC_API_KEY function secret. Deployed with verify_jwt off: the PIN is
-// the auth, since the app's anon key is public anyway.
+// ANTHROPIC_API_KEY function secret.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import Anthropic from "npm:@anthropic-ai/sdk";
@@ -47,14 +49,9 @@ Deno.serve(async (req: Request) => {
 
   let body: Record<string, string>;
   try { body = await req.json(); } catch { return json({ error: "bad json" }, 400); }
-  const { pin = "", section = "", data = "", notes = "", current = "", instruction = "", others = "" } = body;
+  const { section = "", data = "", notes = "", current = "", instruction = "", others = "" } = body;
 
   const supa = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
-  // The PIN gates this; a wrong or missing PIN is a 401 no matter what.
-  const { data: cfg } = await supa.from("team_config").select("value").eq("key", "team_settings").single();
-  const wantPin = String(cfg?.value?.review_pin ?? "").trim();
-  if (!wantPin || String(pin).trim() !== wantPin) return json({ error: "wrong pin" }, 401);
 
   let apiKey = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
   if (!apiKey) {

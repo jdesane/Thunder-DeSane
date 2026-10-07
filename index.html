@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-07.2">
+<meta name="build" content="2026-10-07.3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -5954,16 +5954,9 @@ function showSubmitted() {
   try { return localStorage.getItem('thunder_rv_show_notes') === '1'; } catch { return false; }
 }
 function toggleShowSubmitted(on) {
-  if (on) {
-    const pin = String(TEAM_SETTINGS.review_pin || '').trim();
-    let ok = !pin;
-    try { ok = ok || localStorage.getItem('thunder_rv_pin_ok') === pin; } catch {}
-    if (!ok) {
-      const entered = prompt('Submitted notes are private to the manager. Enter the review PIN:');
-      if (entered === null) { renderReview(); return; }
-      if (entered.trim() !== pin) { toast('Wrong PIN'); renderReview(); return; }
-      try { localStorage.setItem('thunder_rv_pin_ok', pin); } catch {}
-    }
+  if (on && !signedIn()) {
+    toast('Submitted notes are the manager\'s — sign in on this device');
+    renderReview(); return;
   }
   try { localStorage.setItem('thunder_rv_show_notes', on ? '1' : '0'); } catch {}
   renderReview();
@@ -6107,24 +6100,20 @@ function rvJump(id, a) {
 const DRAFT_FN = SUPA_URL.replace(/\/$/, '') + '/functions/v1/review-draft';
 let RV_DATA = {};   // section key -> the numbers, as text lines, for drafting
 let RV_LABELS = {}; // section key -> the heading shown for it, in page order
-function reviewPin() { return String(TEAM_SETTINGS.review_pin || '').trim(); }
+// Being the manager means holding a session, nothing else. The old review PIN
+// was sent in full to everyone who opened a review link — it was never a
+// secret, and a shared number could not have told two coaches apart anyway.
 function managerDevice() {
   if (WS_ROUTE) return false;                 // a player's worksheet is never the manager
-  const pin = reviewPin();
-  if (!pin) return !SA_ROUTE;                 // unknown or unset: never on a shared link
-  try { return localStorage.getItem('thunder_rv_pin_ok') === pin; } catch { return false; }
+  return signedIn();
 }
 // While previewing as a coach, the manager's own device renders like theirs.
 function managerUnlocked() { return managerDevice() && !RV_UI.previewCoach; }
 function previewAsCoach(on) { RV_UI.previewCoach = !!on; renderReview(); if (on) window.scrollTo(0, 0); }
 function unlockManager() {
-  const pin = reviewPin();
-  if (!pin) { renderReview(); return true; }
-  const entered = prompt('Manager only. Enter the review PIN:');
-  if (entered === null) return false;
-  if (entered.trim() !== pin) { toast('Wrong PIN'); return false; }
-  try { localStorage.setItem('thunder_rv_pin_ok', pin); } catch {}
-  renderReview(); return true;
+  if (signedIn()) { renderReview(); return true; }
+  toast('Sign in on this device to use the manager controls');
+  return false;
 }
 function pubText(key) { return reportField('pub:' + key).trim(); }
 // The other players' write-ups, so a player's draft doesn't recycle their lines
@@ -6164,15 +6153,20 @@ function togglePubEdit(btn) {
   if (editing) { renderReview(); return; }   // re-render shows the saved text
   view.style.display = 'none'; ta.style.display = ''; ta.focus(); btn.textContent = 'Done';
 }
+// Drafting is the manager's, and the function now verifies his session rather
+// than a shared PIN that was being handed to every visitor of a review link.
+async function draftHeaders() {
+  return { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await authToken() || SUPA_KEY), apikey: SUPA_KEY };
+}
 async function draftPub(key, label, btn) {
   if (!managerUnlocked() && !unlockManager()) return;
   const wrap = btn.closest('.rv-pub-wrap');
   const instr = wrap.querySelector('[data-pub-instr]')?.value || '';
-  const body = { pin: reviewPin(), section: label, data: RV_DATA[key] || '', notes: managerNote(key), current: pubText(key), instruction: instr, others: pubOthers(key) };
+  const body = { section: label, data: RV_DATA[key] || '', notes: managerNote(key), current: pubText(key), instruction: instr, others: pubOthers(key) };
   const orig = btn.textContent; btn.disabled = true; btn.textContent = 'Writing…';
   wrap.querySelectorAll('button').forEach(b => b.disabled = true);
   try {
-    const res = await fetch(DRAFT_FN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const res = await fetch(DRAFT_FN, { method: 'POST', headers: await draftHeaders(), body: JSON.stringify(body) });
     const out = await res.json().catch(() => ({}));
     if (!res.ok || !out.text) throw new Error(out.error || `HTTP ${res.status}`);
     RV_NOTES['pub:' + key] = out.text;
@@ -6211,8 +6205,8 @@ async function draftAllPub() {
       const key = queue.shift(); const label = RV_LABELS[key];
       RV_UI.draftAll.current = label; renderPubStatus();
       try {
-        const body = { pin: reviewPin(), section: label, data: RV_DATA[key] || '', notes: managerNote(key), current: empty.length ? '' : pubText(key), instruction: '', others: pubOthers(key) };
-        const res = await fetch(DRAFT_FN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const body = { section: label, data: RV_DATA[key] || '', notes: managerNote(key), current: empty.length ? '' : pubText(key), instruction: '', others: pubOthers(key) };
+        const res = await fetch(DRAFT_FN, { method: 'POST', headers: await draftHeaders(), body: JSON.stringify(body) });
         const out = await res.json().catch(() => ({}));
         if (!res.ok || !out.text) throw new Error(out.error || `HTTP ${res.status}`);
         saving = saving.catch(() => {}).then(async () => { RV_NOTES['pub:' + key] = out.text; await saveCoachNote('pub:' + key, null); });
@@ -11517,12 +11511,7 @@ async function signOutNow() {
 // most likely stale, so top it up before anything asks for data.
 document.addEventListener('visibilitychange', () => { if (!document.hidden && SESSION) refreshSession(); });
 
-function appLocked() {
-  if (signedIn()) return false;
-  const pin = String(TEAM_SETTINGS.review_pin || '').trim();
-  if (!pin) return false;
-  try { return localStorage.getItem('thunder_rv_pin_ok') !== pin; } catch { return true; }
-}
+function appLocked() { return !signedIn(); }
 function showAppLock() {
   document.body.classList.add('locked');
   let el = document.getElementById('app-lock');
@@ -11537,14 +11526,7 @@ function showAppLock() {
            placeholder="Password" onkeydown="if(event.key==='Enter')trySignIn()">
     <button class="btn btn-primary" onclick="trySignIn()">Sign in</button>
     <div class="lock-e" id="lock-err"></div>
-    <div class="lock-h" id="lock-pin-toggle">
-      <span class="card-link" onclick="document.getElementById('lock-pinrow').style.display='block';this.parentNode.style.display='none'">Use the team PIN instead</span>
-    </div>
-    <div id="lock-pinrow" style="display:none">
-      <input class="input" id="lock-pin" type="password" inputmode="numeric" autocomplete="off"
-             placeholder="PIN" onkeydown="if(event.key==='Enter')tryAppUnlock()">
-      <button class="btn btn-secondary" onclick="tryAppUnlock()">Unlock with PIN</button>
-    </div>
+
     <div class="lock-h">Looking for a worksheet or a team review? Open the link you were sent — you don't need a PIN for those.</div>
   </div>`;
   setTimeout(() => document.getElementById('lock-pin')?.focus(), 60);
@@ -11561,20 +11543,6 @@ async function trySignIn() {
   document.body.classList.remove('locked');
   await startApp();
 }
-async function tryAppUnlock() {
-  const val = (document.getElementById('lock-pin')?.value || '').trim();
-  const pin = String(TEAM_SETTINGS.review_pin || '').trim();
-  if (val !== pin) {
-    const e = document.getElementById('lock-err');
-    if (e) e.textContent = 'That PIN is not right';
-    return;
-  }
-  try { localStorage.setItem('thunder_rv_pin_ok', pin); } catch {}
-  document.getElementById('app-lock')?.remove();
-  document.body.classList.remove('locked');
-  await startApp();
-}
-
 async function startApp() {
   loadCache();
   applyTeamSettings();
@@ -11625,8 +11593,7 @@ async function startApp() {
   loadSession();
   if (SESSION) await refreshSession();
 
-  const cfg = await supa('team_config', 'GET', null, '?key=eq.team_settings&select=value');
-  if (Array.isArray(cfg) && cfg[0] && cfg[0].value) TEAM_SETTINGS = { ...DEFAULT_SETTINGS, ...cfg[0].value };
+  // Signed out, there is nothing to fetch: the tables answer only to a session.
   if (appLocked()) { showAppLock(); return; }
   await startApp();
 })();
