@@ -122,6 +122,33 @@ because the client upserts against single-column conflict targets
 the defaults, make them NOT NULL and have the client send `team_id` explicitly
 as part of onboarding the second team.
 
+## Signing in
+
+The coach app signs in with email and password (Supabase Auth); the public
+worksheet and review pages never do. `SESSION` lives in
+`localStorage.thunder_session` and `supa()` sends that access token when there
+is one, falling back to the anon key otherwise — which is what still makes the
+public pages work, and what stops working the moment the anon grants come off.
+
+**Never put a login screen in front of a coach in a dugout.** `refreshSession()`
+returns true — carry on — for a network failure *and* a 5xx, keeping the stored
+session so the app comes up on its cache with no signal. Only a 4xx, Supabase
+actually refusing the token, clears it. The token is also topped up on
+`visibilitychange`, which is when a backgrounded home-screen app is most likely
+to hold a stale one. Changing any of that risks locking him out at a field.
+
+`handle_new_user()` links a new `auth.users` row to the one team in
+`team_members` — the first account is `manager`, later ones `coach` (extra coach
+seats are a paid add-on, which is why the role is stored rather than inferred).
+`my_team_ids()` is the helper the RLS policies will use.
+
+The old team PIN still works as a fallback (`appLocked()` checks the session
+first, then the PIN) so nobody is locked out mid-transition. **Remove the PIN
+path, and the `review_pin` setting with it, in the same change that revokes the
+anon grants** — the review PIN is currently sent in full to every visitor of a
+`/review/...` link, so it is not a secret and manager controls must key off the
+session instead.
+
 ## Who can see what
 
 The app is one file serving two audiences, so the boot path splits before it

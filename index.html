@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-05.3">
+<meta name="build" content="2026-10-07.1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1547,6 +1547,8 @@
   .lock-t { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
   .lock-s { font-size: 12.5px; color: var(--text-muted); margin: 4px 0 20px; }
   .lock-card .input { text-align: center; font-size: 19px; letter-spacing: 0.3em; padding: 12px; margin-bottom: 10px; }
+  /* 16px keeps iOS from zooming the page when the field takes focus */
+  .lock-card .input.lock-text { text-align: left; letter-spacing: normal; font-size: 16px; }
   .lock-card .btn { width: 100%; justify-content: center; }
   .lock-e { font-size: 12.5px; color: var(--neg); min-height: 18px; margin-top: 10px; }
   .lock-h { font-size: 12px; color: var(--text-subtle); line-height: 1.6; margin-top: 18px; }
@@ -2654,6 +2656,10 @@
       </div>
 
       <div style="max-width:640px">
+        <div class="card mb-4" id="settings-account-card">
+          <div class="card-title">This device</div>
+          <div id="settings-account"></div>
+        </div>
         <div class="card mb-4">
           <div class="card-title">Team info</div>
           <div class="flex flex-col gap-3">
@@ -3186,9 +3192,13 @@ async function supa(table, method, body, query, extraPrefer) {
   if (method === 'POST' || method === 'PATCH') prefer.push('return=representation');
   else prefer.push('return=minimal');
   if (extraPrefer) prefer.push(extraPrefer);
+  // Signed in: act as that coach. Not signed in: the anon key, which is all a
+  // public worksheet or review page ever gets — and which stops working at all
+  // once the anon grants come off.
+  const token = await authToken();
   const headers = {
     'apikey': SUPA_KEY,
-    'Authorization': 'Bearer ' + SUPA_KEY,
+    'Authorization': 'Bearer ' + (token || SUPA_KEY),
     'Content-Type': 'application/json',
     'Prefer': prefer.join(','),
   };
@@ -10469,6 +10479,7 @@ async function deleteTournament() {
 // ============================================================
 function renderSettings() {
   const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+  renderAccountCard();
   set('setting-team-name', TEAM_SETTINGS.team_name);
   set('setting-age-division', TEAM_SETTINGS.age_division);
   set('setting-season', TEAM_SETTINGS.season);
@@ -10534,6 +10545,23 @@ async function savePaymentPlan() {
   try { renderRoster(); } catch(e) {}
   try { renderFinances(); } catch(e) {}
   toast('Payment plan saved');
+}
+function renderAccountCard() {
+  const el = document.getElementById('settings-account'); if (!el) return;
+  const u = sessionUser();
+  el.innerHTML = u
+    ? `<div class="flex" style="align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+         <div>
+           <div style="font-size:14px;color:var(--text)">${esc(u.email || 'Signed in')}</div>
+           <div style="color:var(--text-muted);font-size:12px">Signed in. This device stays signed in — you won't be asked again at a field.</div>
+         </div>
+         <button class="btn btn-secondary btn-sm" onclick="signOutNow()">Sign out</button>
+       </div>`
+    : `<div style="color:var(--text-muted);font-size:13px;line-height:1.6">
+         This device is on the old team PIN. Sign out and sign in with your email and password to move it over —
+         the PIN goes away once every device has.
+         <div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="signOutNow()">Switch to sign-in</button></div>
+       </div>`;
 }
 function renderCoachesInSettings() {
   const el = document.getElementById('settings-coaches');
@@ -11351,7 +11379,89 @@ async function loadPublicData(kind) {
 }
 
 // ---- the front door ----
+// ============================================================
+// AUTH
+// ============================================================
+// The coach app signs in; the public worksheet and review pages never do.
+// The session lives in localStorage and is refreshed in the background,
+// because the one thing this must never do is put a login screen in front of
+// a coach standing in a dugout on one bar of signal. A refresh that fails for
+// want of a network keeps the session and the app runs on its cache; only an
+// outright rejection from Supabase signs anyone out.
+const SESSION_KEY = 'thunder_session';
+let SESSION = null;
+let REFRESHING = null;
+
+function loadSession() {
+  try { SESSION = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch { SESSION = null; }
+  return SESSION;
+}
+function saveSession(s) {
+  SESSION = s;
+  try {
+    if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    else localStorage.removeItem(SESSION_KEY);
+  } catch {}
+}
+function signedIn() { return !!SESSION?.access_token; }
+function sessionUser() { return SESSION?.user || null; }
+
+function sessionFrom(j) {
+  if (!j?.access_token) return null;
+  return {
+    access_token: j.access_token,
+    refresh_token: j.refresh_token,
+    expires_at: Date.now() + (Number(j.expires_in) || 3600) * 1000,
+    user: { id: j.user?.id || null, email: j.user?.email || null },
+  };
+}
+async function authPost(path, body) {
+  const res = await fetch(SUPA_URL + '/auth/v1/' + path, {
+    method: 'POST',
+    headers: { apikey: SUPA_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  let j = null; try { j = await res.json(); } catch {}
+  return { ok: res.ok, status: res.status, body: j };
+}
+async function signIn(email, password) {
+  const r = await authPost('token?grant_type=password', { email, password });
+  if (!r.ok) return { ok: false, message: r.body?.error_description || r.body?.msg || 'Could not sign in' };
+  saveSession(sessionFrom(r.body));
+  return { ok: true };
+}
+// true means "carry on" — including when we could not reach the server at all.
+// Only a 4xx, which is Supabase actually refusing the token, ends the session.
+async function refreshSession() {
+  if (!SESSION?.refresh_token) return false;
+  if (REFRESHING) return REFRESHING;
+  REFRESHING = (async () => {
+    try {
+      const r = await authPost('token?grant_type=refresh_token', { refresh_token: SESSION.refresh_token });
+      if (r.ok) { saveSession(sessionFrom(r.body)); return true; }
+      if (r.status >= 400 && r.status < 500) { saveSession(null); return false; }
+      return true;
+    } catch { return true; } finally { REFRESHING = null; }
+  })();
+  return REFRESHING;
+}
+async function authToken() {
+  if (!SESSION) return null;
+  if (SESSION.expires_at - Date.now() < 60000) await refreshSession();
+  return SESSION?.access_token || null;
+}
+async function signOutNow() {
+  if (!confirm('Sign out on this device? Anything already saved stays on the server.')) return;
+  saveSession(null);
+  try { localStorage.removeItem(CACHE_KEY); localStorage.removeItem('thunder_rv_pin_ok'); } catch {}
+  location.reload();
+}
+// Coming back to a backgrounded home-screen app is the moment the token is
+// most likely stale, so top it up before anything asks for data.
+document.addEventListener('visibilitychange', () => { if (!document.hidden && SESSION) refreshSession(); });
+
 function appLocked() {
+  if (signedIn()) return false;
   const pin = String(TEAM_SETTINGS.review_pin || '').trim();
   if (!pin) return false;
   try { return localStorage.getItem('thunder_rv_pin_ok') !== pin; } catch { return true; }
@@ -11364,13 +11474,35 @@ function showAppLock() {
     <img src="/logo.svg" alt="">
     <div class="lock-t">${esc(TEAM_SETTINGS.team_name || 'Team')}</div>
     <div class="lock-s">Team Manager — coaches only</div>
-    <input class="input" id="lock-pin" type="password" inputmode="numeric" autocomplete="off"
-           placeholder="PIN" onkeydown="if(event.key==='Enter')tryAppUnlock()">
-    <button class="btn btn-primary" onclick="tryAppUnlock()">Unlock</button>
+    <input class="input lock-text" id="lock-email" type="email" inputmode="email" autocomplete="username"
+           placeholder="Email" onkeydown="if(event.key==='Enter')document.getElementById('lock-pw').focus()">
+    <input class="input lock-text" id="lock-pw" type="password" autocomplete="current-password"
+           placeholder="Password" onkeydown="if(event.key==='Enter')trySignIn()">
+    <button class="btn btn-primary" onclick="trySignIn()">Sign in</button>
     <div class="lock-e" id="lock-err"></div>
+    <div class="lock-h" id="lock-pin-toggle">
+      <span class="card-link" onclick="document.getElementById('lock-pinrow').style.display='block';this.parentNode.style.display='none'">Use the team PIN instead</span>
+    </div>
+    <div id="lock-pinrow" style="display:none">
+      <input class="input" id="lock-pin" type="password" inputmode="numeric" autocomplete="off"
+             placeholder="PIN" onkeydown="if(event.key==='Enter')tryAppUnlock()">
+      <button class="btn btn-secondary" onclick="tryAppUnlock()">Unlock with PIN</button>
+    </div>
     <div class="lock-h">Looking for a worksheet or a team review? Open the link you were sent — you don't need a PIN for those.</div>
   </div>`;
   setTimeout(() => document.getElementById('lock-pin')?.focus(), 60);
+}
+async function trySignIn() {
+  const email = (document.getElementById('lock-email')?.value || '').trim();
+  const pw = document.getElementById('lock-pw')?.value || '';
+  const err = document.getElementById('lock-err');
+  if (!email || !pw) { if (err) err.textContent = 'Email and password, please'; return; }
+  if (err) err.textContent = 'Signing in…';
+  const r = await signIn(email, pw);
+  if (!r.ok) { if (err) err.textContent = r.message; return; }
+  document.getElementById('app-lock')?.remove();
+  document.body.classList.remove('locked');
+  await startApp();
 }
 async function tryAppUnlock() {
   const val = (document.getElementById('lock-pin')?.value || '').trim();
@@ -11431,6 +11563,11 @@ async function startApp() {
 
   // The coach app. Settings come first and alone, so a locked visitor never
   // pulls the roster or the finances at all.
+  // Restore the session before anything asks the server for data. Offline,
+  // this keeps whatever is stored and the app comes up on its cache.
+  loadSession();
+  if (SESSION) await refreshSession();
+
   const cfg = await supa('team_config', 'GET', null, '?key=eq.team_settings&select=value');
   if (Array.isArray(cfg) && cfg[0] && cfg[0].value) TEAM_SETTINGS = { ...DEFAULT_SETTINGS, ...cfg[0].value };
   if (appLocked()) { showAppLock(); return; }
