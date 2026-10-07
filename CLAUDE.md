@@ -151,32 +151,50 @@ session instead.
 
 ## Who can see what
 
-The app is one file serving two audiences, so the boot path splits before it
-fetches anything:
+Two audiences, two completely separate paths to the data.
 
-- **Public routes** (`/worksheet`, `/review/*`) call `loadPublicData(kind)`,
-  which selects only the columns that page renders — for a worksheet that is
-  `id, jersey_number, name`, nothing else — strips `review_pin` from the
-  settings it keeps, and **never calls `saveCache()`**. Do not make a public
-  page call `loadFromCloud()`: that pulls home addresses, dates of birth,
-  parent phone numbers and the books, and writes them to the visitor's
-  localStorage. A kid's iPad must never hold any of it.
-- **The coach app** fetches `team_config` alone, checks `appLocked()`, and
-  shows the PIN screen before loading anything else. `startApp()` is the only
-  path that calls `loadFromCloud()`.
+- **The coach app signs in.** `supa()` sends the session token, RLS lets
+  `authenticated` reach rows whose `team_id` is in `my_team_ids()`, and that is
+  the only way the private columns — addresses, dates of birth, parent phone
+  numbers, the books — are reachable at all.
+- **Public routes** (`/worksheet`, `/review/*`) sign in to nothing and touch no
+  table. They call `public-read` / `public-write`, which run on the service role
+  and return only the fields that page renders. `loadPublicData()` branches on
+  `signedIn()`; `saveCoachNote()` and the worksheet answer save do the same.
 
-Guessed URLs must not reveal anything: an unpublished worksheet never renders
-from its slug (`wsPick` requires `published_at`; `WS_PREVIEW` is set in memory
-from the Homework screen, never from the URL), `/review/<slug>/reports` falls
-back to the assessment unless the device holds the PIN, and a player's page
-fetches only that player's answer row. `managerDevice()` fails closed on any
-shared link — never infer "manager" from a missing PIN, which is what happens
-on a public page where the PIN was stripped.
+**`anon` has no policies and no grants.** The key in the page source is inert:
+every table answers it 401, reads and writes alike. It had ALL on everything
+until Oct 7 2026, which meant anyone who opened devtools on a link the coach
+had sent could read the lot and delete it too. Do not add an `anon` policy to
+solve a problem — if a public page needs something, widen the function.
 
-This is defence in depth, not a security boundary. The anon key is in the page
-source and RLS still lets `anon` read every table, so anyone who opens devtools
-can query the lot. Closing that properly needs real auth for the coach app plus
-restrictive RLS — not done yet.
+What the functions deliberately withhold, each of which used to cross the wire
+and get hidden in the browser instead:
+
+- `team_settings` is filtered to `PUBLIC_SETTINGS`. The old `review_pin` was
+  sent to every visitor of a review link, so it authenticated nothing and has
+  been deleted; `review_notify_email` and the payment handles stay server-side.
+- `team_games` is filtered to `GAME_COLS` — no `notes`, `pitching_notes` or
+  `live_state`, all of which are the coach's.
+- `team_reviews` notes are filtered to `pub:` and `report:` keys. "Nothing
+  submitted is shown back on the page" has to be true of the payload, not the
+  rendering.
+
+`public-write` accepts exactly two things and validates both: an answer row
+only for a **published** worksheet and only for that player, and a coach note
+only under a coach the team lists, merged into that coach's own entry, never
+under a `pub:` or `report:` key.
+
+Guessed URLs still reveal nothing: an unpublished worksheet is not in the
+payload at all, and a player's page asks for one player's answers.
+
+**Manager = signed in.** `managerDevice()` is `signedIn()`, and `review-draft`
+runs with `verify_jwt` on. There is no shared secret left anywhere in the
+client.
+
+Still open: `team_members` has a `role` column that nothing enforces yet — a
+`coach` can do everything a `manager` can. Split those when the second seat is
+sold. And there is no backup; turn on point-in-time recovery.
 
 ## Judgement stays with the coach
 
