@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-07.8">
+<meta name="build" content="2026-10-07.9">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -8784,33 +8784,18 @@ function renderDashSchedule() {
     d.setMinutes(gameTimeMinutes(g.game_time));
     return { at: d.getTime(), kind: 'game', g };
   }).filter(live).sort((a, b) => a.at - b.at);
-  const practices = PRACTICES.map(p => ({ at: new Date(p.starts_at).getTime(), kind: 'practice', p }))
-    .filter(live).sort((a, b) => a.at - b.at);
-
-  // Practices are a weekly routine and there are 31 of them on the calendar;
-  // left to sort by date alone they bury the games, which are the thing worth
-  // planning around. Two practices is enough to know what is next.
-  const soon = [...games.slice(0, 6), ...practices.slice(0, 2)]
-    .sort((a, b) => a.at - b.at);
+  // Games only. Practices are a standing weekly commitment, 31 of them on the
+  // calendar, and listing them here just pushed the games off the card. The
+  // next one gets a single line in the hero instead.
+  const soon = games.slice(0, 8);
 
   if (!soon.length) {
     el.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:6px 0">
-      Nothing on the calendar. Settings → Schedule sync pulls your games and practices from GameChanger.</div>`;
+      No games scheduled. Settings → Schedule sync pulls them from GameChanger.</div>`;
     return;
   }
   const dayFmt = t => new Date(t).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-  const timeFmt = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   el.innerHTML = soon.map(x => {
-    if (x.kind === 'practice') {
-      return `<div class="alert-row">
-        <div class="alert-dot"></div>
-        <div class="alert-body">
-          <div class="alert-title">Practice</div>
-          <div class="alert-sub mono">${dayFmt(x.at)} · ${timeFmt(x.at)}${
-            x.p.location ? ' · ' + esc(String(x.p.location).split(',')[0]) : ''}</div>
-        </div>
-      </div>`;
-    }
     const g = x.g;
     const side = { home: 'vs', away: 'at', coin: 'vs' }[g.location] || 'vs';
     const uni = uniformItems(g);
@@ -8969,6 +8954,13 @@ function renderDashHero() {
   const el = document.getElementById('dash-hero');
   if (!el) return;
   const next = upcomingTournaments()[0];
+  // One line is the right amount of room for a standing weekly commitment.
+  const prac = nextPractice();
+  const pracLine = prac
+    ? `<div class="hero-note" style="margin-top:8px">Next practice ${esc(new Date(prac.starts_at)
+        .toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}${
+        prac.location ? ' · ' + esc(String(prac.location).split(',')[0]) : ''}</div>`
+    : '';
 
   if (!next) {
     el.innerHTML = `
@@ -8976,6 +8968,7 @@ function renderDashHero() {
         <div class="hero-eyebrow">Next Tournament</div>
         <div class="hero-name" style="font-size:17px;color:var(--text-muted)">Nothing on the schedule</div>
         <div class="hero-note">Add a tournament to start planning pitching rotations and playing time around it.</div>
+        ${pracLine}
         <div class="hero-foot">
           <button class="btn btn-primary btn-sm" onclick="navigate('tournaments')">Add tournament</button>
         </div>
