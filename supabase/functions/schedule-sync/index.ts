@@ -32,6 +32,21 @@ const json = (b: unknown, s = 200) =>
 
 const TZ = "America/New_York";
 
+/** Split "<our team> @ <them>" or "<our team> vs <them>" into side and club.
+ *  The feed writes the age division into the title ("SFL Thunder Black 9U @ …")
+ *  and teams.name does not carry it, so the separator is found rather than
+ *  assumed from the stored name's length — getting that wrong silently ignored
+ *  every game in the calendar. */
+function splitFixture(summary: string, teamName: string) {
+  if (!summary.toLowerCase().startsWith(teamName.toLowerCase())) return null;
+  const after = summary.slice(teamName.length);
+  const m = after.match(/^\s*(?:\d+\s*u)?\s*(@|vs\.?)\s*(.+)$/i);
+  if (!m) return null;
+  const opponent = m[2].trim();
+  if (!opponent || /^tbd$/i.test(opponent)) return null;
+  return { home: /^vs/i.test(m[1]), opponent };
+}
+
 /** Loose opponent key: "WBT Cobras 9U Blue" and "WBT Cobras Blue" are one club. */
 const oppKey = (s: string) =>
   String(s || "").toLowerCase().replace(/\b\d+\s*u\b/g, "").replace(/[^a-z0-9]+/g, " ").trim();
@@ -144,7 +159,6 @@ Deno.serve(async (req: Request) => {
   const events = parseICS(raw);
   if (!events.length) return json({ error: "no events in that calendar" }, 422);
 
-  const me = String(team.name || "").toLowerCase();
   const { data: existing } = await db.from("team_games")
     .select("id,game_date,game_time,opponent,venue,location,uniform,source_uid,result,fielding,pitching_stats")
     .eq("team_id", teamId);
@@ -161,9 +175,7 @@ Deno.serve(async (req: Request) => {
   const dayFeedCount: Record<string, number> = {};
   for (const ev of events) {
     const s = ev.SUMMARY || "";
-    if (/\bpractice\b/i.test(s) || !s.toLowerCase().startsWith(me)) continue;
-    const r = s.slice(team.name.length).trim();
-    if (!r.startsWith("@") && !/^vs\b/i.test(r)) continue;
+    if (/\bpractice\b/i.test(s) || !splitFixture(s, team.name)) continue;
     const w = localParts(ev.DTSTART || "");
     if (w) dayFeedCount[w.date] = (dayFeedCount[w.date] || 0) + 1;
   }
@@ -172,7 +184,17 @@ Deno.serve(async (req: Request) => {
     games: { created: 0, updated: 0, adopted: 0, skipped: 0 },
     practices: { created: 0, updated: 0 },
     conflicts: [] as string[],
+    errors: [] as string[],
     ignored: 0,
+  };
+  // Every write is checked. supabase-js returns errors rather than throwing,
+  // so an unchecked call fails silently and the function cheerfully reports a
+  // row count for work it never did — which is exactly what happened on the
+  // first real sync: the counts came back and the database was untouched.
+  // deno-lint-ignore no-explicit-any
+  const check = (what: string, res: any) => {
+    if (res?.error) { out.errors.push(`${what}: ${res.error.message}`); return false; }
+    return true;
   };
 
   for (const ev of events) {
@@ -193,20 +215,15 @@ Deno.serve(async (req: Request) => {
       };
       const { data: before } = await db.from("team_practices")
         .select("id").eq("team_id", teamId).eq("source_uid", ev.UID).maybeSingle();
-      await db.from("team_practices").upsert(row, { onConflict: "team_id,source_uid" });
-      before ? out.practices.updated++ : out.practices.created++;
+      const res = await db.from("team_practices").upsert(row, { onConflict: "team_id,source_uid" });
+      if (check(`practice ${when.date}`, res)) before ? out.practices.updated++ : out.practices.created++;
       continue;
     }
 
     // ---- games: "<team> vs <opponent>" is home, "<team> @ <opponent>" is away ----
-    const low = summary.toLowerCase();
-    if (!low.startsWith(me)) { out.ignored++; continue; }
-    const rest = summary.slice(team.name.length).trim();
-    let home: boolean, opponent: string;
-    if (rest.startsWith("@")) { home = false; opponent = rest.slice(1).trim(); }
-    else if (/^vs\b/i.test(rest)) { home = true; opponent = rest.slice(2).trim(); }
-    else { out.ignored++; continue; }
-    if (!opponent || /^tbd$/i.test(opponent)) { out.ignored++; continue; }
+    const fx = splitFixture(summary, team.name);
+    if (!fx) { out.ignored++; continue; }
+    const { home, opponent } = fx;
 
     const uniform = uniformFrom(ev.DESCRIPTION || "");
     const fields = {
@@ -229,21 +246,23 @@ Deno.serve(async (req: Request) => {
         // one word out of four, but there is nothing else either could be.
         || (sameDay.length === 1 && dayFeedCount[when.date] === 1 ? sameDay[0] : undefined);
       if (match) {
-        await db.from("team_games").update({ source_uid: ev.UID }).eq("id", match.id);
-        match.source_uid = ev.UID;
-        byUid.set(ev.UID, match);
-        out.games.adopted++;
+        const res = await db.from("team_games").update({ source_uid: ev.UID }).eq("id", match.id);
+        if (check(`adopt ${opponent} ${when.date}`, res)) {
+          match.source_uid = ev.UID;
+          byUid.set(ev.UID, match);
+          out.games.adopted++;
+        }
       }
     }
 
     if (!match) {
-      await db.from("team_games").insert({
+      const res = await db.from("team_games").insert({
         team_id: teamId, ...fields, status: "planned", innings: 4,
         rule_set: "usssa_9u", planning_mode: "balanced",
         batting_order: [], defense: {}, availability: {}, pitching_notes: {},
         source: "gamechanger-ics", source_uid: ev.UID,
       });
-      out.games.created++;
+      if (check(`create ${opponent} ${when.date}`, res)) out.games.created++;
       continue;
     }
 
@@ -255,16 +274,18 @@ Deno.serve(async (req: Request) => {
       if (match.game_time !== fields.game_time) diffs.push(`time ${match.game_time} vs feed ${fields.game_time}`);
       if (match.game_date !== fields.game_date) diffs.push(`date ${match.game_date} vs feed ${fields.game_date}`);
       if (diffs.length) out.conflicts.push(`${match.opponent} ${match.game_date}: ${diffs.join("; ")} — kept yours`);
-      if (uniform && !match.uniform) await db.from("team_games").update({ uniform }).eq("id", match.id);
+      if (uniform && !match.uniform) {
+        check(`uniform ${opponent}`, await db.from("team_games").update({ uniform }).eq("id", match.id));
+      }
       out.games.skipped++;
       continue;
     }
 
     const changed = Object.entries(fields).some(([k, v]) => (match as Record<string, unknown>)[k] !== v);
     if (changed) {
-      await db.from("team_games")
+      const res = await db.from("team_games")
         .update({ ...fields, updated_at: new Date().toISOString() }).eq("id", match.id);
-      out.games.updated++;
+      if (check(`update ${opponent} ${when.date}`, res)) out.games.updated++;
     }
   }
 

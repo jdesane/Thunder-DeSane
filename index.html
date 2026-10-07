@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-07.5">
+<meta name="build" content="2026-10-07.6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -10650,6 +10650,10 @@ async function syncSchedule() {
   if (pr.updated) bits.push(`${pr.updated} practices updated`);
   if (rep) {
     rep.innerHTML = (bits.join(' · ') || 'Nothing to change.') +
+      (out.errors?.length
+        ? `<div style="margin-top:8px;color:var(--neg)">${out.errors.length} write${out.errors.length === 1 ? '' : 's'} failed:<br>` +
+          out.errors.slice(0, 5).map(e => '· ' + esc(e)).join('<br>') + '</div>'
+        : '') +
       (out.conflicts?.length
         ? `<div style="margin-top:8px;color:var(--warn)">The feed disagrees with games you have played. Yours were kept:<br>` +
           out.conflicts.map(c => '· ' + esc(c)).join('<br>') + '</div>'
