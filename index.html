@@ -18,7 +18,7 @@
 <!-- Bumped on every deploy, alongside version.txt. The installed app compares
      the two and offers a reload when they differ, because iOS holds a
      home-screen app's HTML long after the server has moved on. -->
-<meta name="build" content="2026-10-07.10">
+<meta name="build" content="2026-10-07.11">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -3255,7 +3255,9 @@ function loadCache() {
 // ============================================================
 async function loadFromCloud() {
   const [players, parents, expenses, donations, tournaments, payments, config, games, practices] = await Promise.all([
-    supa('team_players', 'GET', null, '?select=*&order=sort_order.asc'),
+    // The view, not the table: it blanks address and date of birth for a
+    // viewer in the database rather than trusting the client to not ask.
+    supa('team_players_scoped', 'GET', null, '?select=*&order=sort_order.asc'),
     supa('team_parents', 'GET', null, '?select=*'),
     supa('team_expenses', 'GET', null, '?select=*&order=date.desc'),
     supa('team_donations', 'GET', null, '?select=*&order=received_date.desc.nullslast'),
@@ -6159,7 +6161,7 @@ let RV_LABELS = {}; // section key -> the heading shown for it, in page order
 // secret, and a shared number could not have told two coaches apart anyway.
 function managerDevice() {
   if (WS_ROUTE) return false;                 // a player's worksheet is never the manager
-  return signedIn();
+  return signedIn() && MY_ROLE === 'manager';
 }
 // While previewing as a coach, the manager's own device renders like theirs.
 function managerUnlocked() { return managerDevice() && !RV_UI.previewCoach; }
@@ -10755,6 +10757,25 @@ async function addTournamentFromCandidate(c, i) {
   toast('Added — set the entry fee and games in Tournaments');
 }
 
+// Hide what a viewer cannot load anyway. The database is the boundary; this
+// is so the app reads as deliberate instead of broken.
+function applyRoleToChrome() {
+  const hide = isViewer();
+  ['finances', 'uniforms'].forEach(sec => {
+    const el = document.querySelector(`.nav-item[data-section="${sec}"]`);
+    if (el) el.style.display = hide ? 'none' : '';
+  });
+  let band = document.getElementById('role-band');
+  if (hide && !band) {
+    band = document.createElement('div');
+    band.id = 'role-band';
+    band.style.cssText = 'background:var(--bg-elev-2);border-bottom:1px solid var(--border);' +
+      'color:var(--text-muted);font-size:12px;padding:7px 18px;text-align:center';
+    band.textContent = 'Read-only — you can see everything the coaches plan, but nothing you do here saves.';
+    document.querySelector('.topbar')?.after(band);
+  } else if (!hide && band) { band.remove(); }
+}
+
 function renderAccountCard() {
   const el = document.getElementById('settings-account'); if (!el) return;
   const u = sessionUser();
@@ -10762,7 +10783,9 @@ function renderAccountCard() {
     ? `<div class="flex" style="align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
          <div>
            <div style="font-size:14px;color:var(--text)">${esc(u.email || 'Signed in')}</div>
-           <div style="color:var(--text-muted);font-size:12px">Signed in. This device stays signed in — you won't be asked again at a field.</div>
+           <div style="color:var(--text-muted);font-size:12px">${
+             MY_ROLE === 'viewer' ? 'Read-only access.' : esc(MY_ROLE.charAt(0).toUpperCase() + MY_ROLE.slice(1)) + '.'
+           } This device stays signed in — you won't be asked again at a field.</div>
          </div>
          <button class="btn btn-secondary btn-sm" onclick="signOutNow()">Sign out</button>
        </div>`
@@ -11650,6 +11673,18 @@ function saveSession(s) {
   } catch {}
 }
 function signedIn() { return !!SESSION?.access_token; }
+// manager | coach | viewer. A viewer is someone being shown the app: the
+// database gives them read-only access, no contacts, no money and no
+// addresses, and the UI matches so they meet an honest screen rather than a
+// button that fails.
+let MY_ROLE = 'manager';
+function isStaff() { return MY_ROLE === 'manager' || MY_ROLE === 'coach'; }
+function isViewer() { return signedIn() && MY_ROLE === 'viewer'; }
+async function loadMyRole() {
+  if (!signedIn()) { MY_ROLE = 'manager'; return; }
+  const rows = await supa('team_members', 'GET', null, '?select=role,display_name');
+  if (Array.isArray(rows) && rows[0]?.role) MY_ROLE = rows[0].role;
+}
 function sessionUser() { return SESSION?.user || null; }
 
 function sessionFrom(j) {
@@ -11739,6 +11774,8 @@ async function trySignIn() {
   await startApp();
 }
 async function startApp() {
+  await loadMyRole();
+  applyRoleToChrome();
   loadCache();
   applyTeamSettings();
   renderDashboard();

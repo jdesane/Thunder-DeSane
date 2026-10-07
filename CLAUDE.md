@@ -243,9 +243,30 @@ payload at all, and a player's page asks for one player's answers.
 runs with `verify_jwt` on. There is no shared secret left anywhere in the
 client.
 
-Still open: `team_members` has a `role` column that nothing enforces yet — a
-`coach` can do everything a `manager` can. Split those when the second seat is
-sold.
+**Roles are enforced in the database**, not the client:
+
+| | reads | writes | contacts & money | addresses / DOB |
+|---|---|---|---|---|
+| `manager` | all | all | yes | yes |
+| `coach` | all | all | yes | yes |
+| `viewer` | games, roster, reviews, practices | **none** | no | no |
+
+`my_team_ids()` gates reads, `my_writable_team_ids()` (manager/coach only) gates
+writes, and `my_role(team)` answers which. Postgres RLS is row-level and cannot
+hide a column, so the app reads the roster through **`team_players_scoped`**, a
+view that blanks `address` and `dob` for a viewer with the owner's rights —
+not the client politely omitting fields. `handle_new_user()` makes the first
+account `manager` and **every later one `viewer`**: an account that appears
+from nowhere can look, not touch, and is promoted deliberately.
+
+`managerDevice()` is manager-only, so drafting and sending a review is not a
+coach's to do. `applyRoleToChrome()` hides Finances and Uniforms from a viewer
+and bands the top of the screen — the database is the boundary, that is so the
+app reads as deliberate rather than broken.
+
+A viewer is the account to hand someone who wants to see the app. Extra *coach*
+seats are the intended paid add-on; coach and manager are deliberately still
+the same rights until that split is designed.
 
 On backups: the project is on Supabase **Pro**, which already takes a daily
 backup and keeps 7 days. Point-in-time recovery is a paid add-on on top of
