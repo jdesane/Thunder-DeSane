@@ -1,2 +1,6 @@
 .DS_Store
 .claude/settings.local.json
+
+# Data exports from scripts/export_backup.py. These hold children's home
+# addresses, dates of birth and parents' phone numbers — never commit them.
+backups/
